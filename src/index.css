@@ -1,0 +1,103 @@
+@tailwind base;
+    @tailwind components;
+    @tailwind utilities;
+
+    @layer base {
+      :root {
+        --background: 222.2 84% 4.9%; 
+        --foreground: 210 40% 98%;
+        --card: 222.2 84% 4.9%;
+        --card-foreground: 210 40% 98%;
+        --popover: 222.2 84% 4.9%;
+        --popover-foreground: 210 40% 98%;
+        --primary: 210 40% 98%;
+        --primary-foreground: 222.2 47.4% 11.2%;
+        --secondary: 217.2 32.6% 17.5%;
+        --secondary-foreground: 210 40% 98%;
+        --muted: 217.2 32.6% 17.5%;
+        --muted-foreground: 215 20.2% 65.1%;
+        --accent: 217.2 32.6% 17.5%;
+        --accent-foreground: 210 40% 98%;
+        --destructive: 0 62.8% 30.6%;
+        --destructive-foreground: 210 40% 98%;
+        --border: 217.2 32.6% 17.5%;
+        --input: 217.2 32.6% 17.5%;
+        --ring: 212.7 26.8% 83.9%;
+        --radius: 0.5rem;
+      }
+    }
+    
+    @layer base {
+      * {
+        @apply border-border;
+      }
+      body {
+        @apply bg-background text-foreground;
+        font-feature-settings: "rlig" 1, "calt" 1;
+      }
+    }
+
+    .glass-effect {
+      @apply bg-card/60 backdrop-blur-xl border border-white/10 rounded-2xl shadow-lg;
+    }
+    
+    .glass-effect-light {
+      @apply bg-card/80 backdrop-blur-lg border border-white/5 rounded-lg shadow-md;
+    }
+
+    .bg-grid-pattern {
+      background-image:
+        linear-gradient(to right, hsl(var(--border)) 1px, transparent 1px),
+        linear-gradient(to bottom, hsl(var(--border)) 1px, transparent 1px);
+      background-size: 3rem 3rem;
+    }
+
+    .react-flow .react-flow__handle {
+      width: 10px;
+      height: 10px;
+    }
+    
+    .react-flow .react-flow__minimap {
+      background-color: var(--card-alpha, rgba(30, 41, 59, 0.8)) !important;
+      border: 1px solid var(--border-alpha, rgba(51, 65, 85, 0.5)) !important;
+      border-radius: 8px !important;
+      box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1) !important;
+    }
+
+    .react-flow .react-flow__minimap-mask {
+      fill: var(--primary-alpha, rgba(99, 102, 241, 0.25)) !important;
+    }
+
+    .react-flow .react-flow__minimap-node {
+      fill: var(--secondary, #334155) !important;
+      stroke: none !important;
+    }
+
+    @keyframes glow {
+      0%, 100% {
+        box-shadow: 0 0 5px hsl(var(--primary)), 0 0 10px hsl(var(--primary) / 0.8), inset 0 0 5px hsl(var(--primary) / 0.5);
+        border-color: hsl(var(--primary) / 0.8);
+      }
+      50% {
+        box-shadow: 0 0 20px hsl(var(--primary)), 0 0 30px hsl(var(--primary)), inset 0 0 10px hsl(var(--primary));
+        border-color: hsl(var(--primary));
+      }
+    }
+    
+    .drag-over-glow {
+        animation: glow 1.5s ease-in-out infinite;
+        @apply bg-primary/20 border-primary;
+    }
+
+    @keyframes pulse-text {
+      0%, 100% {
+        color: hsl(var(--foreground));
+      }
+      50% {
+        color: hsl(var(--primary));
+      }
+    }
+
+    .animate-pulse-text {
+      animation: pulse-text 1s ease-in-out 3;
+    }
