@@ -32,7 +32,7 @@ const FormationGalleryView = ({ formations, onStatusChange, onTypeChange, onDupl
 
   return (
     <motion.div
-      className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4"
+      className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-4"
       variants={containerVariants}
       initial="hidden"
       animate="visible"

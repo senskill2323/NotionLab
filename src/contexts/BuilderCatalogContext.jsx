@@ -21,6 +21,27 @@ export const BuilderCatalogProvider = ({ children }) => {
 
     const fetchData = useCallback(async () => {
         // Ne pas remettre loading à true ici pour éviter les flashs sur les re-fetchs de realtime
+        // 1) Récupérer les IDs de modules présents dans les formations standard 'live'
+        const { data: liveStandardCourses, error: coursesError } = await supabase
+            .from('courses')
+            .select('nodes')
+            .eq('course_type', 'standard')
+            .eq('status', 'live');
+
+        const allowedModuleIds = new Set();
+        if (!coursesError && Array.isArray(liveStandardCourses)) {
+            for (const course of liveStandardCourses) {
+                if (Array.isArray(course?.nodes)) {
+                    for (const node of course.nodes) {
+                        if (node?.type === 'moduleNode' && node?.data?.moduleId) {
+                            allowedModuleIds.add(node.data.moduleId);
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2) Charger le catalogue puis filtrer les modules sur la base des IDs autorisés
         const { data, error } = await supabase
             .from('builder_families')
             .select(`
@@ -40,7 +61,14 @@ export const BuilderCatalogProvider = ({ children }) => {
             toast({ title: "Erreur", description: `Impossible de charger le catalogue: ${error.message}`, variant: "destructive" });
             setCatalog([]);
         } else {
-            setCatalog(data || []);
+            const filtered = (data || []).map(f => ({
+                ...f,
+                subfamilies: (f.subfamilies || []).map(sf => ({
+                    ...sf,
+                    modules: (sf.modules || []).filter(m => allowedModuleIds.has(m.id))
+                }))
+            }));
+            setCatalog(filtered);
         }
         setLoading(false);
     }, [toast]);
@@ -52,6 +80,7 @@ export const BuilderCatalogProvider = ({ children }) => {
           .on('postgres_changes', { event: '*', schema: 'public', table: 'builder_families' }, fetchData)
           .on('postgres_changes', { event: '*', schema: 'public', table: 'builder_subfamilies' }, fetchData)
           .on('postgres_changes', { event: '*', schema: 'public', table: 'builder_modules' }, fetchData)
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'courses' }, fetchData)
           .subscribe();
     
         return () => {
