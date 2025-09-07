@@ -16,7 +16,6 @@ jobs:
       FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
       FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
       FTP_PORT: ${{ secrets.FTP_PORT }}
-      FTP_PATH: ${{ secrets.FTP_PATH }}
       VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
       VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
@@ -26,7 +25,7 @@ jobs:
 
       - name: Validate required secrets
         run: |
-          for v in FTP_SERVER FTP_USERNAME FTP_PASSWORD FTP_PORT FTP_PATH VITE_SUPABASE_URL VITE_SUPABASE_ANON_KEY; do
+          for v in FTP_SERVER FTP_USERNAME FTP_PASSWORD FTP_PORT VITE_SUPABASE_URL VITE_SUPABASE_ANON_KEY; do
             if [ -z "${!v}" ]; then echo "❌ Missing secret: $v"; exit 1; fi
           done
           echo "✅ All required secrets are present."
@@ -57,8 +56,8 @@ jobs:
           password: ${{ env.FTP_PASSWORD }}
           port: ${{ env.FTP_PORT }}
           protocol: ftps
-          server-dir: ${{ env.FTP_PATH }}
-          local-dir: dist/
+          server-dir: public_html/   # ✅ cible directement ton site
+          local-dir: dist            # ✅ envoie seulement le contenu du build
           dangerous-clean-slate: true
           exclude: |
             **/.git*
