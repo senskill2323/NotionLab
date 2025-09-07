@@ -1,3 +1,4 @@
+// Ceci est un petit commentaire 
 import React from 'react';
     import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
     import { Toaster } from '@/components/ui/toaster';

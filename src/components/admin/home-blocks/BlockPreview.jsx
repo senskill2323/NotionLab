@@ -23,6 +23,17 @@ const BlockPreview = ({ block, isOpen, onOpenChange }) => {
       return <div>Type de bloc non reconnu ou layout manquant.</div>;
     }
 
+    // Render raw HTML blocks regardless of layout support
+    if (block.block_type === 'html') {
+      return (
+        <Card>
+          <CardContent className="pt-6">
+            <div dangerouslySetInnerHTML={{ __html: block.content || '' }} />
+          </CardContent>
+        </Card>
+      );
+    }
+
     const props = { content: block.content };
 
     switch (block.layout) {
@@ -64,7 +75,7 @@ const BlockPreview = ({ block, isOpen, onOpenChange }) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-none w-auto sm:max-w-4xl p-0 border-0">
+      <DialogContent className="min-w-[800px] max-w-[90vw] p-0 border-0">
         <DialogHeader className="p-6 pb-0">
           <DialogTitle>Prévisualisation du bloc : {block.title}</DialogTitle>
           <DialogDescription>

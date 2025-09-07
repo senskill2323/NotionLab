@@ -11,19 +11,36 @@ const AdminLiveChatPage = () => {
   const [conversations, setConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [view, setView] = useState('active'); // 'active' | 'archived'
   const { toast } = useToast();
 
   const fetchConversations = useCallback(async () => {
-    const { data, error } = await supabase.rpc('get_chat_conversations_with_details');
-    if (error) {
-      toast({ title: "Erreur", description: "Impossible de charger les conversations.", variant: "destructive" });
-    } else {
-      // Sort by last updated
-      const sortedData = data.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
-      setConversations(sortedData);
+    setLoading(true);
+    try {
+      if (view === 'archived') {
+        // Fetch archived conversations directly if RPC doesn't include them
+        const { data, error } = await supabase
+          .from('chat_conversations')
+          .select('id, guest_email, updated_at, status, admin_archived')
+          .eq('admin_archived', true)
+          .order('updated_at', { ascending: false });
+        if (error) throw error;
+        setConversations(Array.isArray(data) ? data : []);
+      } else {
+        // Default to existing RPC for active conversations with details/summary
+        const { data, error } = await supabase.rpc('get_chat_conversations_with_details');
+        if (error) throw error;
+        const sortedData = (Array.isArray(data) ? data : []).sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+        setConversations(sortedData);
+      }
+    } catch (err) {
+      console.error('fetchConversations failed:', err);
+      toast({ title: 'Erreur', description: "Impossible de charger les conversations.", variant: 'destructive' });
+      setConversations([]);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  }, [toast]);
+  }, [toast, view]);
 
   useEffect(() => {
     fetchConversations();
@@ -42,7 +59,7 @@ const AdminLiveChatPage = () => {
             if (convo.id === payload.new.conversation_id) {
               return {
                 ...convo,
-                summary: payload.new.content.substring(0, 45),
+                summary: payload.new.content?.substring(0, 45),
                 updated_at: payload.new.created_at
               };
             }
@@ -62,7 +79,12 @@ const AdminLiveChatPage = () => {
   const handleSelectConversation = (conversation) => {
     setSelectedConversation(conversation);
   };
-  
+
+  const handleViewChange = (newView) => {
+    setView(newView);
+    setSelectedConversation(null); // reset selection when switching
+  };
+
   return (
     <>
       <Helmet>
@@ -82,6 +104,8 @@ const AdminLiveChatPage = () => {
                 conversations={conversations}
                 selectedConversation={selectedConversation}
                 onSelectConversation={handleSelectConversation}
+                view={view}
+                onViewChange={handleViewChange}
               />
             )}
           </aside>
@@ -91,8 +115,12 @@ const AdminLiveChatPage = () => {
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground bg-background">
                 <Inbox className="w-20 h-20 mb-4 text-primary/30" />
-                <h2 className="text-2xl font-semibold">Bienvenue dans le Live Chat</h2>
-                <p>Sélectionnez une conversation dans la liste pour commencer.</p>
+                <h2 className="text-2xl font-semibold">
+                  {view === 'archived' ? 'Conversations archivées' : 'Bienvenue dans le Live Chat'}
+                </h2>
+                <p>
+                  {view === 'archived' ? 'Sélectionnez une conversation archivée pour la consulter.' : 'Sélectionnez une conversation dans la liste pour commencer.'}
+                </p>
               </div>
             )}
           </main>

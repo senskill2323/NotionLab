@@ -32,7 +32,7 @@ const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
       status: 'draft',
       type: 'hero',
       block_type: 'html',
-      layout: 'home.header',
+      layout: 'home.main_hero',
       order_index: 0,
       priority: 0,
       author_id: user?.id,
@@ -91,22 +91,39 @@ const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
     };
 
     try {
-      const { data, error } = await supabase.functions.invoke('manage-content-block', {
-        body: { blockId: isNew ? null : blockId, blockData },
-      });
+      // Pour les nouveaux blocs HTML (non dynamiques), on bypass l'Edge Function
+      // et on utilise la RPC transactionnelle dédiée afin d'éviter l'erreur non-2xx.
+      if (isNew && blockData.block_type === 'html') {
+        const { data: newId, error: rpcError } = await supabase.rpc('home_blocks_create_html', {
+          p_title: blockData.title,
+          p_content: blockData.content || '',
+          p_layout: blockData.layout,
+          p_type: blockData.type,
+          p_status: status || formData.status,
+          p_priority: blockData.priority ?? 0,
+        });
+        if (rpcError) throw rpcError;
 
-      if (error) throw error;
-      if (data.error) throw new Error(data.error);
+        toast({ title: 'Succès', description: `Bloc sauvegardé en tant que ${status || formData.status}.` });
+        onSave({ id: newId });
+      } else {
+        const { data, error } = await supabase.functions.invoke('manage-content-block', {
+          body: { blockId: isNew ? null : blockId, blockData },
+        });
 
-      toast({ title: 'Succès', description: `Bloc sauvegardé en tant que ${status || formData.status}.` });
-      onSave(data);
+        if (error) throw error;
+        if (data.error) throw new Error(data.error);
 
-    } catch (error) {
-      toast({ title: 'Erreur', description: `Échec de la sauvegarde: ${error.message}`, variant: 'destructive' });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+        toast({ title: 'Succès', description: `Bloc sauvegardé en tant que ${status || formData.status}.` });
+        onSave(data);
+      }
+ 
+     } catch (error) {
+       toast({ title: 'Erreur', description: `Échec de la sauvegarde: ${error.message}`, variant: 'destructive' });
+     } finally {
+       setIsSubmitting(false);
+     }
+   };
 
 
   const handleAction = (action) => {
@@ -245,10 +262,17 @@ const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
                           <Select onValueChange={field.onChange} value={field.value}>
                             <SelectTrigger><SelectValue /></SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="home.header">home.header</SelectItem>
-                              <SelectItem value="home.grid.a1">home.grid.a1</SelectItem>
-                              <SelectItem value="home.grid.b2">home.grid.b2</SelectItem>
-                              <SelectItem value="home.footer">home.footer</SelectItem>
+                              <SelectItem value="home.main_hero">home.main_hero</SelectItem>
+                              <SelectItem value="home.systems_showcase">home.systems_showcase</SelectItem>
+                              <SelectItem value="home.stats">home.stats</SelectItem>
+                              <SelectItem value="home.formations">home.formations</SelectItem>
+                              <SelectItem value="home.support">home.support</SelectItem>
+                              <SelectItem value="home.promise">home.promise</SelectItem>
+                              <SelectItem value="home.cozy_space">home.cozy_space</SelectItem>
+                              <SelectItem value="home.personal_quote">home.personal_quote</SelectItem>
+                              <SelectItem value="home.final_cta">home.final_cta</SelectItem>
+                              <SelectItem value="home.launch_cta">home.launch_cta</SelectItem>
+                              <SelectItem value="global.footer">global.footer</SelectItem>
                             </SelectContent>
                           </Select>
                         )} />

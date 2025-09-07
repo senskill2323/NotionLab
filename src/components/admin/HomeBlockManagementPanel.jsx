@@ -23,12 +23,16 @@ const HomeBlockManagementPanel = () => {
           <TabsTrigger value="samples">Bibliothèque de modèles</TabsTrigger>
           <TabsTrigger value="categories" disabled>Gestion des catégories</TabsTrigger>
           <TabsTrigger value="config" disabled>Configuration</TabsTrigger>
+          <TabsTrigger value="archives">Archives</TabsTrigger>
         </TabsList>
         <TabsContent value="list" className="mt-4">
           <HomeBlockList />
         </TabsContent>
         <TabsContent value="samples" className="mt-4">
           <BlockSamplesPanel />
+        </TabsContent>
+        <TabsContent value="archives" className="mt-4">
+          <HomeBlockList mode="archives" />
         </TabsContent>
       </Tabs>
     </div>
