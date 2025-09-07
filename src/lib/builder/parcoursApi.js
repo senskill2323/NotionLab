@@ -1,6 +1,27 @@
 import { supabase } from '@/lib/customSupabaseClient';
 
 export const fetchModuleCatalog = async () => {
+  // 1) Get module IDs used in standard 'live' courses
+  const { data: liveStandardCourses, error: coursesError } = await supabase
+    .from('courses')
+    .select('nodes')
+    .eq('course_type', 'standard')
+    .eq('status', 'live');
+
+  const allowedModuleIds = new Set();
+  if (!coursesError && Array.isArray(liveStandardCourses)) {
+    for (const course of liveStandardCourses) {
+      if (Array.isArray(course?.nodes)) {
+        for (const node of course.nodes) {
+          if (node?.type === 'moduleNode' && node?.data?.moduleId) {
+            allowedModuleIds.add(node.data.moduleId);
+          }
+        }
+      }
+    }
+  }
+
+  // 2) Fetch full catalog and filter modules client-side
   const { data, error } = await supabase
     .from('builder_families')
     .select(`*, subfamilies:builder_subfamilies (*, modules:builder_modules (*))`)
@@ -8,7 +29,16 @@ export const fetchModuleCatalog = async () => {
     .order('display_order', { foreignTable: 'subfamilies', ascending: true })
     .order('display_order', { foreignTable: 'subfamilies.modules', ascending: true });
   if (error) throw error;
-  return data;
+
+  const filtered = (data || []).map(f => ({
+    ...f,
+    subfamilies: (f.subfamilies || []).map(sf => ({
+      ...sf,
+      modules: (sf.modules || []).filter(m => allowedModuleIds.has(m.id))
+    }))
+  }));
+
+  return filtered;
 };
 
 export const fetchUserParcoursList = async (userId) => {
