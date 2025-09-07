@@ -57,7 +57,7 @@ jobs:
           port: ${{ env.FTP_PORT }}
           protocol: ftps
           server-dir: public_html/   # ✅ cible directement ton site
-          local-dir: dist            # ✅ envoie seulement le contenu du build
+          local-dir: dist/           # ✅ envoie seulement le contenu du build
           dangerous-clean-slate: true
           exclude: |
             **/.git*
