@@ -37,13 +37,16 @@ import React, { useState, useEffect, useMemo } from 'react';
           if (!user) return;
           setLoading(true);
           try {
-            const { data, error } = await supabase.rpc('get_user_kanban_modules', {
-              p_user_id: user.id,
-            });
+            // Read from unified view; RLS on underlying table restricts to owner
+            const { data, error } = await supabase
+              .from('kanban_user_modules_v1')
+              .select('*')
+              .eq('user_id', user.id)
+              .order('position', { ascending: true });
 
             if (error) throw error;
-            
-            const formattedData = data.map(item => ({...item, module_id: item.module_uuid }));
+
+            const formattedData = (data || []).map(item => ({ ...item, module_id: item.module_uuid }));
             setCards(formattedData || []);
 
           } catch (error) {
