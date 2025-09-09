@@ -146,9 +146,9 @@ import React, { useState, useEffect, useCallback } from 'react';
                     onClick={() => !editMode && navigate(`/ticket/${ticket.id}`)}
                   >
                     <TableCell className="font-mono text-xs text-muted-foreground">{ticket.reference_number}</TableCell>
-                    <TableCell className="font-medium">{ticket.title}</TableCell>
+                    <TableCell className="font-normal">{ticket.title}</TableCell>
                     <TableCell>
-                      <Select defaultValue={ticket.status} onValueChange={(newStatus) => handleFieldChange(ticket.id, 'status', newStatus)} disabled={editMode || !canChangeStatus} onClick={(e) => e.stopPropagation()}>
+                      <Select defaultValue={ticket.status} onValueChange={(newStatus) => handleFieldChange(ticket.id, 'status', newStatus)} disabled={editMode} onClick={(e) => e.stopPropagation()}>
                         <SelectTrigger hideArrow={true} className="h-auto w-auto p-0 border-none focus:ring-0 focus:ring-offset-0 data-[state=open]:bg-transparent data-[state=open]:text-current bg-transparent">
                           <SelectValue asChild><Badge variant="outline" className={`cursor-pointer text-xs px-2 py-1 border-none ${getStatusBadgeConfig(ticket.status)}`}>{ticket.status}</Badge></SelectValue>
                         </SelectTrigger>
@@ -156,7 +156,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                       </Select>
                     </TableCell>
                     <TableCell>
-                      <Select defaultValue={ticket.priority} onValueChange={(newPriority) => handleFieldChange(ticket.id, 'priority', newPriority)} disabled={editMode || !canChangePriority} onClick={(e) => e.stopPropagation()}>
+                      <Select defaultValue={ticket.priority} onValueChange={(newPriority) => handleFieldChange(ticket.id, 'priority', newPriority)} disabled={editMode} onClick={(e) => e.stopPropagation()}>
                         <SelectTrigger hideArrow={true} className="h-auto w-auto p-0 border-none focus:ring-0 focus:ring-offset-0 data-[state=open]:bg-transparent data-[state=open]:text-current bg-transparent">
                           <SelectValue asChild><Badge variant="outline" className={`cursor-pointer text-xs px-2 py-1 border-none ${getPriorityBadgeConfig(ticket.priority)}`}>{ticket.priority}</Badge></SelectValue>
                         </SelectTrigger>
@@ -194,9 +194,9 @@ import React, { useState, useEffect, useCallback } from 'react';
         
         return (
           <Tabs defaultValue="inProgress" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="inProgress">En cours</TabsTrigger>
-              <TabsTrigger value="archived">Archivés</TabsTrigger>
+            <TabsList className="inline-flex h-8 items-center justify-start rounded-md bg-muted p-1 text-muted-foreground w-auto">
+              <TabsTrigger value="inProgress" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">En cours</TabsTrigger>
+              <TabsTrigger value="archived" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Archivés</TabsTrigger>
             </TabsList>
             <TabsContent value="inProgress">
               {renderTicketTable(editMode ? [demoInProgressTicket] : inProgressTickets)}

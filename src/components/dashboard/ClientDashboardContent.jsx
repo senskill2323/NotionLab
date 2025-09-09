@@ -26,12 +26,29 @@ const componentMap = {
 const normalizeRow = (row) => {
   if (!row || !row.columns || row.columns.length === 0) return row;
   const count = row.columns.length;
-  const spans = { 1: [12], 2: [6, 6], 3: [4, 4, 4] };
-  const currentSpans = spans[count] || spans[3];
+  
+  // Adjust proportions: PersonalData gets less space, Formations gets more
+  const getSpansForModules = (columns) => {
+    const hasPersonalData = columns.some(col => col.moduleKey === 'client_personal_data');
+    const hasFormations = columns.some(col => col.moduleKey === 'client_formations');
+    
+    if (hasPersonalData && hasFormations && count === 2) {
+      // PersonalData: 4 cols, Formations: 8 cols
+      return columns.map(col => 
+        col.moduleKey === 'client_personal_data' ? 4 : 8
+      );
+    }
+    
+    // Default spans for other cases
+    const spans = { 1: [12], 2: [6, 6], 3: [4, 4, 4] };
+    return spans[count] || spans[3];
+  };
+  
+  const currentSpans = getSpansForModules(row.columns);
   
   const newRow = JSON.parse(JSON.stringify(row));
   newRow.columns.forEach((col, index) => {
-    col.span = currentSpans[index];
+    col.span = Array.isArray(currentSpans) ? currentSpans[index] : currentSpans;
   });
   return newRow;
 };

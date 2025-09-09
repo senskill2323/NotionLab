@@ -56,8 +56,8 @@ jobs:
           password: ${{ env.FTP_PASSWORD }}
           port: ${{ env.FTP_PORT }}
           protocol: ftps
-          server-dir: public_html/   # ✅ cible directement ton site
-          local-dir: dist            # ✅ envoie seulement le contenu du build
+          server-dir: ./           # ✅ racine FTP = public_html sur Hostinger
+          local-dir: dist/         # ✅ contenu du build
           dangerous-clean-slate: true
           exclude: |
             **/.git*

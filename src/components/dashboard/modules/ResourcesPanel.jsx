@@ -38,11 +38,11 @@ const StarRating = ({ rating, onRate, resourceId, editMode }) => {
   };
 
   return (
-    <div className="flex items-center">
+    <div className="flex items-center ml-2">
       {[1, 2, 3, 4, 5].map((star) => (
         <Star
           key={star}
-          className={`cursor-pointer h-4 w-4 ${rating >= star ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`}
+          className={`cursor-pointer h-3 w-3 ${rating >= star ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`}
           onClick={() => handleRating(star)}
         />
       ))}
@@ -228,12 +228,14 @@ const ResourcesPanel = ({ editMode = false }) => {
           {loading ? <div className="flex justify-center items-center h-20"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div> : (
             <div className="space-y-2">
               {displayResources.length > 0 ? displayResources.map((resource) => (
-                <div key={resource.source_id} className="bg-secondary/50 rounded-md p-3 flex items-center justify-between gap-2">
+                <div key={resource.source_id} className="bg-secondary/50 rounded-md p-2 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     {getFileIcon(resource.format)}
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-medium text-sm truncate">{resource.name}</h4>
-                      <StarRating rating={resource.rating} onRate={handleRate} resourceId={resource.resource_id} editMode={editMode} />
+                      <div className="flex items-center">
+                        <h4 className="font-medium text-sm truncate">{resource.name}</h4>
+                        <StarRating rating={resource.rating} onRate={handleRate} resourceId={resource.resource_id} editMode={editMode} />
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
