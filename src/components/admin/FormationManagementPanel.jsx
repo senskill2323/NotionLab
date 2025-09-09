@@ -23,31 +23,9 @@ const FormationManagementPanel = () => {
 
   const fetchFormations = useCallback(async () => {
     setLoading(true);
-    let query = supabase
-      .from('courses')
-      .select(`
-        id,
-        title,
-        status,
-        course_type,
-        created_at,
-        cover_image_url,
-        nodes,
-        edges,
-        author_id,
-        author:profiles (id, first_name, last_name)
-      `)
-      .order('created_at', { ascending: false });
-
-    if (statusFilter !== 'all') {
-      query = query.eq('status', statusFilter);
-    }
-
-    if (searchTerm) {
-      query = query.ilike('title', `%${searchTerm}%`);
-    }
-
-    const { data, error } = await query;
+    
+    // Utiliser la nouvelle fonction RPC qui inclut les inscriptions clients
+    const { data, error } = await supabase.rpc('get_admin_formations_and_submissions');
 
     if (error) {
       toast({
@@ -55,9 +33,47 @@ const FormationManagementPanel = () => {
         description: 'Impossible de charger les formations.',
         variant: 'destructive',
       });
-    } else {
-      setFormations(data);
+      setLoading(false);
+      return;
     }
+
+    let filteredData = data || [];
+
+    // Appliquer les filtres côté client
+    if (statusFilter !== 'all') {
+      filteredData = filteredData.filter(f => f.status === statusFilter);
+    }
+
+    if (searchTerm) {
+      filteredData = filteredData.filter(f => 
+        f.title.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Transformer les données pour correspondre au format attendu
+    const formattedData = filteredData.map(item => ({
+      id: item.id,
+      title: item.title,
+      status: item.status,
+      course_type: item.course_type,
+      created_at: item.created_at,
+      cover_image_url: item.cover_image_url,
+      nodes: item.nodes,
+      edges: item.edges,
+      author_id: item.author_id,
+      author: {
+        id: item.author_id,
+        first_name: item.author_first_name,
+        last_name: item.author_last_name
+      },
+      // Nouvelles propriétés pour les inscriptions clients
+      is_user_submission: item.is_user_submission,
+      user_id: item.user_id,
+      user_email: item.user_email,
+      enrolled_at: item.enrolled_at
+    }));
+
+    setFormations(formattedData);
     setLoading(false);
   }, [toast, statusFilter, searchTerm]);
 

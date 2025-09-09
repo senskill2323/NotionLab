@@ -5,7 +5,8 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Loader2, PlusCircle } from 'lucide-react';
+import { Loader2, PlusCircle, X } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Link } from 'react-router-dom';
 import { useToast } from '@/components/ui/use-toast';
 import UserFormationStatusSelect from './UserFormationStatusSelect';
@@ -47,12 +48,40 @@ const FormationsPanel = () => {
     );
   };
 
-  const badgeVariant = (type) => {
-    switch(type) {
-        case 'standard': return 'default';
-        case 'custom': return 'secondary';
-        default: return 'outline';
+  const handleStopFormation = async (formationId) => {
+    try {
+      const { error } = await supabase
+        .from('user_courses')
+        .update({ status: 'arrete' })
+        .eq('course_id', formationId)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      setFormations(prev =>
+        prev.map(f => (f.id === formationId ? { ...f, status: 'arrete' } : f))
+      );
+
+      toast({
+        title: 'Formation arrêtée',
+        description: 'La formation a été arrêtée avec succès.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Erreur',
+        description: 'Impossible d\'arrêter la formation.',
+        variant: 'destructive',
+      });
     }
+  };
+
+  const formatGoLiveDate = (formation) => {
+    // For now, use enrolled_at as placeholder for go-live date
+    // TODO: Replace with actual admin go-live date from courses table
+    if (formation.status === 'demarre' && formation.enrolled_at) {
+      return new Date(formation.enrolled_at).toLocaleDateString('fr-FR');
+    }
+    return 'N/A';
   };
 
   return (
@@ -62,12 +91,19 @@ const FormationsPanel = () => {
           <CardTitle>Mes Formations</CardTitle>
           <CardDescription>Consultez et gérez vos formations et parcours personnalisés.</CardDescription>
         </div>
-        <Link to="/formation-builder">
-          <Button>
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Créer un parcours
-          </Button>
-        </Link>
+        <div className="flex gap-2">
+          <Link to="/formation-builder">
+            <Button>
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Créer un parcours personnalisé
+            </Button>
+          </Link>
+          <Link to="/formations">
+            <Button variant="outline">
+              Choisir une formation
+            </Button>
+          </Link>
+        </div>
       </CardHeader>
       <CardContent>
         {loading ? (
@@ -79,48 +115,52 @@ const FormationsPanel = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Titre</TableHead>
-                <TableHead>Type</TableHead>
                 <TableHead>Statut</TableHead>
-                <TableHead>Inscrit le</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>Démarré le</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {formations.length > 0 ? (
                 formations.map((formation) => (
                   <TableRow key={formation.id}>
-                    <TableCell className="font-medium">{formation.title}</TableCell>
-                    <TableCell>
-                      <Badge variant={badgeVariant(formation.course_type)}>
-                        {formation.course_type === 'standard' ? 'Standard' : 'Personnalisé'}
-                      </Badge>
-                    </TableCell>
+                    <TableCell className="font-normal">{formation.title}</TableCell>
                     <TableCell>
                       <UserFormationStatusSelect formation={formation} onStatusChange={handleStatusChange} />
                     </TableCell>
                     <TableCell>
-                      {formation.enrolled_at ? new Date(formation.enrolled_at).toLocaleDateString() : 'N/A'}
+                      {formatGoLiveDate(formation)}
                     </TableCell>
-                    <TableCell className="text-right">
-                      {formation.course_type === 'custom' ? (
-                        <Link to={formation.status === 'demarre' ? `/parcours/${formation.id}` : `/formation-builder/${formation.id}`}>
-                          <Button variant="outline" size="sm">
-                            {formation.status === 'demarre' ? 'Commencer' : 'Modifier'}
-                          </Button>
-                        </Link>
-                      ) : (
-                        <Link to={`/formation/${formation.id}`}>
-                          <Button variant="outline" size="sm">
-                            Voir
-                          </Button>
-                        </Link>
+                    <TableCell>
+                      {formation.status === 'demarre' && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive hover:text-destructive">
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Arrêter la formation</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Attention, vous allez arrêter cette formation. Cette action peut être annulée en changeant le statut plus tard.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Annuler</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleStopFormation(formation.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                Arrêter
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       )}
                     </TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan="5" className="h-24 text-center">
+                  <TableCell colSpan="4" className="h-24 text-center">
                     Vous n'êtes inscrit à aucune formation pour le moment.
                   </TableCell>
                 </TableRow>

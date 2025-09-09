@@ -38,7 +38,9 @@ const PersonalDataForm = ({ editMode = false }) => {
   const onSubmit = async (data) => {
     if (editMode) return;
     setLoading(true);
-    const { error } = await supabase
+    
+    // Update profile data
+    const { error: profileError } = await supabase
       .from('profiles')
       .update({
         first_name: data.first_name,
@@ -50,17 +52,24 @@ const PersonalDataForm = ({ editMode = false }) => {
       })
       .eq('id', user.id);
 
+    // Update email if changed
+    let emailError = null;
+    if (data.email !== user.email) {
+      const { error } = await supabase.auth.updateUser({ email: data.email });
+      emailError = error;
+    }
+
     setLoading(false);
-    if (error) {
+    if (profileError || emailError) {
       toast({
         title: 'Erreur',
-        description: 'La mise à jour de votre profil a échoué.',
+        description: profileError?.message || emailError?.message || 'La mise à jour de votre profil a échoué.',
         variant: 'destructive',
       });
     } else {
       toast({
         title: 'Succès',
-        description: 'Votre profil a été mis à jour.',
+        description: data.email !== user.email ? 'Votre profil a été mis à jour. Vérifiez votre nouvelle adresse email pour confirmer le changement.' : 'Votre profil a été mis à jour.',
       });
     }
   };
@@ -88,37 +97,37 @@ const PersonalDataForm = ({ editMode = false }) => {
 
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="first_name">Prénom</Label>
-          <Input id="first_name" {...register('first_name')} disabled={editMode} />
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <Label htmlFor="first_name" className="text-xs font-medium">Prénom ou pseudo</Label>
+          <Input id="first_name" {...register('first_name')} disabled={editMode} className="h-8" />
         </div>
-        <div>
-          <Label htmlFor="last_name">Nom</Label>
-          <Input id="last_name" {...register('last_name')} disabled={editMode} />
-        </div>
-      </div>
-      <div>
-        <Label htmlFor="email">Email</Label>
-        <Input id="email" type="email" {...register('email')} disabled />
-      </div>
-      <div>
-        <Label htmlFor="phone_number">Téléphone</Label>
-        <Input id="phone_number" {...register('phone_number')} disabled={editMode} />
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="postal_code">Code Postal</Label>
-          <Input id="postal_code" {...register('postal_code')} disabled={editMode} />
-        </div>
-        <div>
-          <Label htmlFor="city">Ville</Label>
-          <Input id="city" {...register('city')} disabled={editMode} />
+        <div className="space-y-1" style={{display: 'none'}}>
+          <Label htmlFor="last_name" className="text-xs font-medium">Nom</Label>
+          <Input id="last_name" {...register('last_name')} disabled={editMode} className="h-8" />
         </div>
       </div>
-       <div>
-        <Label htmlFor="country_code">Pays</Label>
+      <div className="space-y-1">
+        <Label htmlFor="email" className="text-xs font-medium">Email</Label>
+        <Input id="email" type="email" {...register('email')} disabled={editMode} className="h-8" />
+      </div>
+      <div className="space-y-1">
+        <Label htmlFor="phone_number" className="text-xs font-medium">Téléphone</Label>
+        <Input id="phone_number" {...register('phone_number')} disabled={editMode} className="h-8" />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <Label htmlFor="postal_code" className="text-xs font-medium">Code Postal</Label>
+          <Input id="postal_code" {...register('postal_code')} disabled={editMode} className="h-8" />
+        </div>
+        <div className="space-y-1">
+          <Label htmlFor="city" className="text-xs font-medium">Ville</Label>
+          <Input id="city" {...register('city')} disabled={editMode} className="h-8" />
+        </div>
+      </div>
+       <div className="space-y-1">
+        <Label htmlFor="country_code" className="text-xs font-medium">Pays</Label>
          <Controller
             name="country_code"
             control={control}
@@ -129,7 +138,7 @@ const PersonalDataForm = ({ editMode = false }) => {
                     variant="outline"
                     role="combobox"
                     aria-expanded={countryPopoverOpen}
-                    className="w-full justify-between"
+                    className="w-full justify-between h-8"
                     disabled={editMode}
                   >
                     {field.value
@@ -171,13 +180,13 @@ const PersonalDataForm = ({ editMode = false }) => {
           />
       </div>
       {!editMode && (
-        <div className="flex flex-wrap gap-2 pt-2">
-          <Button type="submit" disabled={loading || !isDirty}>
-            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+        <div className="flex flex-wrap gap-2 pt-1">
+          <Button type="submit" disabled={loading || !isDirty} size="sm">
+            {loading ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : null}
             Enregistrer
           </Button>
-          <Button type="button" variant="outline" onClick={handlePasswordReset} disabled={passwordLoading}>
-            {passwordLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <KeyRound className="mr-2 h-4 w-4" />}
+          <Button type="button" variant="outline" onClick={handlePasswordReset} disabled={passwordLoading} size="sm">
+            {passwordLoading ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <KeyRound className="mr-2 h-3 w-3" />}
             Changer mon mot de passe
           </Button>
         </div>

@@ -19,6 +19,7 @@ const UserFormationSubmissionsPanel = () => {
     users,
     handleStatusUpdate,
     handleRejection,
+    handleDelete,
   } = useSubmissions();
 
   const [viewMode, setViewMode] = useState('gallery'); // 'gallery' or 'kanban'
@@ -115,6 +116,7 @@ const UserFormationSubmissionsPanel = () => {
                     onStatusChange={handleStatusUpdate}
                     onReject={handleRejectClick}
                     onView={handleViewDetails}
+                    onDelete={handleDelete}
                   />
                 ))
               ) : (
