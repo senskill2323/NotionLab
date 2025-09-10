@@ -34,6 +34,7 @@ import React from 'react';
     import DemoDashboardPage from '@/pages/DemoDashboardPage';
     import TicketsPage from '@/pages/TicketsPage';
     import FormationBuilderPage from '@/pages/FormationBuilderPage';
+    import ClientAccountPage from '@/pages/ClientAccountPage';
     import ParcoursDetailPage from '@/pages/ParcoursDetailPage';
     import ForumPage from '@/pages/ForumPage';
     import ForumTopicPage from '@/pages/ForumTopicPage';
@@ -99,6 +100,7 @@ import React from 'react';
         <Route path="/inscription" element={<PublicOnlyRoute><RegisterPage /></PublicOnlyRoute>} />
         
         <Route path="/dashboard" element={<ClientOnlyRoute><DashboardPage /></ClientOnlyRoute>} />
+        <Route path="/compte-client" element={<ClientOnlyRoute><ClientAccountPage /></ClientOnlyRoute>} />
         <Route path="/chat" element={<ProtectedRoute requiredPermission="chat:view"><ChatPage /></ProtectedRoute>} />
         <Route path="/nouveau-ticket" element={<ProtectedRoute requiredPermission="tickets:create"><CreateTicketPage /></ProtectedRoute>} />
         <Route path="/ticket/:id" element={<ProtectedRoute requiredPermission="tickets:view_own"><TicketDetailPage /></ProtectedRoute>} />

@@ -10,36 +10,49 @@ import { v4 as uuidv4 } from 'uuid';
 import FormationsPanel from '@/components/dashboard/modules/FormationsPanel';
 import TicketsPanel from '@/components/dashboard/modules/TicketsPanel';
 import ResourcesPanel from '@/components/dashboard/modules/ResourcesPanel';
-import PersonalDataPanel from '@/components/dashboard/modules/PersonalDataPanel';
 import BuilderPanel from '@/components/dashboard/modules/BuilderPanel';
 import KanbanPanel from '@/components/kanban/KanbanPanel';
+import KPIPanel from '@/components/dashboard/modules/KPIPanel';
 
 const componentMap = {
   client_formations: FormationsPanel,
   client_tickets: TicketsPanel,
   client_resources: ResourcesPanel,
-  client_personal_data: PersonalDataPanel,
   client_builder: BuilderPanel,
   client_kanban_formations: KanbanPanel,
+  client_kpi: KPIPanel,
 };
 
 const normalizeRow = (row) => {
   if (!row || !row.columns || row.columns.length === 0) return row;
+  
+  // Special case: if row contains client_formations, add client_kpi next to it
+  const hasFormations = row.columns.some(col => col.moduleKey === 'client_formations');
+  if (hasFormations && !row.columns.some(col => col.moduleKey === 'client_kpi')) {
+    const newRow = JSON.parse(JSON.stringify(row));
+    // Add KPI panel to the same row
+    newRow.columns.push({
+      colId: uuidv4(),
+      moduleKey: 'client_kpi',
+      span: 5 // Will be set below
+    });
+    
+    // Set spans: formations gets 7, KPI gets 5
+    newRow.columns.forEach((col) => {
+      if (col.moduleKey === 'client_formations') {
+        col.span = 7;
+      } else if (col.moduleKey === 'client_kpi') {
+        col.span = 5;
+      }
+    });
+    
+    return newRow;
+  }
+  
   const count = row.columns.length;
   
-  // Adjust proportions: PersonalData gets less space, Formations gets more
+  // Default spans for all modules
   const getSpansForModules = (columns) => {
-    const hasPersonalData = columns.some(col => col.moduleKey === 'client_personal_data');
-    const hasFormations = columns.some(col => col.moduleKey === 'client_formations');
-    
-    if (hasPersonalData && hasFormations && count === 2) {
-      // PersonalData: 4 cols, Formations: 8 cols
-      return columns.map(col => 
-        col.moduleKey === 'client_personal_data' ? 4 : 8
-      );
-    }
-    
-    // Default spans for other cases
     const spans = { 1: [12], 2: [6, 6], 3: [4, 4, 4] };
     return spans[count] || spans[3];
   };
@@ -155,7 +168,7 @@ const ClientDashboardContent = () => {
   return (
     <div className="min-h-screen">
       <div className="pt-32 pb-16">
-        <div className="container mx-auto px-4">
+        <div className="w-full px-4">
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }} className="mb-8">
             <h1 className="text-2xl md:text-3xl font-bold mb-2">
               Bonjour <span className="gradient-text">{user.profile?.first_name || user.email.split('@')[0]}</span> !

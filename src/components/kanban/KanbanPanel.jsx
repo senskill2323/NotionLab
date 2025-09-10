@@ -15,7 +15,8 @@ import React, { useState, useEffect, useMemo } from 'react';
     import { useToast } from '@/components/ui/use-toast';
     import KanbanColumn from '@/components/kanban/KanbanColumn';
     import KanbanCard from '@/components/kanban/KanbanCard';
-    import { Loader2 } from 'lucide-react';
+    import { Loader2, Workflow, TrendingUp, Zap } from 'lucide-react';
+import ModuleHeader from '@/components/dashboard/ModuleHeader';
 
 const defaultCols = [
   { id: 'todo', title: 'À faire' },
@@ -234,30 +235,61 @@ const KanbanPanel = () => {
   }
 
   return (
-    <div className="p-4 bg-gradient-to-br from-blue-900/10 to-gray-50 dark:from-blue-900/20 dark:to-gray-900 rounded-lg">
-      <DndContext
-        sensors={sensors}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-        onDragOver={handleDragOver}
-      >
-        <div className="flex flex-col md:flex-row gap-4">
-          {columns.map((col) => (
-            <KanbanColumn
-              key={col.id}
-              id={col.id}
-              title={col.title}
-              cards={cardsByColumn[col.id] || []}
-            />
-          ))}
+    <div className="space-y-4">
+      <div className="relative overflow-hidden rounded-xl border-2 border-gradient-to-r from-violet-500/20 via-blue-500/20 to-emerald-500/20 bg-gradient-to-br from-violet-50 via-blue-50 to-emerald-50 dark:from-violet-900/20 dark:via-blue-900/20 dark:to-emerald-900/20 p-4 shadow-xl">
+        <div className="absolute inset-0 bg-gradient-to-r from-violet-500/10 via-blue-500/10 to-emerald-500/10 opacity-50"></div>
+        <div className="relative flex items-center gap-4">
+          <div className="relative">
+            <div className="absolute inset-0 rounded-full bg-gradient-to-r from-violet-500 via-blue-500 to-emerald-500 opacity-20 blur-lg"></div>
+            <div className="relative flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-r from-violet-500 via-blue-500 to-emerald-500 shadow-lg">
+              <Workflow className="h-6 w-6 text-white" />
+            </div>
+          </div>
+          <div className="flex-1">
+            <h2 className="text-xl font-bold bg-gradient-to-r from-violet-600 via-blue-600 to-emerald-600 bg-clip-text text-transparent">
+              Kanban - Suivre mon évolution
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Organisez et suivez vos modules de formation par statut
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <TrendingUp className="h-3 w-3" />
+              <span>Progression</span>
+            </div>
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Zap className="h-3 w-3" />
+              <span>Efficace</span>
+            </div>
+          </div>
         </div>
-        {createPortal(
-          <DragOverlay>
-            {activeCard && <KanbanCard card={activeCard} isOverlay />}
-          </DragOverlay>,
-          document.body
-        )}
-      </DndContext>
+      </div>
+      <div className="p-4 bg-gradient-to-br from-blue-900/10 to-gray-50 dark:from-blue-900/20 dark:to-gray-900 rounded-lg">
+        <DndContext
+          sensors={sensors}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragOver={handleDragOver}
+        >
+          <div className="flex flex-col md:flex-row gap-4">
+            {columns.map((col) => (
+              <KanbanColumn
+                key={col.id}
+                id={col.id}
+                title={col.title}
+                cards={cardsByColumn[col.id] || []}
+              />
+            ))}
+          </div>
+          {createPortal(
+            <DragOverlay>
+              {activeCard && <KanbanCard card={activeCard} isOverlay />}
+            </DragOverlay>,
+            document.body
+          )}
+        </DndContext>
+      </div>
     </div>
   );
 };
