@@ -146,6 +146,15 @@ export const AuthProvider = ({ children }) => {
     navigate('/connexion', { replace: true });
   };
 
+  const refreshUser = useCallback(async () => {
+    const { data: { user: sessionUser } } = await supabase.auth.getUser();
+    if (!sessionUser) {
+      setUser(null);
+      return null;
+    }
+    return await fetchProfileAndSetUser(sessionUser);
+  }, [fetchProfileAndSetUser]);
+
   const value = {
     user,
     loading,
@@ -153,6 +162,7 @@ export const AuthProvider = ({ children }) => {
     signInWithPassword,
     signUp,
     signOut,
+    refreshUser,
   };
 
   return (

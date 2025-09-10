@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { LogOut, LayoutDashboard, Home, Wrench } from 'lucide-react';
 import ManagedComponent from '@/components/ManagedComponent';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import UserAccountPanel from '@/components/UserAccountPanel';
 
 const NavItem = ({ to, children, componentKey, onClick }) => {
   const commonClasses = "relative text-sm font-medium transition-colors hover:text-primary";
@@ -111,14 +112,7 @@ const Navigation = () => {
           </ManagedComponent>
 
           <ManagedComponent componentKey="nav:dashboard" disabledTooltip="Connectez-vous pour voir votre tableau de bord">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" onClick={() => navigate(isAdmin ? '/admin/dashboard' : '/dashboard')}>
-                  <LayoutDashboard className="h-5 w-5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent><p>Dashboard</p></TooltipContent>
-            </Tooltip>
+            <UserAccountPanel />
           </ManagedComponent>
 
           <ManagedComponent componentKey="nav:login">
@@ -131,17 +125,6 @@ const Navigation = () => {
             <Button size="sm" onClick={() => navigate('/inscription')}>
               Inscription
             </Button>
-          </ManagedComponent>
-
-          <ManagedComponent componentKey="nav:logout">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" onClick={handleSignOut}>
-                  <LogOut className="h-5 w-5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent><p>Déconnexion</p></TooltipContent>
-            </Tooltip>
           </ManagedComponent>
         </div>
       </div>
