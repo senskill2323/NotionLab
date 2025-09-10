@@ -60,8 +60,9 @@ import React from 'react';
       const isDemoDashboard = location.pathname.startsWith('/demo-dashboard');
       const isChatPage = location.pathname.startsWith('/chat');
       const isLiveChatPage = location.pathname.startsWith('/admin/live-chat');
+      const isFormationDetailPage = location.pathname.match(/^\/formation\/[^/]+$/);
       
-      const showFooter = !isAdminRoute && !isDashboardRoute && !isBuilderPage && !isDemoDashboard && !isChatPage && !isLiveChatPage;
+      const showFooter = !isAdminRoute && !isDashboardRoute && !isBuilderPage && !isDemoDashboard && !isChatPage && !isLiveChatPage && !isFormationDetailPage;
 
       if (themeLoading) {
         return (

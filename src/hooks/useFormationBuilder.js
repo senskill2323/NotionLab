@@ -180,7 +180,7 @@ export const useFormationBuilder = () => {
     fetchParcours();
   }, [fetchParcours]);
 
-  const onConnect = useCallback((params) => setEdges((eds) => addEdge(params, eds)), [setEdges]);
+  const onConnect = useCallback((params) => setEdges((eds) => addEdge({...params, type: 'custom'}, eds)), [setEdges]);
 
   const handleAddModule = useCallback((moduleData, family, position) => {
     const newNode = {
@@ -342,13 +342,42 @@ export const useFormationBuilder = () => {
     }
   }, [parcoursId, navigate, toast]);
 
+  const getConnectedModules = useCallback(() => {
+    const startNode = nodes.find(n => n.id === 'start');
+    if (!startNode) return new Set();
+
+    const visited = new Set();
+    const queue = ['start'];
+    
+    while (queue.length > 0) {
+      const currentNodeId = queue.shift();
+      if (visited.has(currentNodeId)) continue;
+      
+      visited.add(currentNodeId);
+      
+      // Trouver tous les nœuds connectés à partir du nœud actuel
+      const connectedEdges = edges.filter(edge => edge.source === currentNodeId);
+      connectedEdges.forEach(edge => {
+        if (!visited.has(edge.target)) {
+          queue.push(edge.target);
+        }
+      });
+    }
+    
+    // Retourner seulement les modules (exclure le nœud start)
+    visited.delete('start');
+    return visited;
+  }, [nodes, edges]);
+
   const moduleCount = useMemo(() => nodes.filter(n => n.type === 'moduleNode').length, [nodes]);
+
   const totalHours = useMemo(() => {
+    const connectedModuleIds = getConnectedModules();
     const totalMinutes = nodes
-      .filter(n => n.type === 'moduleNode')
+      .filter(n => n.type === 'moduleNode' && connectedModuleIds.has(n.id))
       .reduce((sum, node) => sum + (node.data.duration || 0), 0);
     return Math.round(totalMinutes / 60 * 10) / 10;
-  }, [nodes]);
+  }, [nodes, edges, getConnectedModules]);
 
   return {
     nodes,

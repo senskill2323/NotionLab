@@ -25,14 +25,17 @@ const CustomEdge = ({ id, sourceX, sourceY, targetX, targetY }) => {
             position: 'absolute',
             transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
             pointerEvents: 'all',
+            zIndex: 1000,
           }}
           className="nodrag nopan group"
         >
           <button
-            className="w-24 h-24 bg-red-100 dark:bg-red-900/50 rounded-full flex items-center justify-center text-red-500 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+            className="w-8 h-8 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 opacity-0 group-hover:opacity-100"
             onClick={onEdgeClick}
+            title="Supprimer la connexion"
+            style={{ pointerEvents: 'all' }}
           >
-            <Trash2 className="w-12 h-12" />
+            <Trash2 className="w-4 h-4" />
           </button>
         </div>
       </EdgeLabelRenderer>

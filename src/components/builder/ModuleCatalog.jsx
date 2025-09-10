@@ -3,7 +3,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useBuilderCatalog } from '@/hooks/useBuilderCatalog';
 import { Loader2, PackageSearch, PlusCircle } from 'lucide-react';
 import FamilyCard from '@/components/builder/catalog/FamilyCard';
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { DndContext, closestCenter, pointerWithin, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { usePermissions } from '@/contexts/PermissionsContext';
 import { Button } from '@/components/ui/button';
@@ -56,7 +56,7 @@ export const ModuleCatalog = ({ onAddModuleToFlow }) => {
       
       <ScrollArea className="flex-grow pr-3 -mr-3">
         {catalog.length > 0 ? (
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragEnd={handleDragEnd}>
             <SortableContext items={catalog.map(f => `family-${f.id}`)} strategy={verticalListSortingStrategy}>
               <AnimatePresence>
                 <motion.div layout className="space-y-4">

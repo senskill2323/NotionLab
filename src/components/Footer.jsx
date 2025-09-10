@@ -74,7 +74,24 @@ const Footer = () => {
           <div>
              <p className="text-lg font-semibold mb-4">Localisation</p>
              <div className="rounded-lg overflow-hidden border border-border">
-                <iframe width="100%" height="170" frameBorder="0" scrolling="no" marginHeight="0" marginWidth="0" src="https://www.openstreetmap.org/export/embed.html?bbox=6.510,46.655,6.516,46.659&layer=mapnik&marker=46.657,6.513" className="filter dark:invert dark:grayscale"></iframe>
+                <iframe
+                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d1151.3494205839254!2d6.516213008580243!3d46.658642866494915!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x478dcb21dc82f31b%3A0x4d82dcf171487de7!2sLa%20Sarraz!5e0!3m2!1sfr!2sch!4v1757538158313!5m2!1sfr!2sch"
+                  width="100%"
+                  height="170"
+                  frameBorder="0"
+                  allowFullScreen
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  title="Google Maps - La Sarraz"
+                ></iframe>
+                <a
+                  href="https://www.google.com/maps/place/La+Sarraz/@46.658643,6.516213,17z"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block text-xs text-primary/70 hover:text-primary text-center py-2"
+                >
+                  Ouvrir dans Google Maps
+                </a>
              </div>
           </div>
         </div>
