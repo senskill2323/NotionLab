@@ -1,11 +1,14 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, FolderKanban, Star, StickyNote, FileType, Youtube, FileText, Eye, Pencil, Trash2, FileSpreadsheet } from 'lucide-react';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Loader2, FolderKanban, Star, StickyNote, FileType, Youtube, FileText, Eye, Pencil, Trash2, FileSpreadsheet, Copy, PlusCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import ModuleHeader from '@/components/dashboard/ModuleHeader';
 import ViewResourceDialog from './ViewResourceDialog';
 import NewResourceDialog from '@/components/admin/NewResourceDialog';
 import {
@@ -52,10 +55,10 @@ const StarRating = ({ rating, onRate, resourceId, editMode }) => {
 
 const getFileIcon = (format) => {
     switch (format) {
-      case 'pdf': return <FileType className="w-5 h-5 text-red-500" />;
-      case 'youtube': return <Youtube className="w-5 h-5 text-red-600" />;
-      case 'internal_note': return <StickyNote className="w-5 h-5 text-yellow-500" />;
-      default: return <FileText className="w-5 h-5 text-gray-500" />;
+      case 'pdf': return <FileType className="w-4 h-4 text-red-500" />;
+      case 'youtube': return <Youtube className="w-4 h-4 text-red-600" />;
+      case 'internal_note': return <StickyNote className="w-4 h-4 text-yellow-500" />;
+      default: return <FileText className="w-4 h-4 text-gray-500" />;
     }
 };
 
@@ -65,6 +68,8 @@ const ResourcesPanel = ({ editMode = false }) => {
   const [resources, setResources] = React.useState([]);
   const [loading, setLoading] = React.useState(!editMode);
   const [selectedResource, setSelectedResource] = React.useState(null);
+  const [selectedIds, setSelectedIds] = React.useState(new Set());
+  const [activeTab, setActiveTab] = React.useState('inProgress');
   const [isViewDialogOpen, setIsViewDialogOpen] = React.useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
@@ -100,13 +105,13 @@ const ResourcesPanel = ({ editMode = false }) => {
         fetchResources();
         const channelId = `user-resources-channel-${user.id}`;
         const channel = supabase.channel(channelId)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'resources' }, (payload) => {
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'resources' }, () => {
                 fetchResources();
             })
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'resource_assignments' }, (payload) => {
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'resource_assignments' }, () => {
                 fetchResources();
             })
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'resource_ratings' }, (payload) => {
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'resource_ratings' }, () => {
                 fetchResources();
             })
             .subscribe();
@@ -171,6 +176,62 @@ const ResourcesPanel = ({ editMode = false }) => {
     toast({ title: "Exportation réussie", description: "Le fichier CSV a été téléchargé." });
   };
 
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    
+    const selectedResources = resources.filter(r => selectedIds.has(r.source_id));
+    
+    for (const resource of selectedResources) {
+      let error;
+      if (resource.source_type === 'created') {
+        if (resource.file_path) {
+          const { error: storageError } = await supabase.storage.from('resources').remove([resource.file_path]);
+          if (storageError) console.error('Storage error:', storageError);
+        }
+        const { error: deleteError } = await supabase.from('resources').delete().eq('id', resource.resource_id);
+        error = deleteError;
+      } else if (resource.source_type === 'assigned') {
+        const { error: deleteError } = await supabase.from('resource_assignments').delete().eq('id', resource.source_id);
+        error = deleteError;
+      }
+      
+      if (error) {
+        toast({ title: "Erreur", description: `Impossible de supprimer ${resource.name}.`, variant: "destructive" });
+      }
+    }
+    
+    toast({ title: "Suppression réussie", description: `${selectedIds.size} ressource(s) supprimée(s).` });
+    setSelectedIds(new Set());
+    fetchResources();
+  };
+
+  const handleBulkDuplicate = async () => {
+    if (selectedIds.size === 0) return;
+    
+    const selectedResources = resources.filter(r => selectedIds.has(r.source_id) && r.source_type === 'created');
+    
+    for (const resource of selectedResources) {
+      const { error } = await supabase
+        .from('resources')
+        .insert({
+          name: `${resource.name} (copie)`,
+          type: resource.type,
+          format: resource.format,
+          url: resource.url,
+          content: resource.content,
+          user_id: user.id
+        });
+      
+      if (error) {
+        toast({ title: "Erreur", description: `Impossible de dupliquer ${resource.name}.`, variant: "destructive" });
+      }
+    }
+    
+    toast({ title: "Duplication réussie", description: `${selectedResources.length} ressource(s) dupliquée(s).` });
+    setSelectedIds(new Set());
+    fetchResources();
+  };
+
   const handleAction = (action, resource) => {
      if (editMode) return;
 
@@ -216,24 +277,124 @@ const ResourcesPanel = ({ editMode = false }) => {
      }
   }
 
-  const displayResources = editMode ? [{ source_id: 1, resource_id: 1, name: "Exemple de ressource", type: "PDF", format: "Document", rating: 4, url: "#", source_type: 'created', created_at: new Date().toISOString() }] : resources;
+  // Filtrage des ressources par statut (simulé pour l'exemple)
+  const inProgressResources = resources.filter(r => r.status !== 'archived');
+  const archivedResources = resources.filter(r => r.status === 'archived');
+  
+  const displayResources = editMode 
+    ? [{ source_id: 1, resource_id: 1, name: "Exemple de ressource", type: "PDF", format: "Document", rating: 4, url: "#", source_type: 'created', created_at: new Date().toISOString() }] 
+    : (activeTab === 'inProgress' ? inProgressResources : archivedResources);
+
+  // Gestion sélection
+  const handleToggleSelect = (resourceId) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(resourceId)) {
+      newSelected.delete(resourceId);
+    } else {
+      newSelected.add(resourceId);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const handleSelectAll = () => {
+    if (selectedIds.size === displayResources.length && displayResources.length > 0) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(displayResources.map(r => r.source_id)));
+    }
+  };
+
+  const isAllSelected = displayResources.length > 0 && selectedIds.size === displayResources.length;
 
   return (
     <>
       <Card className="glass-effect h-full">
-        <CardHeader className="p-4">
-          <CardTitle className="flex items-center text-base"><FolderKanban className="w-4 h-4 mr-2 text-primary" />Mes Ressources</CardTitle>
+        <CardHeader className="p-3 pb-2">
+          <ModuleHeader
+            title="Mes Ressources"
+            Icon={FolderKanban}
+            variant="slate"
+          />
         </CardHeader>
+        <div className="px-4 pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-auto">
+                <TabsList className="inline-flex h-7 items-center justify-start rounded-md bg-muted p-1 text-muted-foreground w-auto">
+                  <TabsTrigger value="inProgress" className="text-xs px-2 py-1">En cours</TabsTrigger>
+                  <TabsTrigger value="archived" className="text-xs px-2 py-1">Archivés</TabsTrigger>
+                </TabsList>
+              </Tabs>
+              {displayResources.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    checked={isAllSelected}
+                    onCheckedChange={handleSelectAll}
+                    className="h-4 w-4"
+                  />
+                  <span className="text-xs text-muted-foreground">Tout sélectionner</span>
+                  {selectedIds.size > 0 && (
+                    <div className="flex items-center gap-1 ml-2">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button size="sm" variant="ghost" onClick={handleBulkDuplicate} className="h-6 w-6 p-0">
+                              <Copy className="h-3 w-3" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent><p>Dupliquer</p></TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button size="sm" variant="ghost" onClick={handleBulkDelete} className="h-6 w-6 p-0 text-destructive hover:text-destructive">
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent><p>Supprimer</p></TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              {!editMode && (
+                <Button size="sm" variant="ghost" onClick={() => setIsEditDialogOpen(true)} className="h-7 w-7 p-0">
+                  <PlusCircle className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
         <CardContent className="p-4 pt-0">
           {loading ? <div className="flex justify-center items-center h-20"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div> : (
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {displayResources.length > 0 ? displayResources.map((resource) => (
-                <div key={resource.source_id} className="bg-secondary/50 rounded-md p-2 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                <div 
+                  key={resource.source_id} 
+                  className={`
+                    relative group overflow-hidden border border-border/60 rounded-md p-1.5 flex items-center justify-between gap-2 
+                    transition-all duration-200 hover:bg-muted/40 cursor-pointer
+                    ${selectedIds.has(resource.source_id) ? 'ring-1 ring-primary/30 bg-muted/20' : ''}
+                    motion-safe:hover:shadow-sm
+                  `}
+                  onClick={() => handleToggleSelect(resource.source_id)}
+                >
+                  {/* Cross-over effect */}
+                  <div className="pointer-events-none absolute inset-0 -skew-x-6 bg-gradient-to-r from-transparent via-primary/8 to-transparent translate-x-[-100%] opacity-0 transition-all duration-500 motion-safe:group-hover:translate-x-[100%] motion-safe:group-hover:opacity-100" />
+                  
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <Checkbox
+                      checked={selectedIds.has(resource.source_id)}
+                      onCheckedChange={() => handleToggleSelect(resource.source_id)}
+                      className="h-3.5 w-3.5"
+                      onClick={(e) => e.stopPropagation()}
+                    />
                     {getFileIcon(resource.format)}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center">
-                        <h4 className="font-medium text-sm truncate">{resource.name}</h4>
+                        <h4 className="font-medium text-xs truncate">{resource.name}</h4>
                         <StarRating rating={resource.rating} onRate={handleRate} resourceId={resource.resource_id} editMode={editMode} />
                       </div>
                     </div>
@@ -242,8 +403,8 @@ const ResourcesPanel = ({ editMode = false }) => {
                       <TooltipProvider>
                           <Tooltip>
                               <TooltipTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleAction('Consulter', resource)}>
-                                      <Eye className="w-4 h-4" />
+                                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleAction('Consulter', resource); }}>
+                                      <Eye className="w-3.5 h-3.5" />
                                   </Button>
                               </TooltipTrigger>
                               <TooltipContent><p>Consulter</p></TooltipContent>
@@ -251,8 +412,8 @@ const ResourcesPanel = ({ editMode = false }) => {
                           {resource.source_type === 'created' && (
                                <Tooltip>
                                   <TooltipTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleAction('Modifier', resource)}>
-                                          <Pencil className="w-4 h-4" />
+                                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleAction('Modifier', resource); }}>
+                                          <Pencil className="w-3.5 h-3.5" />
                                       </Button>
                                   </TooltipTrigger>
                                   <TooltipContent><p>Modifier</p></TooltipContent>
@@ -260,16 +421,16 @@ const ResourcesPanel = ({ editMode = false }) => {
                           )}
                           <Tooltip>
                               <TooltipTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleAction('Exporter', resource)}>
-                                      <FileSpreadsheet className="w-4 h-4" />
+                                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleAction('Exporter', resource); }}>
+                                      <FileSpreadsheet className="w-3.5 h-3.5" />
                                   </Button>
                               </TooltipTrigger>
                               <TooltipContent><p>Exporter en CSV</p></TooltipContent>
                           </Tooltip>
                           <Tooltip>
                               <TooltipTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleAction('Supprimer', resource)}>
-                                      <Trash2 className="w-4 h-4" />
+                                  <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); handleAction('Supprimer', resource); }}>
+                                      <Trash2 className="w-3.5 h-3.5" />
                                   </Button>
                               </TooltipTrigger>
                               <TooltipContent><p>Supprimer</p></TooltipContent>

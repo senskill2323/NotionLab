@@ -2,17 +2,18 @@ import React, { useState, useEffect, useCallback } from 'react';
     import { supabase } from '@/lib/customSupabaseClient';
     import { useAuth } from '@/contexts/SupabaseAuthContext';
     import { useNavigate } from 'react-router-dom';
-    import { motion, AnimatePresence } from 'framer-motion';
-    import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+    import { Card, CardHeader, CardContent } from '@/components/ui/card';
     import { Button } from '@/components/ui/button';
     import { Badge } from '@/components/ui/badge';
     import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
     import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
     import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-    import { Loader2, PlusCircle, AlertCircle, Inbox, User } from 'lucide-react';
+    import { Loader2, PlusCircle, AlertCircle, Inbox, User, Ticket, Copy, Trash2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
     import { useToast } from '@/components/ui/use-toast';
     import { usePermissions } from '@/contexts/PermissionsContext';
     import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+    import ModuleHeader from '@/components/dashboard/ModuleHeader';
 
     const TicketsPanel = ({ editMode = false }) => {
       const { user } = useAuth();
@@ -20,6 +21,8 @@ import React, { useState, useEffect, useCallback } from 'react';
       const [assignedUsers, setAssignedUsers] = useState({});
       const [loading, setLoading] = useState(!editMode);
       const [error, setError] = useState(null);
+      const [activeTab, setActiveTab] = useState('inProgress');
+      const [selectedIds, setSelectedIds] = useState(new Set());
       const navigate = useNavigate();
       const { toast } = useToast();
       const { permissions, loading: permissionsLoading } = usePermissions();
@@ -106,12 +109,175 @@ import React, { useState, useEffect, useCallback } from 'react';
       const formatDate = (dateString) => new Date(dateString).toLocaleDateString('fr-FR');
       const formatTime = (dateString) => new Date(dateString).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
+      // Gestion sélection tickets
+      const handleToggleSelect = (ticketId) => {
+        const newSelected = new Set(selectedIds);
+        if (newSelected.has(ticketId)) {
+          newSelected.delete(ticketId);
+        } else {
+          newSelected.add(ticketId);
+        }
+        setSelectedIds(newSelected);
+      };
+
+      const handleSelectAll = () => {
+        const currentTickets = activeTab === 'inProgress' ? inProgressTickets : archivedTickets;
+        if (selectedIds.size === currentTickets.length && currentTickets.length > 0) {
+          setSelectedIds(new Set());
+        } else {
+          setSelectedIds(new Set(currentTickets.map(t => t.id)));
+        }
+      };
+
+      const handleBulkDelete = async () => {
+        if (selectedIds.size === 0) return;
+        
+        const selectedTickets = tickets.filter(t => selectedIds.has(t.id));
+        
+        for (const ticket of selectedTickets) {
+          const { error } = await supabase
+            .from('tickets')
+            .delete()
+            .eq('id', ticket.id);
+          
+          if (error) {
+            toast({ title: "Erreur", description: `Impossible de supprimer le ticket ${ticket.reference_number}.`, variant: "destructive" });
+          }
+        }
+        
+        toast({ title: "Suppression réussie", description: `${selectedIds.size} ticket(s) supprimé(s).` });
+        setSelectedIds(new Set());
+        fetchTickets();
+      };
+
+      const handleBulkDuplicate = async () => {
+        if (selectedIds.size === 0) return;
+        
+        const selectedTickets = tickets.filter(t => selectedIds.has(t.id));
+        
+        for (const ticket of selectedTickets) {
+          const { error } = await supabase
+            .from('tickets')
+            .insert({
+              title: `${ticket.title} (copie)`,
+              description: ticket.description,
+              priority: ticket.priority,
+              status: 'A traiter',
+              user_id: user.id
+            });
+          
+          if (error) {
+            toast({ title: "Erreur", description: `Impossible de dupliquer le ticket ${ticket.reference_number}.`, variant: "destructive" });
+          }
+        }
+        
+        toast({ title: "Duplication réussie", description: `${selectedTickets.length} ticket(s) dupliqué(s).` });
+        setSelectedIds(new Set());
+        fetchTickets();
+      };
+
       const archivedStatuses = ['Résolu', 'Abandonné', 'Fermé'];
       const inProgressTickets = tickets.filter(t => !archivedStatuses.includes(t.status));
       const archivedTickets = tickets.filter(t => archivedStatuses.includes(t.status));
       
-      const demoInProgressTicket = {id: 1, title: "Exemple de ticket en cours", priority: "Haut", status: "En cours", reference_number: 'CS-031', created_at: new Date().toISOString(), assigned_to_profile: { first_name: 'Yann', last_name: 'V.' } };
-      const demoArchivedTicket = {id: 2, title: "Exemple de ticket archivé", priority: "Bas", status: "Résolu", reference_number: 'CS-030', created_at: new Date(Date.now() - 86400000).toISOString(), assigned_to_profile: { first_name: 'Yann', last_name: 'V.' } };
+      const demoInProgressTicket = {id: 1, reference_number: 'CS-031', title: "Exemple de ticket en cours", status: "En cours", priority: "Haut", created_at: new Date().toISOString(), assigned_to_profile: { first_name: 'Yann', last_name: 'V.' } };
+      const demoArchivedTicket = {id: 2, reference_number: 'CS-030', title: "Exemple de ticket archivé", status: "Résolu", priority: "Bas", created_at: new Date(Date.now() - 86400000).toISOString(), assigned_to_profile: { first_name: 'Yann', last_name: 'V.' } };
+
+      // Single source of truth for headers and cells to prevent any misalignment
+      const columnsConfig = [
+        {
+          key: 'select',
+          header: '',
+          className: 'w-8',
+          render: (ticket) => (
+            <Checkbox
+              checked={selectedIds.has(ticket.id)}
+              onCheckedChange={() => handleToggleSelect(ticket.id)}
+              className="h-3.5 w-3.5"
+              onClick={(e) => e.stopPropagation()}
+            />
+          )
+        },
+        {
+          key: 'reference_number',
+          header: 'N° de ticket',
+          className: 'font-mono text-xs text-muted-foreground w-20',
+          render: (ticket) => ticket.reference_number || '-'
+        },
+        {
+          key: 'title',
+          header: 'Description du ticket',
+          className: 'font-normal truncate',
+          render: (ticket) => ticket.title
+        },
+        {
+          key: 'status',
+          header: 'Statut',
+          className: 'w-32',
+          render: (ticket) => (
+            <Select
+              defaultValue={ticket.status}
+              onValueChange={(newStatus) => handleFieldChange(ticket.id, 'status', newStatus)}
+              disabled={editMode}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <SelectTrigger className="h-7 w-28 text-xs border-none shadow-none focus:ring-1 focus:ring-primary/20 [&>svg]:hidden">
+                <SelectValue asChild>
+                  <Badge variant="outline" className={`text-xs px-2 py-0.5 border-none ${getStatusBadgeConfig(ticket.status)}`}>
+                    {ticket.status}
+                  </Badge>
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent className="min-w-[120px]">
+                <SelectItem value="A traiter">À traiter</SelectItem>
+                <SelectItem value="En cours">En cours</SelectItem>
+                <SelectItem value="Résolu">Résolu</SelectItem>
+                <SelectItem value="Fermé">Fermé</SelectItem>
+                <SelectItem value="Abandonné">Abandonné</SelectItem>
+              </SelectContent>
+            </Select>
+          )
+        },
+        {
+          key: 'priority',
+          header: 'Priorité',
+          className: 'w-24',
+          render: (ticket) => (
+            <Select
+              defaultValue={ticket.priority}
+              onValueChange={(newPriority) => handleFieldChange(ticket.id, 'priority', newPriority)}
+              disabled={editMode}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <SelectTrigger className="h-7 w-20 text-xs border-none shadow-none focus:ring-1 focus:ring-primary/20 [&>svg]:hidden">
+                <SelectValue asChild>
+                  <Badge variant="outline" className={`text-xs px-2 py-0.5 border-none ${getPriorityBadgeConfig(ticket.priority)}`}>
+                    {ticket.priority}
+                  </Badge>
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent className="min-w-[100px]">
+                <SelectItem value="Bas">Bas</SelectItem>
+                <SelectItem value="Moyen">Moyen</SelectItem>
+                <SelectItem value="Haut">Haut</SelectItem>
+                <SelectItem value="Urgent">Urgent</SelectItem>
+              </SelectContent>
+            </Select>
+          )
+        },
+        {
+          key: 'date',
+          header: 'Date',
+          className: 'text-xs w-20',
+          render: (ticket) => formatDate(ticket.created_at)
+        },
+        {
+          key: 'time',
+          header: 'Heure',
+          className: 'text-xs w-16',
+          render: (ticket) => formatTime(ticket.created_at)
+        }
+      ];
 
       const renderTicketTable = (ticketList) => {
         if (ticketList.length === 0) {
@@ -124,65 +290,36 @@ import React, { useState, useEffect, useCallback } from 'react';
         }
         return (
           <Table>
+            <colgroup>
+              <col className="w-8" />
+              <col className="w-20" />
+              <col />
+              <col className="w-32" />
+              <col className="w-24" />
+              <col className="w-20" />
+              <col className="w-16" />
+            </colgroup>
             <TableHeader>
               <TableRow>
-                <TableHead>Réf.</TableHead>
-                <TableHead>Titre</TableHead>
-                <TableHead>Statut</TableHead>
-                <TableHead>Priorité</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Heure</TableHead>
-                <TableHead>Assigné à</TableHead>
+                {columnsConfig.map(col => (
+                  <TableHead key={`head-${col.key}`} className={col.className}>{col.header}</TableHead>
+                ))}
               </TableRow>
             </TableHeader>
             <TableBody>
-              <AnimatePresence>
-                {ticketList.map((ticket) => (
-                  <motion.tr
-                    key={ticket.id}
-                    layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="cursor-pointer"
-                    onClick={() => !editMode && navigate(`/ticket/${ticket.id}`)}
-                  >
-                    <TableCell className="font-mono text-xs text-muted-foreground">{ticket.reference_number}</TableCell>
-                    <TableCell className="font-normal">{ticket.title}</TableCell>
-                    <TableCell>
-                      <Select defaultValue={ticket.status} onValueChange={(newStatus) => handleFieldChange(ticket.id, 'status', newStatus)} disabled={editMode} onClick={(e) => e.stopPropagation()}>
-                        <SelectTrigger hideArrow={true} className="h-auto w-auto p-0 border-none focus:ring-0 focus:ring-offset-0 data-[state=open]:bg-transparent data-[state=open]:text-current bg-transparent">
-                          <SelectValue asChild><Badge variant="outline" className={`cursor-pointer text-xs px-2 py-1 border-none ${getStatusBadgeConfig(ticket.status)}`}>{ticket.status}</Badge></SelectValue>
-                        </SelectTrigger>
-                        <SelectContent><SelectItem value="A traiter">À traiter</SelectItem><SelectItem value="En cours">En cours</SelectItem><SelectItem value="Résolu">Résolu</SelectItem><SelectItem value="Fermé">Fermé</SelectItem><SelectItem value="Abandonné">Abandonné</SelectItem></SelectContent>
-                      </Select>
+              {ticketList.map((ticket) => (
+                <TableRow
+                  key={ticket.id}
+                  className="group cursor-pointer hover:bg-muted/30 motion-safe:hover:shadow-sm"
+                  onClick={() => !editMode && navigate(`/ticket/${ticket.id}`)}
+                >
+                  {columnsConfig.map((col) => (
+                    <TableCell key={`${ticket.id}-${col.key}`} className={col.className}>
+                      {col.render(ticket)}
                     </TableCell>
-                    <TableCell>
-                      <Select defaultValue={ticket.priority} onValueChange={(newPriority) => handleFieldChange(ticket.id, 'priority', newPriority)} disabled={editMode} onClick={(e) => e.stopPropagation()}>
-                        <SelectTrigger hideArrow={true} className="h-auto w-auto p-0 border-none focus:ring-0 focus:ring-offset-0 data-[state=open]:bg-transparent data-[state=open]:text-current bg-transparent">
-                          <SelectValue asChild><Badge variant="outline" className={`cursor-pointer text-xs px-2 py-1 border-none ${getPriorityBadgeConfig(ticket.priority)}`}>{ticket.priority}</Badge></SelectValue>
-                        </SelectTrigger>
-                        <SelectContent><SelectItem value="Bas">Bas</SelectItem><SelectItem value="Moyen">Moyen</SelectItem><SelectItem value="Haut">Haut</SelectItem><SelectItem value="Urgent">Urgent</SelectItem></SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell className="text-xs">{formatDate(ticket.created_at)}</TableCell>
-                    <TableCell className="text-xs">{formatTime(ticket.created_at)}</TableCell>
-                    <TableCell>
-                      {ticket.assigned_to_profile ? (
-                        <TooltipProvider>
-                           <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Badge variant="secondary" className="font-normal">
-                                  <User className="h-3 w-3 mr-1.5" />
-                                  {ticket.assigned_to_profile.first_name} {ticket.assigned_to_profile.last_name?.charAt(0)}.
-                                </Badge>
-                              </TooltipTrigger>
-                              <TooltipContent><p>{ticket.assigned_to_profile.first_name} {ticket.assigned_to_profile.last_name}</p></TooltipContent>
-                           </Tooltip>
-                        </TooltipProvider>
-                      ) : ( <Badge variant="outline" className="font-normal">Non assigné</Badge> )}
-                    </TableCell>
-                  </motion.tr>
-                ))}
-              </AnimatePresence>
+                  ))}
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
         );
@@ -193,39 +330,90 @@ import React, { useState, useEffect, useCallback } from 'react';
         if (error) return <div className="flex flex-col justify-center items-center h-40 text-destructive"><AlertCircle className="w-8 h-8 mb-2" /><p>{error}</p></div>;
         
         return (
-          <Tabs defaultValue="inProgress" className="w-full">
-            <TabsList className="inline-flex h-8 items-center justify-start rounded-md bg-muted p-1 text-muted-foreground w-auto">
-              <TabsTrigger value="inProgress" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">En cours</TabsTrigger>
-              <TabsTrigger value="archived" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Archivés</TabsTrigger>
-            </TabsList>
-            <TabsContent value="inProgress">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsContent value="inProgress" className="mt-0">
               {renderTicketTable(editMode ? [demoInProgressTicket] : inProgressTickets)}
             </TabsContent>
-            <TabsContent value="archived">
+            <TabsContent value="archived" className="mt-0">
               {renderTicketTable(editMode ? [demoArchivedTicket] : archivedTickets)}
             </TabsContent>
           </Tabs>
         );
       };
 
-      return (
-        <Card className="h-full flex flex-col glass-effect">
-          <CardHeader>
-            <CardTitle className="flex justify-between items-center">
-              <span>Mes Tickets</span>
-              {canCreateTickets && !editMode && (
-                <Button size="sm" onClick={() => navigate('/nouveau-ticket')}>
-                  <PlusCircle className="mr-2 h-4 w-4" />
-                  Nouveau Ticket
-                </Button>
+  return (
+    <Card className="h-full flex flex-col glass-effect">
+      <CardHeader className="p-3 pb-2">
+        <div className="flex items-center justify-between">
+          <ModuleHeader
+            title="Mes Tickets"
+            Icon={Ticket}
+            variant="slate"
+          />
+          {!editMode && (
+            <Button 
+              size="sm" 
+              onClick={() => navigate('/nouveau-ticket')} 
+              className="bg-green-600 hover:bg-green-700 text-white h-7 px-3 text-xs"
+            >
+              <PlusCircle className="h-3 w-3 mr-1.5" />
+              Créer un ticket
+            </Button>
+          )}
+        </div>
+      </CardHeader>
+      <div className="px-4 pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-auto">
+              <TabsList className="inline-flex h-7 items-center justify-start rounded-md bg-muted p-1 text-muted-foreground w-auto">
+                <TabsTrigger value="inProgress" className="text-xs px-2 py-1">En cours</TabsTrigger>
+                <TabsTrigger value="archived" className="text-xs px-2 py-1">Archivés</TabsTrigger>
+              </TabsList>
+            </Tabs>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                checked={(() => {
+                  const currentTickets = activeTab === 'inProgress' ? inProgressTickets : archivedTickets;
+                  return currentTickets.length > 0 && selectedIds.size === currentTickets.length;
+                })()}
+                onCheckedChange={handleSelectAll}
+                className="h-4 w-4"
+              />
+              <span className="text-xs text-muted-foreground">Tout sélectionner</span>
+              {selectedIds.size > 0 && (
+                <div className="flex items-center gap-1 ml-2">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button size="sm" variant="ghost" onClick={handleBulkDuplicate} className="h-6 w-6 p-0">
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent><p>Dupliquer</p></TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button size="sm" variant="ghost" onClick={handleBulkDelete} className="h-6 w-6 p-0 text-destructive hover:text-destructive">
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent><p>Supprimer</p></TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
               )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex-grow p-4">
-            {renderContent()}
-          </CardContent>
-        </Card>
-      );
-    };
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+          </div>
+        </div>
+      </div>
+      <CardContent className="flex-grow p-4 pt-0 overflow-visible">
+        {renderContent()}
+      </CardContent>
+    </Card>
+  );
+};
 
-    export default TicketsPanel;
+export default TicketsPanel;

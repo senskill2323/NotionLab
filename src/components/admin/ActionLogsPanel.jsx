@@ -55,28 +55,40 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
       const { toast } = useToast();
       const [debouncedFilters] = useDebounce(filters, 300);
 
-      const [uniqueCategories, setUniqueCategories] = useState([]);
-      const [uniqueSeverities, setUniqueSeverities] = useState([]);
+  const [uniqueCategories, setUniqueCategories] = useState([]);
+  const [uniqueSeverities, setUniqueSeverities] = useState([]);
 
-      useEffect(() => {
-        const fetchUniqueValues = async () => {
-            const { data: categoriesData, error: catError } = await supabase.from('action_logs').select('category').distinct();
-            if(!catError) setUniqueCategories(categoriesData.map(c => c.category).filter(Boolean));
+  useEffect(() => {
+    const fetchUniqueValues = async () => {
+      // Note: supabase-js v2 ne supporte pas .distinct() en méthode chaînée.
+      // On récupère les valeurs et on déduplique côté client.
+      const { data: categoriesData, error: catError } = await supabase
+        .from('action_logs')
+        .select('category');
+      if (!catError && categoriesData) {
+        const cats = Array.from(new Set(categoriesData.map(c => c.category).filter(Boolean)));
+        setUniqueCategories(cats);
+      }
 
-            const { data: severitiesData, error: sevError } = await supabase.from('action_logs').select('severity_level').distinct();
-            if(!sevError) setUniqueSeverities(severitiesData.map(s => s.severity_level).filter(Boolean));
-        };
-        fetchUniqueValues();
-      }, []);
+      const { data: severitiesData, error: sevError } = await supabase
+        .from('action_logs')
+        .select('severity_level');
+      if (!sevError && severitiesData) {
+        const sevs = Array.from(new Set(severitiesData.map(s => s.severity_level).filter(Boolean)));
+        setUniqueSeverities(sevs);
+      }
+  };
+  fetchUniqueValues();
+}, []);
 
-      const fetchLogs = useCallback(async () => {
-        setLoading(true);
-        setError(null);
-        try {
-          let query = supabase
-            .from('action_logs')
-            .select('*, profile:profiles(email)', { count: 'exact' })
-            .order('created_at', { ascending: false });
+  const fetchLogs = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      let query = supabase
+        .from('action_logs')
+        .select('*, profile:profiles(email)', { count: 'exact' })
+        .order('created_at', { ascending: false });
           
           if (debouncedFilters.query) {
             query = query.or(`action_type.ilike.%${debouncedFilters.query}%,target_table.ilike.%${debouncedFilters.query}%,page_context.ilike.%${debouncedFilters.query}%`);
