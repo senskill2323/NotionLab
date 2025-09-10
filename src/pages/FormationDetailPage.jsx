@@ -4,11 +4,9 @@ import { Helmet } from 'react-helmet';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/components/ui/use-toast';
-import { Loader2, CheckCircle, ArrowRight } from 'lucide-react';
+import { Loader2, CheckCircle, ArrowRight, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import FormationHeader from '@/components/formation/FormationHeader';
-import FormationSidebar from '@/components/formation/FormationSidebar';
-import FormationObjectives from '@/components/formation/FormationObjectives';
 import FormationProgram from '@/components/formation/FormationProgram';
 
 const FormationDetailPage = () => {
@@ -42,34 +40,29 @@ const FormationDetailPage = () => {
     setLoading(false);
   }, [id, navigate, toast]);
 
-  const structuredProgram = useMemo(() => {
+  const flatModules = useMemo(() => {
     if (!formation || !formation.nodes) return [];
 
-    const modules = formation.nodes
+    return formation.nodes
       .filter(node => node.type === 'moduleNode')
       .map(node => node.data);
-
-    const families = modules.reduce((acc, module) => {
-      const familyName = module.family_name || 'Modules complémentaires';
-      if (!acc[familyName]) {
-        acc[familyName] = {
-          familyName,
-          icon: module.family_icon || 'BookOpen',
-          modules: []
-        };
-      }
-      acc[familyName].modules.push({
-        title: module.title,
-        description: module.description,
-        duration: module.duration,
-        subfamilyName: module.subfamily_name
-      });
-      return acc;
-    }, {});
-
-    return Object.values(families);
   }, [formation]);
 
+  const formationStats = useMemo(() => {
+    if (!flatModules.length) return { totalModules: 0, totalHours: 0 };
+
+    const totalMinutes = flatModules.reduce((total, module) => {
+      const duration = module.duration || 0;
+      return total + (typeof duration === 'number' ? duration : parseInt(duration) || 0);
+    }, 0);
+
+    const totalHours = Math.round((totalMinutes / 60) * 10) / 10; // Arrondi à 1 décimale
+
+    return {
+      totalModules: flatModules.length,
+      totalHours: totalHours
+    };
+  }, [flatModules]);
 
   const checkEnrollment = useCallback(async () => {
     if (!user) return;
@@ -131,7 +124,7 @@ const FormationDetailPage = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <Loader2 className="w-12 h-12 animate-spin text-primary" />
+        <Loader2 className="w-12 w-12 animate-spin text-primary" />
       </div>
     );
   }
@@ -152,44 +145,49 @@ const FormationDetailPage = () => {
       </Helmet>
       <div className="bg-background text-foreground">
         <div className="container mx-auto px-4 pt-32 pb-16">
-          <FormationHeader 
-            title={formation.title} 
-            description={formation.description}
-            level={levelArray.join(', ')}
-            color={formation.color || 'bg-primary'}
-          />
-          <div className="lg:grid lg:grid-cols-12 lg:gap-12">
-            <main className="lg:col-span-8">
-              <FormationObjectives objectives={formation.objectives} />
-              <FormationProgram program={structuredProgram} />
-            </main>
-            <aside className="lg:col-span-4 mt-12 lg:mt-0">
-              <FormationSidebar
-                price={formation.price_text}
-                formationTitle={formation.title}
-              >
-                  {isEnrolled ? (
-                    <div className="text-center">
-                       <div className="flex items-center justify-center text-green-500 mb-4">
-                         <CheckCircle className="w-6 h-6 mr-2"/>
-                         <span className="font-semibold">Vous êtes inscrit !</span>
-                       </div>
-                       <Link to="/dashboard">
-                          <Button className="w-full notion-gradient text-white">
-                            Accéder à mon espace
-                            <ArrowRight className="ml-2 w-4 h-4"/>
-                          </Button>
-                       </Link>
-                    </div>
-                  ) : (
-                    <Button onClick={handleEnroll} disabled={isEnrolling} className="w-full notion-gradient text-white">
-                      {isEnrolling && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      S'inscrire à la formation
-                    </Button>
-                  )}
-              </FormationSidebar>
-            </aside>
+          <div className="max-w-4xl mx-auto">
+            {/* Boutons en haut */}
+            <div className="mb-6 flex items-center gap-4">
+              <Link to="/">
+                <Button variant="outline" size="sm" className="flex items-center gap-2">
+                  <ArrowLeft className="w-4 h-4" />
+                  Retour à la page d'accueil
+                </Button>
+              </Link>
+              
+              {/* Bouton d'inscription */}
+              {isEnrolled ? (
+                <Link to="/dashboard">
+                  <Button size="sm" className="notion-gradient text-white flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4" />
+                    Accéder à mon espace
+                  </Button>
+                </Link>
+              ) : (
+                <Button 
+                  onClick={handleEnroll} 
+                  disabled={isEnrolling} 
+                  size="sm" 
+                  className="notion-gradient text-white"
+                >
+                  {isEnrolling && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  S'inscrire à la formation
+                </Button>
+              )}
+            </div>
+            <FormationHeader 
+              title={formation.title} 
+              description={formation.description}
+              level={levelArray.join(', ')}
+              coverImageUrl={formation.cover_image_url}
+              totalModules={formationStats.totalModules}
+              totalHours={formationStats.totalHours}
+            />
           </div>
+
+          <main className="max-w-4xl mx-auto">
+            <FormationProgram modules={flatModules} />
+          </main>
         </div>
       </div>
     </>

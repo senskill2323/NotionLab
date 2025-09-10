@@ -2,7 +2,7 @@ import React from 'react';
 import FormationCard from './FormationCard';
 import { motion } from 'framer-motion';
 
-const FormationGalleryView = ({ formations, onStatusChange, onTypeChange, onDuplicate, onDelete }) => {
+const FormationGalleryView = ({ formations, onStatusChange, onTypeChange, onDeliveryModeChange, onDuplicate, onDelete, onImageUpdate }) => {
   if (formations.length === 0) {
     return (
       <div className="text-center py-16 text-muted-foreground">
@@ -43,8 +43,10 @@ const FormationGalleryView = ({ formations, onStatusChange, onTypeChange, onDupl
             formation={formation} 
             onStatusChange={onStatusChange}
             onTypeChange={onTypeChange}
+            onDeliveryModeChange={onDeliveryModeChange}
             onDuplicate={onDuplicate}
             onDelete={onDelete}
+            onImageUpdate={onImageUpdate}
           />
         </motion.div>
       ))}

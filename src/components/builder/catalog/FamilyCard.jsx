@@ -17,7 +17,7 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/comp
 const FamilyCard = ({ family, hasPermission, onAddModuleToFlow }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ 
     id: `family-${family.id}`,
-    data: { type: 'family' },
+    data: { type: 'family', id: family.id },
     disabled: !hasPermission
   });
   const { deleteFamily, updateFamilyName, addSubfamily } = useBuilderCatalog();
@@ -63,7 +63,7 @@ const FamilyCard = ({ family, hasPermission, onAddModuleToFlow }) => {
                   <PlusCircle className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Ajouter une sous-famille</TooltipContent>
+              <TooltipContent>Ajouter une Formation</TooltipContent>
             </Tooltip>
           </TooltipProvider>
           <DropdownMenu>
@@ -89,10 +89,10 @@ const FamilyCard = ({ family, hasPermission, onAddModuleToFlow }) => {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button variant="ghost" size="icon" className="w-7 h-7 cursor-grab" {...(hasPermission ? attributes : {})} {...(hasPermission ? listeners : {})}>
-                      <GripVertical className="w-5 h-5" />
+                      <GripVertical className="w-4 h-4 text-muted-foreground" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Réorganiser la famille</TooltipContent>
+                  <TooltipContent>Réorganiser la Famille</TooltipContent>
                 </Tooltip>
               </TooltipProvider>
               <CollapsibleTrigger asChild>

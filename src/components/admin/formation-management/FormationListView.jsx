@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Edit, Copy, Trash2 } from 'lucide-react';
@@ -8,8 +7,9 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import AdminFormationStatusSelect from './AdminFormationStatusSelect';
 import AdminFormationTypeSelect from './AdminFormationTypeSelect';
+import AdminFormationDeliveryModeSelect from './AdminFormationDeliveryModeSelect';
 
-const FormationListView = ({ formations, onStatusChange, onTypeChange, onDuplicate, onDelete }) => {
+const FormationListView = ({ formations, onStatusChange, onTypeChange, onDeliveryModeChange, onDuplicate, onDelete, onImageUpdate }) => {
   return (
     <Table>
       <TableHeader>

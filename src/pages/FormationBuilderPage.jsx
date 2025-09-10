@@ -47,6 +47,10 @@ const FormationBuilderContent = ({
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
     setIsDragging(true);
+    try {
+      const hasData = !!event.dataTransfer.types?.includes('application/reactflow');
+      console.debug('[Builder] ReactFlow onDragOver', { hasData, types: event.dataTransfer.types });
+    } catch {}
   }, []);
 
   const handleDragLeave = useCallback(() => {
@@ -67,7 +71,9 @@ const FormationBuilderContent = ({
       x: event.clientX,
       y: event.clientY,
     });
-
+    try {
+      console.debug('[Builder] ReactFlow onDrop', { data, position });
+    } catch {}
     handleAddModule(data.moduleData, data.family, position);
   }, [reactFlowInstance, handleAddModule]);
 

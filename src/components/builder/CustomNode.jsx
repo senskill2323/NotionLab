@@ -20,7 +20,7 @@ import React from 'react';
 
       return (
         <div className={cn(
-          "bg-card rounded-lg shadow-md hover:shadow-lg transition-all duration-200 border-t-4 w-[225px]",
+          "bg-card rounded-lg shadow-md hover:shadow-lg transition-all duration-200 border-t-4 min-w-[225px] max-w-[400px] w-auto",
           familyColor,
           selected ? 'shadow-2xl ring-2 ring-primary' : ''
         )}>
@@ -33,9 +33,11 @@ import React from 'react';
           <div className="p-3">
             <div className="flex items-center gap-3 mb-2">
               {iconMap[data.family_icon] || <BrainCircuit className="w-5 h-5 text-primary" />}
-              <h3 className="font-bold text-sm text-foreground m-0 flex-1 truncate">{data.title}</h3>
+              <h3 className="font-bold text-sm text-foreground m-0 flex-1">{data.title}</h3>
             </div>
-            <p className="text-muted-foreground text-xs mb-3 line-clamp-2">{data.description}</p>
+            <div className="text-muted-foreground text-xs mb-3 whitespace-pre-wrap">
+              {data.description}
+            </div>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <span className="text-xs font-semibold">{data.duration} min</span>
             </div>
