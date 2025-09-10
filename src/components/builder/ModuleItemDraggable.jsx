@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Clock, GripVertical, MoreVertical, Pencil, Trash2 } from 'lucide-react';
+import { Clock, GripVertical, MoreVertical, Pencil, Trash2, MoveRight } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,7 @@ import EditModuleDialog from './dialogs/EditModuleDialog';
 export const ModuleItemDraggable = ({ module, family, hasPermission, onAddModuleToFlow }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: `module-${module.id}`,
-    data: { type: 'module', parent: module.subfamily_id },
+    data: { type: 'module', id: module.id, parent: module.subfamily_id },
     disabled: !hasPermission,
   });
   const { deleteModule, updateModule } = useBuilderCatalog();
@@ -25,11 +25,18 @@ export const ModuleItemDraggable = ({ module, family, hasPermission, onAddModule
     zIndex: isDragging ? 20 : 'auto',
   };
 
-  const handleDragStart = (event) => {
+  const handleDragStartToGrid = (event) => {
     // Attache les données pour ReactFlow (Drop sur la grille)
     const dataForFlow = { moduleData: module, family: family };
-    event.dataTransfer.setData('application/reactflow', JSON.stringify(dataForFlow));
-    event.dataTransfer.effectAllowed = 'move';
+    try {
+      event.dataTransfer.setData('application/reactflow', JSON.stringify(dataForFlow));
+      // Certains navigateurs exigent un type texte pour activer le drag
+      event.dataTransfer.setData('text/plain', 'module');
+      event.dataTransfer.effectAllowed = 'move';
+      console.debug('[ModuleItem] HTML5 drag started to grid', { module: module.title, dataForFlow });
+    } catch (e) {
+      console.error('[ModuleItem] Failed to set drag data', e);
+    }
   };
 
   const handleUpdate = (updates) => {
@@ -44,7 +51,11 @@ export const ModuleItemDraggable = ({ module, family, hasPermission, onAddModule
   
   const handleClick = (e) => {
     // Si on clique sur un bouton du menu, on ne veut pas déclencher le onAddModuleToFlow
-    if (e.target.closest('[data-radix-dropdown-menu-trigger]') || e.target.closest('dialog')) {
+    if (e.target.closest('[data-radix-dropdown-menu-trigger]') || 
+        e.target.closest('dialog') || 
+        e.target.closest('[role="dialog"]') ||
+        e.target.closest('.radix-dialog-overlay') ||
+        e.target.closest('[data-state="open"]')) {
       return;
     }
     // Si on est en train de draguer pour réorganiser, on ne fait rien non plus
@@ -75,12 +86,29 @@ export const ModuleItemDraggable = ({ module, family, hasPermission, onAddModule
             <DropdownMenuItem onClick={() => setShowDeleteConfirm(true)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" />Supprimer</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        
+        {/* Handle dédié pour glisser sur la grille (ReactFlow) */}
+        <div
+          draggable={true}
+          onDragStart={handleDragStartToGrid}
+          onMouseDown={(e) => e.stopPropagation()}
+          onDragEnd={(e) => e.stopPropagation()}
+          className="cursor-grab"
+        >
+          <Button
+            variant="ghost"
+            size="icon"
+            className="w-7 h-7 pointer-events-none"
+            title="Glisser vers la grille"
+          >
+            <MoveRight className="h-4 w-4" />
+          </Button>
+        </div>
+
         <EditModuleDialog
           open={isEditing}
           onOpenChange={setIsEditing}
           onSave={handleUpdate}
-          initialModule={module}
+          initialData={module}
         />
         <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
           <AlertDialogContent onClick={e => e.stopPropagation()}>
@@ -105,8 +133,6 @@ export const ModuleItemDraggable = ({ module, family, hasPermission, onAddModule
       ref={setNodeRef}
       style={style}
       className="flex items-center group bg-background/30 p-1.5 rounded-md hover:bg-muted/50 cursor-pointer"
-      draggable={true}
-      onDragStart={handleDragStart}
       onClick={handleClick}
     >
       <Button

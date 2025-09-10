@@ -56,6 +56,7 @@ const FormationManagementPanel = () => {
       title: item.title,
       status: item.status,
       course_type: item.course_type,
+      delivery_mode: item.delivery_mode ?? 'hybrid', // Fallback pour compatibilité
       created_at: item.created_at,
       cover_image_url: item.cover_image_url,
       nodes: item.nodes,
@@ -107,6 +108,7 @@ const FormationManagementPanel = () => {
         edges: formation.edges,
         objectives: formation.objectives,
         program: formation.program,
+        delivery_mode: formation.delivery_mode,
       })
       .select('id')
       .single();
@@ -129,6 +131,12 @@ const FormationManagementPanel = () => {
       setFormations(prev => prev.filter(f => f.id !== formationId));
     }
   }, [toast]);
+
+  const handleImageUpdate = useCallback((formationId, newImageUrl) => {
+    setFormations(prev =>
+      prev.map(f => (f.id === formationId ? { ...f, cover_image_url: newImageUrl } : f))
+    );
+  }, []);
 
   return (
     <Card className="glass-effect">
@@ -204,6 +212,7 @@ const FormationManagementPanel = () => {
                   onTypeChange={handleTypeChange}
                   onDuplicate={handleDuplicate}
                   onDelete={handleDelete}
+                  onImageUpdate={handleImageUpdate}
                 />
               ) : (
                 <FormationGalleryView 
@@ -212,6 +221,7 @@ const FormationManagementPanel = () => {
                   onTypeChange={handleTypeChange}
                   onDuplicate={handleDuplicate}
                   onDelete={handleDelete}
+                  onImageUpdate={handleImageUpdate}
                 />
               )}
             </motion.div>

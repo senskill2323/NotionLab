@@ -322,8 +322,8 @@ const HomeBlockList = ({ mode = 'list' }) => {
           } catch (err) {
             console.error('Hard delete failed:', err);
             toast({
-              title: "Action non autorisée",
-              description: "Seuls les utilisateurs owner/admin peuvent effectuer une suppression définitive.",
+              title: "Erreur de suppression",
+              description: err.message || "Impossible de supprimer définitivement ce bloc.",
               variant: "destructive",
             });
           }

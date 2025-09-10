@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
+import { useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, MoreVertical, Pencil, Trash2, PlusCircle, ChevronDown, ChevronRight } from 'lucide-react';
 import { useBuilderCatalog } from '@/hooks/useBuilderCatalog';
@@ -16,13 +17,15 @@ import ModuleItem from './ModuleItem'; // Keep both for now to see if we can mer
 import { usePermissions } from '@/contexts/PermissionsContext';
 
 const SubfamilySection = ({ subfamily, family, hasPermission, onAddModuleToFlow }) => {
+  const { deleteSubfamily, updateSubfamilyName, addModule } = useBuilderCatalog();
+  const { hasPermission: checkPermission } = usePermissions();
+  const canManageCatalog = checkPermission('builder:manage_catalog');
+  
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ 
     id: `subfamily-${subfamily.id}`,
-    data: { type: 'subfamily', parent: family.id },
-    disabled: !hasPermission
+    data: { type: 'subfamily', id: subfamily.id, parent: family.id },
+    disabled: !canManageCatalog
   });
-  const { deleteSubfamily, updateSubfamilyName, addModule } = useBuilderCatalog();
-  const { hasPermission: canManageCatalog } = usePermissions('builder:manage_catalog');
   
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -34,6 +37,17 @@ const SubfamilySection = ({ subfamily, family, hasPermission, onAddModuleToFlow 
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
+
+  // Make the subfamily (formation) a droppable target for modules
+  const { setNodeRef: setDropRef, isOver: isOverBody } = useDroppable({
+    id: `subfamily-drop-${subfamily.id}`,
+    data: { type: 'subfamily', subfamilyId: subfamily.id }
+  });
+  // Also make the header droppable so users can drop on the header (even when collapsed)
+  const { setNodeRef: setHeaderDropRef, isOver: isOverHeader } = useDroppable({
+    id: `subfamily-header-drop-${subfamily.id}`,
+    data: { type: 'subfamily', subfamilyId: subfamily.id }
+  });
 
   const confirmDelete = () => {
     deleteSubfamily(subfamily.id);
@@ -53,7 +67,7 @@ const SubfamilySection = ({ subfamily, family, hasPermission, onAddModuleToFlow 
   };
   
   const renderMenu = () => {
-    if (!hasPermission) {
+    if (!canManageCatalog) {
       return null;
     }
     return (
@@ -83,23 +97,23 @@ const SubfamilySection = ({ subfamily, family, hasPermission, onAddModuleToFlow 
 
   return (
     <div ref={setNodeRef} style={style}>
-      <Collapsible open={isOpen} onOpenChange={setIsOpen} className="rounded-lg bg-card/60 p-2 border">
-        <div className="flex items-center justify-between group -my-1">
+      <Collapsible open={isOpen} onOpenChange={setIsOpen} className={`rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 p-2 border border-blue-200 dark:border-blue-800 shadow-sm transition-all duration-200 ${isOverHeader || isOverBody ? 'ring-4 ring-primary/80 bg-primary/10 scale-[1.02] shadow-lg' : ''}`}>
+        <div ref={setHeaderDropRef} className="flex items-center justify-between group -my-1">
           <div className="flex items-center gap-1 flex-grow">
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="w-7 h-7 cursor-grab" {...(hasPermission ? attributes : {})} {...(hasPermission ? listeners : {})}>
+                  <Button variant="ghost" size="icon" className="w-7 h-7 cursor-grab" {...(canManageCatalog ? attributes : {})} {...(canManageCatalog ? listeners : {})}>
                     <GripVertical className="w-4 h-4 text-muted-foreground" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Réorganiser la sous-famille</TooltipContent>
+                <TooltipContent>Réorganiser la Formation</TooltipContent>
               </Tooltip>
             </TooltipProvider>
              <CollapsibleTrigger asChild>
               <Button variant="ghost" size="sm" className="flex items-center gap-2 p-1 h-auto">
                 {isOpen ? <ChevronDown className="w-3 h-3"/> : <ChevronRight className="w-3 h-3"/>}
-                <span className="font-medium text-sm">{subfamily.name}</span>
+                <span className="font-semibold text-sm text-blue-700 dark:text-blue-300">{subfamily.name}</span>
               </Button>
             </CollapsibleTrigger>
           </div>
@@ -107,7 +121,7 @@ const SubfamilySection = ({ subfamily, family, hasPermission, onAddModuleToFlow 
         </div>
 
         <CollapsibleContent asChild>
-          <div className="pl-4 pt-2 space-y-1">
+          <div ref={setDropRef} className="pl-4 pt-2 space-y-1">
             <SortableContext items={subfamily.modules.map(m => `module-${m.id}`)} strategy={verticalListSortingStrategy}>
               {subfamily.modules.map((module) => (
                  <ModuleItemDraggable
@@ -139,7 +153,7 @@ const SubfamilySection = ({ subfamily, family, hasPermission, onAddModuleToFlow 
           <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Supprimer la sous-famille ?</AlertDialogTitle>
+                <AlertDialogTitle>Supprimer la Formation ?</AlertDialogTitle>
                 <AlertDialogDescription>
                   Cette action est irréversible et supprimera tous les modules associés.
                 </AlertDialogDescription>

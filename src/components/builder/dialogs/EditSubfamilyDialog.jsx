@@ -31,9 +31,9 @@ const EditSubfamilyDialog = ({ open, onOpenChange, onSave, initialName = '' }) =
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>{isEditing ? 'Renommer la sous-famille' : 'Ajouter une sous-famille'}</DialogTitle>
+          <DialogTitle>{isEditing ? 'Renommer la Formation' : 'Ajouter une Formation'}</DialogTitle>
           <DialogDescription>
-            Les sous-familles affinent l'organisation au sein d'une famille.
+            Les Formations affinent l'organisation au sein d'une famille.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">

@@ -21,27 +21,7 @@ export const BuilderCatalogProvider = ({ children }) => {
 
     const fetchData = useCallback(async () => {
         // Ne pas remettre loading à true ici pour éviter les flashs sur les re-fetchs de realtime
-        // 1) Récupérer les IDs de modules présents dans les formations standard 'live'
-        const { data: liveStandardCourses, error: coursesError } = await supabase
-            .from('courses')
-            .select('nodes')
-            .eq('course_type', 'standard')
-            .eq('status', 'live');
-
-        const allowedModuleIds = new Set();
-        if (!coursesError && Array.isArray(liveStandardCourses)) {
-            for (const course of liveStandardCourses) {
-                if (Array.isArray(course?.nodes)) {
-                    for (const node of course.nodes) {
-                        if (node?.type === 'moduleNode' && node?.data?.moduleId) {
-                            allowedModuleIds.add(node.data.moduleId);
-                        }
-                    }
-                }
-            }
-        }
-
-        // 2) Charger le catalogue puis filtrer les modules sur la base des IDs autorisés
+        // Charger le catalogue complet pour le builder, sans filtrage par cours "live"
         const { data, error } = await supabase
             .from('builder_families')
             .select(`
@@ -61,14 +41,15 @@ export const BuilderCatalogProvider = ({ children }) => {
             toast({ title: "Erreur", description: `Impossible de charger le catalogue: ${error.message}`, variant: "destructive" });
             setCatalog([]);
         } else {
-            const filtered = (data || []).map(f => ({
+            // Normaliser les structures imbriquées pour garantir des tableaux
+            const normalized = (data || []).map(f => ({
                 ...f,
                 subfamilies: (f.subfamilies || []).map(sf => ({
                     ...sf,
-                    modules: (sf.modules || []).filter(m => allowedModuleIds.has(m.id))
+                    modules: (sf.modules || [])
                 }))
             }));
-            setCatalog(filtered);
+            setCatalog(normalized);
         }
         setLoading(false);
     }, [toast]);
@@ -226,17 +207,31 @@ export const BuilderCatalogProvider = ({ children }) => {
         const { active, over } = event;
         if (!over || active.id === over.id) return;
 
-        const activeId = active.id.toString().split('-')[1];
-        const overId = over.id.toString().split('-')[1];
-        const type = active.data.current.type;
+        const activeType = active.data.current?.type;
+        const overType = over.data.current?.type;
+        const activeModuleId = active.data.current?.id; // provided by useSortable on ModuleItemDraggable
         
         let newCatalog = JSON.parse(JSON.stringify(catalog));
         let itemsToUpdate = [];
         let table;
 
-        if (type === 'family') {
-            const oldIndex = newCatalog.findIndex(f => f.id === activeId);
-            const newIndex = newCatalog.findIndex(f => f.id === overId);
+        // Diagnostics
+        try {
+            console.debug('[BuilderCatalog] DnD handleDragEnd', {
+                activeId: String(active.id),
+                overId: String(over.id),
+                activeType,
+                overType,
+                activeData: active.data?.current,
+                overData: over.data?.current,
+            });
+        } catch {}
+
+        if (activeType === 'family') {
+            const activeFamilyId = active.data.current?.id || String(active.id).replace(/^family-/, '');
+            const overFamilyId = over.data.current?.id || String(over.id).replace(/^family-/, '');
+            const oldIndex = newCatalog.findIndex(f => f.id === activeFamilyId);
+            const newIndex = newCatalog.findIndex(f => f.id === overFamilyId);
             newCatalog = arrayMove(newCatalog, oldIndex, newIndex);
             itemsToUpdate = newCatalog.map((item, index) => ({
                 id: item.id,
@@ -246,12 +241,14 @@ export const BuilderCatalogProvider = ({ children }) => {
                 display_order: index 
             }));
             table = 'builder_families';
-        } else if (type === 'subfamily') {
-            const parentFamilyId = active.data.current.parent;
+        } else if (activeType === 'subfamily') {
+            const parentFamilyId = active.data.current?.parent;
+            const activeSubfamilyId = active.data.current?.id || String(active.id).replace(/^subfamily-/, '');
+            const overSubfamilyId = over.data.current?.id || String(over.id).replace(/^subfamily-/, '');
             const parentFamily = newCatalog.find(f => f.id === parentFamilyId);
             if (!parentFamily) return;
-            const oldIndex = parentFamily.subfamilies.findIndex(sf => sf.id === activeId);
-            const newIndex = parentFamily.subfamilies.findIndex(sf => sf.id === overId);
+            const oldIndex = parentFamily.subfamilies.findIndex(sf => sf.id === activeSubfamilyId);
+            const newIndex = parentFamily.subfamilies.findIndex(sf => sf.id === overSubfamilyId);
             const movedSubfamilies = arrayMove(parentFamily.subfamilies, oldIndex, newIndex);
             newCatalog = newCatalog.map(f => f.id === parentFamilyId ? { ...f, subfamilies: movedSubfamilies } : f);
             itemsToUpdate = movedSubfamilies.map((item, index) => ({
@@ -262,25 +259,161 @@ export const BuilderCatalogProvider = ({ children }) => {
                 display_order: index 
             }));
             table = 'builder_subfamilies';
-        } else if (type === 'module') {
-            const parentSubfamilyId = active.data.current.parent;
-            let parentFamily;
-            let parentSubfamily;
+        } else if (activeType === 'module') {
+            // Trouver le module source et sa sous-famille
+            const sourceSubfamilyId = active.data.current?.parent;
+            let sourceFamily, sourceSubfamily, moduleToMove;
+            
             for(const f of newCatalog) {
-                const sf = f.subfamilies.find(s => s.id === parentSubfamilyId);
+                const sf = f.subfamilies.find(s => s.id === sourceSubfamilyId);
                 if (sf) {
-                    parentFamily = f;
-                    parentSubfamily = sf;
+                    sourceFamily = f;
+                    sourceSubfamily = sf;
+                    moduleToMove = sf.modules.find(m => m.id === activeModuleId);
                     break;
                 }
             }
-            if(!parentSubfamily || !parentFamily) return;
-
-            const oldIndex = parentSubfamily.modules.findIndex(m => m.id === activeId);
-            const newIndex = parentSubfamily.modules.findIndex(m => m.id === overId);
-            const movedModules = arrayMove(parentSubfamily.modules, oldIndex, newIndex);
-            newCatalog = newCatalog.map(f => f.id === parentFamily.id ? { ...f, subfamilies: f.subfamilies.map(sf => sf.id === parentSubfamilyId ? { ...sf, modules: movedModules } : sf) } : f);
-            itemsToUpdate = movedModules.map((item, index) => ({ ...item, display_order: index }));
+            
+            if (!sourceSubfamily || !moduleToMove) return;
+            
+            // Déterminer la destination
+            let targetSubfamilyId;
+            
+            if (overType === 'subfamily') {
+                // Drop sur une sous-famille (formation) - récupère l'id depuis les données du droppable
+                targetSubfamilyId = over.data.current?.subfamilyId || over.data.current?.id || String(over.id).replace(/^subfamily(?:-header-drop|-drop|-)/, '');
+            } else if (overType === 'module') {
+                // Drop sur un module - on peut récupérer directement la sous-famille via les données du sortable
+                targetSubfamilyId = over.data.current?.parent;
+                // Fallback sécurisé si jamais non présent
+                if (!targetSubfamilyId) {
+                    for(const f of newCatalog) {
+                        for(const sf of f.subfamilies) {
+                            if (sf.modules.find(m => m.id === (over.data.current?.id))) {
+                                targetSubfamilyId = sf.id;
+                                break;
+                            }
+                        }
+                        if (targetSubfamilyId) break;
+                    }
+                }
+            } else {
+                return; // Drop invalide
+            }
+            
+            if (!targetSubfamilyId) return;
+            
+            // Trouver la sous-famille de destination
+            let targetFamily, targetSubfamily;
+            for(const f of newCatalog) {
+                const sf = f.subfamilies.find(s => s.id === targetSubfamilyId);
+                if (sf) {
+                    targetFamily = f;
+                    targetSubfamily = sf;
+                    break;
+                }
+            }
+            
+            if (!targetSubfamily) return;
+            
+            if (sourceSubfamilyId === targetSubfamilyId) {
+                // Réorganisation dans la même sous-famille
+                const oldIndex = sourceSubfamily.modules.findIndex(m => m.id === activeModuleId);
+                let newIndex;
+                
+                if (overType === 'module') {
+                    newIndex = sourceSubfamily.modules.findIndex(m => m.id === (over.data.current?.id));
+                } else {
+                    newIndex = sourceSubfamily.modules.length - 1;
+                }
+                
+                const movedModules = arrayMove(sourceSubfamily.modules, oldIndex, newIndex);
+                newCatalog = newCatalog.map(f => f.id === sourceFamily.id ? { 
+                    ...f, 
+                    subfamilies: f.subfamilies.map(sf => sf.id === sourceSubfamilyId ? { 
+                        ...sf, 
+                        modules: movedModules 
+                    } : sf) 
+                } : f);
+                
+                itemsToUpdate = movedModules.map((item, index) => ({ 
+                    ...item, 
+                    display_order: index 
+                }));
+            } else {
+                // Déplacement entre sous-familles différentes
+                const updatedModuleToMove = {
+                    ...moduleToMove,
+                    subfamily_id: targetSubfamilyId,
+                    // display_order will be recomputed by mapping below
+                };
+                
+                // Retirer le module de la source
+                const updatedSourceModules = sourceSubfamily.modules.filter(m => m.id !== activeModuleId);
+                
+                // Ajouter le module à la destination
+                // Déterminer l'index d'insertion si on dépose sur un module spécifique dans la destination
+                let insertIndex = targetSubfamily.modules.length;
+                if (overType === 'module' && targetSubfamilyId === (over.data.current?.parent || targetSubfamilyId)) {
+                    const overModuleId = over.data.current?.id;
+                    const idx = targetSubfamily.modules.findIndex(m => m.id === overModuleId);
+                    if (idx >= 0) insertIndex = idx; // insérer à la position du module ciblé
+                }
+                const updatedTargetModules = [
+                    ...targetSubfamily.modules.slice(0, insertIndex),
+                    updatedModuleToMove,
+                    ...targetSubfamily.modules.slice(insertIndex)
+                ];
+                
+                // Mettre à jour le catalogue (gérer le cas où source et cible sont dans la même famille)
+                newCatalog = newCatalog.map(f => {
+                    if (f.id === sourceFamily.id && f.id === targetFamily.id) {
+                        // Même famille: mettre à jour les deux sous-familles dans le même passage
+                        return {
+                            ...f,
+                            subfamilies: f.subfamilies.map(sf => {
+                                if (sf.id === sourceSubfamilyId) {
+                                    return { ...sf, modules: updatedSourceModules.map((m, idx) => ({ ...m, display_order: idx })) };
+                                }
+                                if (sf.id === targetSubfamilyId) {
+                                    return { ...sf, modules: updatedTargetModules.map((m, idx) => ({ ...m, display_order: idx })) };
+                                }
+                                return sf;
+                            })
+                        };
+                    }
+                    if (f.id === sourceFamily.id) {
+                        return {
+                            ...f,
+                            subfamilies: f.subfamilies.map(sf => 
+                                sf.id === sourceSubfamilyId ? {
+                                    ...sf,
+                                    modules: updatedSourceModules.map((m, idx) => ({ ...m, display_order: idx }))
+                                } : sf
+                            )
+                        };
+                    }
+                    if (f.id === targetFamily.id) {
+                        return {
+                            ...f,
+                            subfamilies: f.subfamilies.map(sf => 
+                                sf.id === targetSubfamilyId ? {
+                                    ...sf,
+                                    modules: updatedTargetModules.map((m, idx) => ({ ...m, display_order: idx }))
+                                } : sf
+                            )
+                        };
+                    }
+                    return f;
+                });
+                
+                // Préparer les mises à jour pour la base de données
+                itemsToUpdate = [
+                    ...updatedSourceModules.map((m, idx) => ({ ...m, display_order: idx })),
+                    ...updatedTargetModules.map((m, idx) => ({ ...m, display_order: idx }))
+                ];
+            }
+            
             table = 'builder_modules';
         }
 
