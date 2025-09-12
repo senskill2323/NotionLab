@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/lib/customSupabaseClient';
@@ -41,9 +42,13 @@ const formatMinutes = (totalMinutes) => {
   }
 };
 
-const FormationsSection = () => {
+const FormationsSection = ({ content = {} }) => {
   const [formations, setFormations] = useState([]);
   const [loadingFormations, setLoadingFormations] = useState(true);
+  const title = content.title || 'Mes ';
+  const titleSuffix = content.titleSuffix || 'formations';
+  const subtitle = content.subtitle || "Choisissez la formation qui correspond à votre niveau et vos objectifs.\n            Chaque formation est conçue pour vous faire progresser rapidement.";
+  const backgroundImageUrl = content.backgroundImageUrl || 'https://images.unsplash.com/photo-1687754946970-5ff99224bd70';
 
   useEffect(() => {
     const fetchFormations = async () => {
@@ -69,16 +74,15 @@ const FormationsSection = () => {
   return (
     <section className="py-20 relative overflow-hidden">
       <div className="absolute inset-0 z-[-1] opacity-20">
-        <img  alt="Abstract background with geometric shapes" src="https://images.unsplash.com/photo-1687754946970-5ff99224bd70" />
+        <img  alt="Abstract background with geometric shapes" src={backgroundImageUrl} />
       </div>
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
           <h2 className="text-4xl md:text-5xl font-bold mb-6">
-            Mes <span className="gradient-text">formations</span>
+            {title}<span className="gradient-text">{titleSuffix}</span>
           </h2>
           <p className="text-xl text-foreground/80 max-w-3xl mx-auto">
-            Choisissez la formation qui correspond à votre niveau et vos objectifs.
-            Chaque formation est conçue pour vous faire progresser rapidement.
+            {subtitle}
           </p>
         </div>
 

@@ -102,8 +102,10 @@ const BlocksTable = ({ blocks, onEdit, onDelete, onPreview }) => {
           </TableHeader>
           <TableBody>
             {blocks.map((block, index) => {
-              const canEdit = block.block_type === 'html';
+              const canEdit = true; // Enable edit for both html and dynamic blocks
               const canPreview = block.block_type === 'dynamic';
+              
+              console.log('Block:', block.title, 'canEdit:', canEdit, 'block_type:', block.block_type);
               
               return (
               <TableRow key={block.id}>
@@ -143,7 +145,7 @@ const BlocksTable = ({ blocks, onEdit, onDelete, onPreview }) => {
                     <Eye className="h-4 w-4" />
                     <span className="sr-only">Prévisualiser</span>
                   </Button>
-                  <Button variant="ghost" size="icon" onClick={() => onEdit(block.id)} disabled={!canEdit}>
+                  <Button variant="ghost" size="icon" onClick={() => onEdit(block.id)} disabled={block.layout === 'home.formations'}>
                     <Edit className="h-4 w-4" />
                     <span className="sr-only">Modifier</span>
                   </Button>

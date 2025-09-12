@@ -5,13 +5,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 
+import { Input } from '@/components/ui/input';
+
 const ImageUpload = ({ 
   onImageSelected, 
   currentImageUrl = '', 
   bucketName = 'block-images',
   maxSizeMB = 5,
   acceptedTypes = ['image/jpeg', 'image/png', 'image/webp'],
-  cropAspectRatio = 16/9 
+  cropAspectRatio = 16/9, 
+  compact = false
 }) => {
   const { toast } = useToast();
   const fileInputRef = useRef(null);
@@ -168,6 +171,90 @@ const ImageUpload = ({
       setIsUploading(false);
     }
   };
+
+    if (compact) {
+    return (
+      <>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+            className="flex-grow"
+          >
+            <ImageIcon className="h-4 w-4 mr-2" />
+            {currentImageUrl ? 'Changer l\'image' : 'Parcourir...'}
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={acceptedTypes.join(',')}
+            onChange={(e) => e.target.files?.[0] && handleFileSelection(e.target.files[0])}
+            className="hidden"
+          />
+        </div>
+
+        {/* Cropping Dialog */}
+        <Dialog open={showCropper} onOpenChange={setShowCropper}>
+          <DialogContent className="max-w-4xl">
+            <DialogHeader>
+              <DialogTitle>Recadrer l'image</DialogTitle>
+            </DialogHeader>
+            
+            {originalImage && (
+              <div className="space-y-4">
+                <div className="relative max-h-96 overflow-hidden rounded border">
+                  <img 
+                    src={originalImage.dataUrl} 
+                    alt="À recadrer"
+                    className="max-w-full h-auto"
+                  />
+                  <div 
+                    className="absolute border-2 border-primary bg-primary/10"
+                    style={{
+                      left: `${(cropData.x / originalImage.width) * 100}%`,
+                      top: `${(cropData.y / originalImage.height) * 100}%`,
+                      width: `${(cropData.width / originalImage.width) * 100}%`,
+                      height: `${(cropData.height / originalImage.height) * 100}%`
+                    }}
+                  />
+                </div>
+                
+                <canvas ref={canvasRef} className="hidden" />
+                
+                <div className="flex gap-2 justify-end">
+                  <Button 
+                    variant="ghost" 
+                    onClick={() => setShowCropper(false)}
+                    disabled={isUploading}
+                  >
+                    Annuler
+                  </Button>
+                  <Button 
+                    onClick={applyCrop}
+                    disabled={isUploading}
+                  >
+                    {isUploading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Téléchargement...
+                      </>
+                    ) : (
+                      <>
+                        <Crop className="w-4 h-4 mr-2" />
+                        Recadrer et télécharger
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+      </>
+    );
+  }
 
   return (
     <>

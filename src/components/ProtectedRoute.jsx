@@ -5,11 +5,11 @@ import { usePermissions } from '@/contexts/PermissionsContext';
 import { Loader2 } from 'lucide-react';
 
 const ProtectedRoute = ({ children, allowedUserTypes, requiredPermission }) => {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, authReady } = useAuth();
   const { hasPermission, loading: permsLoading } = usePermissions();
   const location = useLocation();
 
-  const isLoading = authLoading || permsLoading;
+  const isLoading = authLoading || permsLoading || !authReady;
 
   if (isLoading) {
     return (
