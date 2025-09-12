@@ -28,7 +28,10 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
           if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
             flattenObject(value, newPrefix);
           } else if (typeof value === 'string' || typeof value === 'number') {
-            const HSLValue = value.startsWith('hsl') ? value.match(/hsl\(([^)]+)\)/)[1].trim() : value;
+            const isString = typeof value === 'string';
+            const HSLValue = isString && value.startsWith('hsl')
+              ? (value.match(/hsl\(([^)]+)\)/)?.[1]?.trim() ?? value)
+              : String(value);
             cssVars += `--${newPrefix}: ${HSLValue};`;
           }
         });
@@ -92,9 +95,14 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
           finalTheme = data;
         }
         
-        setTheme(finalTheme);
-        applyThemeToDOM(finalTheme);
-        setLoading(false);
+        try {
+          setTheme(finalTheme);
+          applyThemeToDOM(finalTheme);
+        } catch (e) {
+          console.error('Failed to apply theme to DOM:', e);
+        } finally {
+          setLoading(false);
+        }
       }, []);
 
       useEffect(() => {

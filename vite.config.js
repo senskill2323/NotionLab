@@ -212,7 +212,14 @@ export default defineConfig({
   server: {
     cors: true,
     headers: {
-      'Cross-Origin-Embedder-Policy': 'credentialless',
+      // Helpful security headers for local dev to quiet browser warnings
+      // Note: keep this light to avoid breaking hot-reload and 3P assets in dev
+      'X-Content-Type-Options': 'nosniff',
+      // If this app serves assets consumed cross-origin during dev, allow it
+      'Cross-Origin-Resource-Policy': 'cross-origin',
+      // Reasonable defaults; adjust as needed in production infra
+      'Referrer-Policy': 'strict-origin-when-cross-origin',
+      'Permissions-Policy': 'camera=(), microphone=(), geolocation=()'
     },
     allowedHosts: true,
   },
@@ -223,6 +230,7 @@ export default defineConfig({
     },
   },
   build: {
+    target: 'baseline-widely-available',
     rollupOptions: {
       external: [
         '@babel/parser',

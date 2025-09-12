@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Helmet } from 'react-helmet';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 import * as Icons from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { usePermissions } from '@/contexts/PermissionsContext';
@@ -25,6 +26,22 @@ import TabsEditorPage from '@/pages/admin/TabsEditorPage';
 import FormationManagementPanel from '@/components/admin/FormationManagementPanel';
 import UserFormationSubmissionsPanel from '@/components/admin/UserFormationSubmissionsPanel';
 
+const LiveChatPlaceholder = () => {
+  const navigate = useNavigate();
+  return (
+    <div className="p-4 border rounded-lg bg-muted/20">
+      <h3 className="font-medium mb-2">Live Chat</h3>
+      <p className="text-sm text-muted-foreground mb-3">
+        Le module Live Chat s’ouvre désormais sur une page dédiée.
+      </p>
+      <Button size="sm" onClick={() => navigate('/admin/live-chat')}>
+        <Icons.MessageCircle className="h-4 w-4 mr-2" />
+        Ouvrir le Live Chat
+      </Button>
+    </div>
+  );
+};
+
 const adminComponentMap = {
   UserManagementPanel,
   TicketManagementPanel,
@@ -42,6 +59,7 @@ const adminComponentMap = {
   FormationManagementPanel,
   CourseManagementPanel: FormationManagementPanel, // Rétrocompatibilité
   UserFormationSubmissionsPanel,
+  AdminLiveChatPage: LiveChatPlaceholder,
 };
 
 const KpiCard = ({ title, value, subValue, loading }) => (
@@ -79,6 +97,7 @@ const AdminDashboardPage = () => {
   const location = useLocation();
   const { toast } = useToast();
   const userName = user?.profile?.first_name || 'Admin';
+  const missingComponentsRef = useRef(new Set());
 
   const [kpis, setKpis] = useState({ open_tickets: 0, pending_messages: 0, created_parcours: 0 });
   const [kpiLoading, setKpiLoading] = useState(true);
@@ -174,8 +193,12 @@ const AdminDashboardPage = () => {
     if(!permissionsLoading && !tabsLoading) {
         const initialTab = determineInitialTab();
         setActiveTab(initialTab);
-        if(initialTab && location.search !== `?tab=${initialTab}`) {
-           navigate(`/admin/dashboard?tab=${initialTab}`, { replace: true });
+        if (initialTab) {
+          const sp = new URLSearchParams(location.search);
+          if (sp.get('tab') !== initialTab) {
+            sp.set('tab', initialTab);
+            navigate(`/admin/dashboard?${sp.toString()}`, { replace: true });
+          }
         }
     }
   }, [permissionsLoading, tabsLoading, determineInitialTab, navigate, location.search]);
@@ -187,7 +210,9 @@ const AdminDashboardPage = () => {
     }
 
     setActiveTab(value);
-    navigate(`/admin/dashboard?tab=${value}`, { replace: true });
+    const sp = new URLSearchParams(location.search);
+    sp.set('tab', value);
+    navigate(`/admin/dashboard?${sp.toString()}`, { replace: true });
     if (value === 'tickets') setNewActivity(prev => ({ ...prev, tickets: false }));
     if (value === 'builder-parcours') setNewActivity(prev => ({ ...prev, builder: false }));
   };
@@ -216,7 +241,10 @@ const AdminDashboardPage = () => {
         {tabModules.map(module => {
           const Component = adminComponentMap[module.component_name];
           if (!Component) {
-            console.warn(`Composant non trouvé : ${module.component_name}`);
+            if (!missingComponentsRef.current.has(module.component_name)) {
+              console.warn(`Composant non trouvé : ${module.component_name}`);
+              missingComponentsRef.current.add(module.component_name);
+            }
             return null;
           }
           return <Component key={module.module_key} />;

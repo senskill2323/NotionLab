@@ -1,0 +1,618 @@
+# NotionLab · Guide IA (Supabase + Dépendances)
+
+Ce document centralise les patterns de design et de code utiles à l’IA pour intervenir efficacement sur le projet NotionLab.
+
+
+## 1) Supabase — Configuration et conventions
+
+- Client Supabase
+  - Fichiers: `src/lib/supabasClient.js`, `src/lib/customSupabaseClient.js`
+  - Variables d’environnement: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
+  - `customSupabaseClient.js` ajoute un warning si les variables d’env manquent.
+- Authentification
+  - Contexte: `src/contexts/SupabaseAuthContext.jsx`
+  - Méthodes utilisées: `auth.getSession()`, `auth.onAuthStateChange()`, `auth.signInWithPassword()`, `auth.signUp()`, `auth.signOut()`, `auth.getUser()`
+  - Cas admin/gestion: `auth.admin.deleteUser(...)` (Attention: nécessite Service Role. À exécuter via Edge Function côté serveur en production.)
+- Realtime
+  - Exemple: `ResourcesPanel` souscrit aux changements Postgres sur `resources`, `resource_assignments`, `resource_ratings` avec `supabase.channel(...).on('postgres_changes', ...)`.
+
+
+## 2) Supabase — Tables et logique applicative
+
+Pour chaque table, la logique est déduite des appels `supabase.from('<table>')` dans `src/`.
+
+- __profiles__
+  - Rôle: Profil utilisateur enrichi (nom, avatar, type d’utilisateur).
+  - Ops: `select` (filtrage clients/vip), `update` (changement `user_type_id`, mise à jour `avatar_url`), `delete` (supp. profil).
+  - Références: `components/admin/ResourcesPanel.jsx`, `components/admin/UserManagementPanel.jsx`, `components/account/AvatarUpload.jsx`.
+- __user_types__
+  - Rôle: Typologie des utilisateurs (ex: `client`, `vip`, `prof`, `guest`).
+  - Ops: `select`.
+  - Références: `pages/admin/CreateUserPage.jsx`, `pages/admin/ManageUserPage.jsx`, `pages/admin/RolesPermissionsPage.jsx`.
+- __role_permissions__
+  - Rôle: Permissions par type d’utilisateur. Champs typiques: `permission`, `family`, flags booléens (`prof`, `client`, `guest`, `vip`).
+  - Ops: `select`, `upsert` (mise à jour en masse depuis l’UI), filtrage par type.
+  - Références: `pages/admin/RolesPermissionsPage.jsx`, `contexts/PermissionsContext.jsx`.
+- __courses__
+  - Rôle: Parcours/formations (standard/custom). Utilisé par le builder et le dashboard.
+  - Ops: `select` (liste), `insert` (création/duplication), `update` (titre/données), `delete` (suppression).
+  - Références: `lib/builder/parcoursApi.js`, `hooks/useFormationBuilder.js`, `components/admin/*Formation*Panel.jsx`, `pages/admin/ManageUserPage.jsx`.
+- __user_formations__
+  - Rôle: Liaison utilisateur ↔ formation (inscriptions/affectations).
+  - Ops: `select` (formations de l’utilisateur).
+  - Références: `pages/admin/ManageUserPage.jsx`.
+- __component_rules__
+  - Rôle: Règles de rendu/composants dynamiques.
+  - Ops: `select`, `upsert`.
+  - Références: `pages/admin/ComponentManagerPage.jsx`, `contexts/ComponentStateContext.jsx`.
+- __builder_families__, __builder_subfamilies__, __builder_modules__
+  - Rôle: Catalogue du builder (hiérarchie familles → sous-familles → modules).
+  - Ops: `select`, `insert`, `update`, `delete` (gestion complète du catalogue).
+  - Références: `contexts/BuilderCatalogContext.jsx`, `components/admin/ResourcesPanel.jsx` (pour listes), etc.
+- __resources__
+  - Rôle: Ressources (pdf, notes internes, liens, etc.). Champs vus: `id`, `name`, `type`, `format`, `url`, `content`, `file_path`, meta dates, créateur.
+  - Ops: `select` (détails), `insert` (création), `update`, `delete`.
+  - Références: `components/dashboard/modules/ResourcesPanel.jsx`, `components/admin/NewResourceDialog.jsx`, `components/admin/resources/*`.
+- __resource_assignments__
+  - Rôle: Assignation de ressources aux utilisateurs.
+  - Ops: `insert` (assigner), `delete` (retirer), `delete ... in(...)` (batch).
+  - Références: `components/dashboard/ClientResourcesPanel.jsx`, `components/admin/resources/ResourcesTableRow.jsx`, `components/dashboard/modules/ResourcesPanel.jsx`.
+- __resource_ratings__
+  - Rôle: Notations personnelles des ressources par utilisateur.
+  - Ops: `upsert` avec `onConflict: 'resource_id,user_id'`.
+  - Références: `components/dashboard/modules/ResourcesPanel.jsx`, `components/dashboard/ClientResourcesPanel.jsx`.
+- __chat_conversations__
+  - Rôle: Conversations (visiteur/guest, admin, statut, dates).
+  - Ops: `select` (dernière conv. active par `guest_id`).
+  - Références: `components/ChatWidget.jsx`.
+- __chat_messages__
+  - Rôle: Messages du chat (texte, pièces jointes via Storage, messages système).
+  - Ops: `insert`, `select` par `conversation_id`.
+  - Références: `lib/chatApi.js`, `components/ChatWidget.jsx`, `components/admin/AdminChatView.jsx`.
+- __tickets__
+  - Rôle: Tickets/support.
+  - Ops: `insert`.
+  - Références: `pages/CreateTicketPage.jsx`.
+- __admin_dashboard_tabs__
+  - Rôle: Layout des onglets du dashboard admin (ordres `row_order`, `col_order`).
+  - Ops: `select` (trié), `upsert` (sauvegarde de disposition).
+  - Références: `pages/AdminDashboardPage.jsx`, `pages/admin/DashboardEditorPage.jsx`, `hooks/useDashboardLayout.js`.
+- __admin_modules_registry__ et __modules_registry__
+  - Rôle: Registre des modules affichables (flag `is_active`).
+  - Ops: `select` (filtrage `is_active`).
+  - Références: `pages/AdminDashboardPage.jsx`, `pages/admin/DashboardEditorPage.jsx`, `hooks/useDashboardLayout.js`.
+- __forum_posts__
+  - Rôle: Messages dans les topics de forum.
+  - Ops: `insert`.
+  - Références: `pages/ForumTopicPage.jsx`.
+
+
+## 3) Supabase — Buckets Storage
+
+- __avatars__
+  - Usage: Upload/replace l’avatar, suppression de l’ancien fichier, `getPublicUrl`, mise à jour `profiles.avatar_url`.
+  - Références: `components/account/AvatarUpload.jsx`.
+- __resources__
+  - Usage: Suppression de fichiers associés lors de la suppression de ressources, `getPublicUrl` pour affichage.
+  - Références: `components/dashboard/modules/ResourcesPanel.jsx`, `components/admin/resources/*`, `components/chat/MessageList.jsx`.
+- __chat_attachments__
+  - Usage: Upload de fichiers envoyés dans le chat (guest/admin), récupération URL publique.
+  - Références: `lib/chatApi.js`.
+- __forum_attachments__
+  - Usage: Récupération d’URL publique pour pièces jointes du forum.
+  - Références: `pages/CreateForumTopicPage.jsx`.
+
+
+## 4) Supabase — Edge Functions et RPC
+
+- Edge Functions (invocations via `supabase.functions.invoke`)
+  - `get-dashboard-layout` / `update-dashboard-layout`: Lecture/Écriture du layout du dashboard (propriétaire par défaut).
+  - `manage-content-block`: Gestion d’un bloc de contenu (création/màj côté admin).
+  - `create-user-with-role`: Création d’utilisateur + attribution d’un type.
+  - `set-user-password`: Mise à jour du mot de passe (admin-only / côté serveur).
+  - `users-search`: Recherche paginée/filtrée d’utilisateurs pour l’admin.
+  - `content-blocks-search`: Recherche paginée/filtrée des blocs de contenu.
+
+- RPC Postgres (invocations via `supabase.rpc`)
+  - Dashboard/Stats: `get_admin_dashboard_kpis`, `get_public_stats`.
+  - Formations/Parcours: `get_user_courses_and_parcours`, `get_user_approved_parcours_snapshot`, `enroll_user_in_course`.
+  - Kanban/Submissions: `ensure_custom_submission_and_init`, `snapshot_and_init_kanban`, `cleanup_orphan_kanban_for_user`, `search_user_formation_submissions`, `reject_user_parcours_submission`, `submit_user_parcours_for_validation`.
+  - Ressources: `get_user_resources_with_ratings`, `get_assigned_resources_with_ratings`.
+  - Forum/Chat/Admin: `get_user_post_count`, `get_chat_conversations_with_details`, `get_admin_formations_and_submissions`, `get_user_login_history_count`, `get_user_login_history`.
+
+Notes:
+- Une RPC générique est utilisée dans `hooks/useSubmissions.js` via un nom dynamique (`rpcName`) selon l’action.
+- Les RPC encapsulent souvent la logique transactionnelle et de sécurité RLS.
+
+
+## 5) Auth — Flux et considérations
+
+- Connexion/Inscription: via `supabase.auth.signInWithPassword`, `signUp` (avec `options.data` pour first/last name).
+- Gestion de session: `auth.getSession`, listener `auth.onAuthStateChange`.
+- Réinitialisation mot de passe: `auth.resetPasswordForEmail` (lien redirige vers `/connexion?reason=reset`).
+- Déconnexion forcée: en cas d’erreur critique, le contexte force `signOut` et redirige `/connexion`.
+- Alerte sécurité: les appels `auth.admin.*` nécessitent le Service Role Key. Préférer un proxy via Edge Function.
+
+
+## 6) Dépendances (production) — Rôle dans l’app
+
+- `@supabase/supabase-js`: Client Supabase (auth, db, storage, functions, channels/realtime).
+- `react`, `react-dom`: Framework UI et moteur de rendu.
+- `react-router-dom`: Routing SPA.
+- `react-hook-form`: Gestion de formulaires performante.
+- `zustand`: Store minimaliste pour états partagés.
+- `tailwindcss`, `tailwind-merge`, `tailwindcss-animate`: Styling utilitaire, merge de classes, animations.
+- `@radix-ui/react-*` (accordion, dialog, dropdown, toast, etc.): Composants UI accessibles.
+- `lucide-react`: Icônes.
+- `date-fns`: Utilitaires dates.
+- `reactflow`: Editeur/visualisation de graphes/flows.
+- `framer-motion`: Animations.
+- `emoji-picker-react`: Sélecteur d’emojis.
+- `react-markdown` + `remark-gfm`: Rendu Markdown avec extensions GitHub.
+- `@tiptap/*` (react, starter-kit, extensions…): Editeur riche (texte, liens, tables, image, youtube, etc.).
+- `@dnd-kit/*` + `react-beautiful-dnd`: Drag & drop (builder, listes réordonnables).
+- `clsx`, `class-variance-authority`: Gestion conditionnelle/variants de classes CSS.
+- `use-debounce`: Debounce côté UI.
+- `uuid`: Génération d’identifiants uniques.
+- `papaparse`: Export CSV.
+- `dotenv`: Chargement de variables d’env (scripts Node).
+- `pg`: Client Postgres côté scripts (voir `scripts/run-sql.js`).
+
+
+## 7) Dépendances (dev) — Build & Qualité
+
+- `vite`, `@vitejs/plugin-react`: Bundler/dev server + plugin React.
+- `tailwindcss`, `postcss`, `autoprefixer`, `@tailwindcss/typography`: Pipeline CSS.
+- `eslint`, `eslint-config-react-app`: Qualité/formatage JS/JSX.
+- `@types/*` (node, react, react-dom): Types.
+- `terser`: Minification.
+- `@babel/*` (parser, traverse, types, generator): Outils de transformation code (scripts/outillage).
+
+
+## 8) Scripts NPM
+
+- `dev`: Lance Vite en mode développement.
+- `build`: Build de production avec Vite.
+- `preview`: Prévisualisation du build.
+- `db:query` / `db:file`: Exécution de requêtes SQL via `scripts/run-sql.js` (utilise `pg` et `dotenv`).
+
+
+## 9) Bonnes pratiques & patterns
+
+- Centraliser l’accès Supabase via `customSupabaseClient.js`.
+- Encapsuler l’auth et état utilisateur dans `SupabaseAuthContext` + `useAuth()`.
+- Passer par RPC/Edge Functions pour la logique transactionnelle/sensible.
+- Utiliser Realtime pour synchroniser l’UI après changements (`supabase.channel` + triggers Postgres).
+- Nettoyer le Storage en synchro avec la DB (ex: suppression fichier avant suppression `resources`).
+- Séparer Admin vs Client (ex: registres `admin_*` vs `modules_registry`).
+
+
+## 10) Relations & contraintes (FK / RLS)
+
+- __profiles__
+  - PK: `id` (égal à `auth.users.id`).
+  - FK: `user_type_id → user_types.id`.
+  - Accès attendu (RLS):
+    - L’utilisateur peut `select/update` sa propre ligne (`id = auth.uid()`).
+    - Admin/owner peut `update` le `user_type_id` et gérer des profils.
+
+- __user_types__
+  - PK: `id`.
+  - Accès attendu: lecture publique côté admin UI; écriture réservée admin.
+
+- __role_permissions__
+  - PK: `id`.
+  - Unique: `permission`.
+  - Colonnes: `permission` (texte), `family` (regroupement), flags booléens: `prof`, `client`, `guest`, `vip`, (et potentiellement `admin`).
+  - Accès: lecture côté client (via `PermissionsContext` pour construire les droits); écriture réservée admin (page `RolesPermissionsPage`).
+
+
+
+## 11) Diagramme ER (Mermaid)
+
+```mermaid
+erDiagram
+  user_types ||--o{ profiles : categorizes
+  profiles ||--o{ user_formations : has
+  courses ||--o{ user_formations : enrolled
+
+  builder_families ||--o{ builder_subfamilies : contains
+  builder_subfamilies ||--o{ builder_modules : contains
+
+  builder_families ||--o{ resources : categorizes
+  builder_subfamilies ||--o{ resources : categorizes
+  profiles ||--o{ resources : creates
+
+  resources ||--o{ resource_assignments : assigned
+  profiles ||--o{ resource_assignments : receives
+
+  resources ||--o{ resource_ratings : rated
+  profiles ||--o{ resource_ratings : rates
+
+  forum_topics ||--o{ forum_posts : contains
+  profiles ||--o{ forum_topics : authors
+  profiles ||--o{ forum_posts : authors
+  profiles ||--o{ courses : authors
+
+  chat_conversations ||--o{ chat_messages : contains
+  profiles ||--o{ tickets : opens
+  profiles ||--o{ content_blocks : authors
+
+  %% FK réelle: modules_registry.required_permission → role_permissions.permission
+  role_permissions ||--o{ modules_registry : grants
+```
+
+
+## 12) Conventions d’architecture & code
+
+- __Alias & imports__
+  - Alias `@` → `src/` (cf. `vite.config.js`), ex: `import { supabase } from '@/lib/customSupabaseClient'`.
+
+- __Découpage par responsabilité__
+  - Contextes: `SupabaseAuthContext`, `PermissionsContext`, `BuilderCatalogContext`.
+  - UI modulaires: `components/dashboard/modules/*`, `components/admin/*`.
+  - Accès données: privilégier RPC/Edge Functions pour logique transactionnelle et sécurité.
+
+- __Patterns UI__
+  - `ProtectedRoute` protège les pages via `allowedUserTypes` et/ou `requiredPermission`.
+  - Filtrage des modules par permission: `ClientDashboardContent.jsx` avec `module.required_permission`.
+  - Realtime via `supabase.channel(...).on('postgres_changes', ...)` pour rafraîchir l’UI (Resources, Forum, Chat, Builder).
+
+- __Storage__
+  - Toujours synchroniser DB et fichiers (supprimer le `file_path` côté Storage quand on supprime la resource).
+  - Utiliser `getPublicUrl` pour exposer un lien accessible publiquement lorsque nécessaire.
+
+- __Sécurité__
+  - Toute opération sensible (reset mot de passe, création admin, batch updates critiques) passe par Edge Functions.
+  - RLS: restreindre en écriture aux propriétaires (`created_by = auth.uid()`), en lecture aux intéressés (assignations, owner), et ouvrir admin.
+
+
+## 13) Glossaire des permissions & mapping UI
+
+- __Stockage des permissions__
+  - Table: `role_permissions` avec colonnes booléennes par type (`prof`, `client`, `guest`, `vip`, …).
+  - Le contexte `PermissionsContext.jsx` charge la liste via `role_permissions` selon le `user.profile.user_type`. Le rôle `owner` a tous les droits.
+
+- __Utilisation côté UI__
+  - Routage protégé: `components/ProtectedRoute.jsx` — prop `requiredPermission` vérifiée via `hasPermission()`.
+  - Modules dashboard: `components/dashboard/ClientDashboardContent.jsx` — filtrage des modules par `module.required_permission`.
+  - Onglets admin: `pages/AdminDashboardPage.jsx` — `tabsConfig.filter(tab => hasPermission(tab.permission_required))`.
+
+  - __Permission(s) observée(s)__
+  - `builder:manage_catalog` — permet d’insérer/mettre à jour/supprimer les familles/sous-familles/modules du Builder (cf. `BuilderCatalogContext.jsx`, `BuilderSettingsPanel.jsx`, `ModuleCatalog.jsx`).
+
+- __Ajouter une nouvelle permission__
+  1) Insérer la permission dans `role_permissions` (colonne `permission`, renseigner les flags rôles autorisés).
+  2) Dans l’UI, référencer cette permission:
+     - Pour une page: via `ProtectedRoute requiredPermission="<perm>"`.
+     - Pour un module: enregistrer `required_permission` dans le registre du module (et filtrer à l’affichage).
+  3) Vérifier les RLS correspondantes côté DB (si la permission doit ouvrir des opérations CRUD spécifiques).
+
+
+## 14) Contrats d’API (Edge Functions & RPC)
+
+- __Edge Functions__
+  - `get-dashboard-layout`
+    - Entrée (`body`): `{ owner_type: 'default', owner_id: null }` (souvent stringifié). Fichiers: `hooks/useDashboardLayout.js`, `components/dashboard/ClientDashboardContent.jsx`.
+    - Sortie: `{ layout_json: { rows: [...] } }`.
+  - `update-dashboard-layout`
+    - Entrée (`body`): `{ owner_type: 'default', owner_id: null, layout_json: <objet layout> }` (souvent stringifié). Fichier: `pages/admin/DashboardEditorPage.jsx`.
+    - Sortie: succès (pas d’objet consommé dans l’UI).
+  - `manage-content-block`
+    - Entrée (`body`): `{ blockId: <uuid|null>, blockData: { title, content|{}, status, type, block_type, layout, order_index, priority, author_id, publication_date, tags, audience_mode } }`. Fichier: `pages/admin/EditHomeBlockPage.jsx`.
+    - Sortie: `{ ... }` (bloc sauvegardé). En cas d’erreur: `{ error: string }`.
+  - `create-user-with-role`
+    - Entrée (`body`): `{ email, password, firstName, lastName, userType }`. Fichier: `pages/admin/CreateUserPage.jsx`.
+    - Sortie: `{ userId?: string }` ou `{ error: string }`.
+  - `set-user-password`
+    - Entrée (`body`): `{ userId }` (stringifié). Fichier: `pages/admin/ManageUserPage.jsx`.
+    - Sortie: `{ ok?: boolean }` ou `{ error: string }`.
+  - `users-search`
+    - Entrée (`body`): `{ filters, sort, page, perPage }`. Fichier: `components/admin/UserManagementPanel.jsx`.
+    - Sortie: `{ items: any[], total: number }`.
+  - `content-blocks-search`
+    - Entrée (`body`): `{ filters, sort, page, perPage }`. Fichier: `components/admin/home-blocks/HomeBlockList.jsx`.
+    - Sortie: `{ items: any[], total: number, error?: string }`.
+
+- __RPC Postgres__ (exemples principaux)
+  - `home_blocks_create_html(p_title, p_content, p_layout, p_type, p_status, p_priority)` → `uuid`
+    - Entrée: `p_title: text`, `p_content: text`, `p_layout: text`, `p_type: text`, `p_status: text`, `p_priority: int`.
+    - Sortie: `newId` (uuid du bloc créé). Fichier: `pages/admin/EditHomeBlockPage.jsx`.
+  - `home_blocks_move(p_id, p_direction)` → void
+  - `home_blocks_set_status(p_id, p_status)` → void
+  - `home_blocks_set_title(p_id, p_title)` → void
+  - `home_blocks_duplicate(p_id)` → void
+  - `search_content_blocks(p_filters, p_sort_field, p_sort_dir)` → liste
+  - `get_admin_dashboard_kpis()` → liste KPI. Fichiers: `pages/AdminDashboardPage.jsx`, `components/dashboard/AdminDashboardContent.jsx`.
+  - `get_public_stats()` → liste KPI. Fichier: `components/home/StatsSection.jsx`.
+  - `get_user_courses_and_parcours(p_user_id)` → liste de formations. Fichier: `components/dashboard/modules/FormationsPanel.jsx`.
+  - `get_user_approved_parcours_snapshot(p_course_id)` → objet snapshot. Fichier: `pages/ParcoursDetailPage.jsx`.
+  - `enroll_user_in_course(p_course_id)` → void. Fichier: `pages/FormationDetailPage.jsx`.
+  - `ensure_custom_submission_and_init(p_course_id)` / `snapshot_and_init_kanban(p_course_id)` / `cleanup_orphan_kanban_for_user(p_user_id)` → void. Fichier: `components/kanban/KanbanPanel.jsx`.
+  - `search_user_formation_submissions(p_filters, p_sort_field, p_sort_dir)` → liste. Fichier: `hooks/useSubmissions.js`.
+  - `reject_user_parcours_submission(p_submission_id, p_admin_notes)` / `submit_user_parcours_for_validation(p_course_id)` → void.
+  - `get_user_resources_with_ratings(p_user_id)` / `get_assigned_resources_with_ratings(p_user_id)` → liste (id ressource, rating, métadonnées). Fichiers: `components/dashboard/modules/ResourcesPanel.jsx`, `components/dashboard/ClientResourcesPanel.jsx`.
+  - `get_user_post_count(p_user_id)` → integer. Fichier: `pages/ForumTopicPage.jsx`.
+  - `get_chat_conversations_with_details()` → liste conversations. Fichier: `pages/admin/AdminLiveChatPage.jsx`.
+  - `get_admin_formations_and_submissions()` → liste avec inscriptions. Fichier: `components/admin/FormationManagementPanel.jsx`.
+  - `get_user_login_history_count(user_id_param)` / `get_user_login_history(user_id_param, page_param, page_size_param)` → `{ count }` et `liste`. Fichier: `components/admin/manage-user/UserLoginHistory.jsx`.
+  - `set_active_theme(p_theme_id)` / `get_active_theme_tokens()` → changements/lecture de thème. Fichiers: `components/admin/ThemePanel.jsx`, `contexts/ThemeContext.jsx`.
+
+Notes d’intégration:
+- Dans `@supabase/supabase-js` v2, `functions.invoke()` accepte un objet `body` (stringifié automatiquement). Certains appels du code passent déjà un objet; d’autres le stringifient manuellement — les deux fonctionnent.
+- Standardiser les retours Edge Functions à `{ data, error }` avec `data.items/total` pour les listes et `data.error` en cas d’échec côté fonction.
+
+
+## 15) Exemples de politiques RLS (SQL)
+
+- __profiles__ (lire/éditer son profil)
+```sql
+alter table profiles enable row level security;
+create policy profiles_select_self on profiles
+  for select using (id = auth.uid());
+create policy profiles_update_self on profiles
+  for update using (id = auth.uid());
+```
+
+- __resources__ (créateur ou assigné)
+```sql
+alter table resources enable row level security;
+-- Lecture: créateur OU assigné
+create policy resources_select_owner_or_assigned on resources
+  for select using (
+    created_by = auth.uid()
+    or exists (
+      select 1 from resource_assignments ra
+      where ra.resource_id = resources.id and ra.user_id = auth.uid()
+    )
+  );
+-- Mise à jour / suppression: uniquement créateur
+create policy resources_update_owner on resources
+  for update using (created_by = auth.uid());
+create policy resources_delete_owner on resources
+  for delete using (created_by = auth.uid());
+```
+
+- __resource_assignments__ (admin ou propriétaire de l’assignation)
+```sql
+alter table resource_assignments enable row level security;
+-- Lecture: utilisateur concerné
+create policy ra_select_self on resource_assignments
+  for select using (user_id = auth.uid());
+-- Suppression par l’utilisateur affecté (pour retirer une ressource de son tableau)
+create policy ra_delete_self on resource_assignments
+  for delete using (user_id = auth.uid());
+-- Insertion réservée aux administrateurs: à effectuer via Edge Function (security definer)
+```
+
+- __resource_ratings__ (chacun gère sa note)
+```sql
+alter table resource_ratings enable row level security;
+create policy rr_all_self on resource_ratings
+  for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+```
+
+- __chat_conversations__ / __chat_messages__ (accès conversationnel)
+```sql
+alter table chat_messages enable row level security;
+-- Lecture/écriture si l’utilisateur appartient à la conversation
+create policy cm_rw_if_member on chat_messages
+  for all using (
+    exists (
+      select 1 from chat_conversations c
+      where c.id = chat_messages.conversation_id
+        and (c.user_id = auth.uid() or c.admin_id = auth.uid())
+    )
+  );
+-- Pour les invités (guest_id), préférer un proxy via Edge Function avec vérifications côté serveur.
+```
+
+- __forum_topics__ / __forum_posts__
+```sql
+alter table forum_topics enable row level security;
+alter table forum_posts  enable row level security;
+-- Lecture publique (si désiré): créer une policy `for select using (true)`;
+-- Insertion: authentifiés uniquement
+create policy forum_posts_insert_auth on forum_posts
+  for insert with check (auth.role() = 'authenticated');
+```
+
+  - __admin_*__ / registres
+  ```sql
+  -- Ces tables doivent être limitées aux rôles admin/owner.
+  -- Recommandation: appliquer RLS strictes et/ou opérer via Edge Functions (security definer) pour toutes écritures.
+  ```
+
+  État RLS actuel (schéma `public`):
+  - Activé: `admin_dashboard_tabs`, `admin_modules_registry`, `block_samples`, `builder_families`, `builder_modules`, `builder_subfamilies`, `chat_conversations`, `chat_messages`, `component_rules`, `content_blocks`, `courses`, `dashboard_layouts`, `formation_module_statuses`, `formation_submissions`, `forum_posts`, `forum_topics`, `modules_registry`, `profiles`, `resource_assignments`, `resource_ratings`, `resources`, `static_pages`, `themes`, `ticket_replies`, `tickets`, `user_formation_snapshots`, `user_formations`.
+  - Désactivé: `action_logs`, `role_permissions`, `user_types`.
+
+
+Policies effectives (extrait):
+- __profiles__
+  - ALL: admin/owner OU self (`requesting_user_id() = id`).
+- __resources__
+  - ALL: admin/prof/owner.
+  - ALL: propriétaire (`requesting_user_id() = created_by`).
+  - SELECT: assignées via `resource_assignments`.
+- __resource_assignments__
+  - ALL: admin/prof/owner OU (`user_id = requesting_user_id()`).
+- __resource_ratings__
+  - SELECT: admin/prof/owner.
+  - ALL: self (`requesting_user_id() = user_id`).
+- __modules_registry__
+  - SELECT: `is_active = true` ET utilisateur authentifié.
+  - ALL: owner.
+- __content_blocks__
+  - ALL: admin/owner.
+  - SELECT: public si `status = 'published'` (incl. anonyme).
+- __courses__
+  - ALL: admin/owner OU (auteur ET `course_type = 'custom'`).
+  - SELECT: public si `status = 'live'`.
+- __forum_topics__ / __forum_posts__
+  - INSERT: authentifié ET `author_id = requesting_user_id()`.
+  - UPDATE/DELETE: auteur OU admin/prof/owner.
+  - SELECT: public.
+- __chat_conversations__
+  - ALL: admin/owner OU `guest_id = requesting_user_id()`.
+- __chat_messages__
+  - ALL: admin/owner/prof.
+  - INSERT/SELECT: utilisateurs/guests restreints à leurs conversations (via email ou `guest_id`).
+- __tickets__
+  - ALL: admin/owner/prof OU `requesting_user_id() = user_id`.
+- __ticket_replies__
+  - ALL: admin/owner.
+  - INSERT/SELECT: restreint aux tickets dont `user_id = requesting_user_id()`.
+- __admin_dashboard_tabs__ / __admin_modules_registry__
+  - SELECT: authentifié.
+  - ALL: owner.
+- __component_rules__
+  - SELECT: public.
+  - ALL: owner.
+- __static_pages__
+  - ALL: admin/owner.
+  - SELECT: public si `status = 'published'`.
+- __themes__
+  - SELECT: public.
+  - INSERT/UPDATE/DELETE: owner.
+
+## 16) Dictionnaire de données (champs principaux)
+
+- __profiles__
+  - `id` (uuid, PK = `auth.users.id`), `email?`, `first_name`, `last_name`, `full_name?`, `avatar_url?`, `user_type_id` (fk), `city?`, `country_code?`, `created_at`, `last_sign_in_at?`.
+  - __user_types__
+  - `id` (PK), `type_name` (owner, admin, prof, client, vip, guest), `display_name`.
+  - Unique: `type_name`.
+  - __role_permissions__
+  - `id` (PK), `permission` (text), `family?` (text), `display_order?` (int), flags: `prof`, `client`, `guest`, `vip`, (évent. `admin`).
+  - __courses__
+  - `id` (PK), `title`, `course_type` (standard|custom), `description?`, timestamps…
+  - FK: `author_id → profiles.id`.
+  - Unique: `reference_id`.
+  - Enums & défauts: `status` (course_status: `live`, `preparation`, `archived`, `a_valider`, `draft`), `delivery_mode` (delivery_mode: `online`, `in_person`, `hybrid`, défaut `hybrid`).
+  - __user_formations__
+  - `id` (PK), `user_id` (fk), `formation_id` (fk), `created_at`.
+  - Enum: `status` (user_formation_status: `en_preparation`, `a_valider`, `demarre`, `termine`, `archive`).
+  - __builder_families__
+  - `id` (PK), `name`, `icon`, `display_order`, `created_at`.
+  - __builder_subfamilies__
+  - `id` (PK), `family_id` (fk), `name`, `display_order`, `created_at`.
+  - __builder_modules__
+  - `id` (PK), `subfamily_id` (fk), `title`, `description`, `duration`, `display_order`, `created_at`.
+  - __resources__
+  - `id` (PK), `name`, `type`, `format` (pdf|youtube|internal_note), `url?`, `content?`, `file_path?`, `family_id?` (fk), `subfamily_id?` (fk), `created_by` (fk), `created_at`, `updated_at`.
+  - __resource_assignments__
+  - `id` (PK), `resource_id` (fk), `user_id` (fk), `assigned_by` (fk), `created_at`.
+  - __resource_ratings__
+  - `(resource_id, user_id)` (unique), `rating` (int), `created_at`.
+  - __chat_conversations__
+  - `id` (PK), `guest_id?`, `status`, `created_at`, `updated_at`.
+  - __chat_messages__
+  - `id` (PK), `conversation_id` (fk), `sender`, `content`, `created_at`.
+  - __tickets__
+  - `id` (PK), `title`, `description`, `priority`, `user_id` (fk), `client_email`, `status`, `created_at`.
+  - Enums & défauts: `priority` (ticket_priority: `Bas`, `Moyen`, `Haut`, `Urgent`, défaut `Moyen`), `status` défaut `Ouvert`.
+  - __admin_dashboard_tabs__
+  - `id` (PK), `row_order`, `col_order`, `label?`.
+  - __admin_modules_registry__
+  - `id` (PK), `name`, `description`, `required_permission`, `is_active`.
+  - __modules_registry__
+  - `id` (PK), `module_key`, `default_layout` (json: `{ span }`), `required_permission`, `is_active`.
+  - Index: `required_permission` (pour jointure rapide vers `role_permissions`).
+  - __forum_topics__
+  - `id` (PK), `title`, `content`, `author_id` (fk), `created_at`.
+  - __forum_posts__
+  - `id` (PK), `topic_id` (fk), `author_id` (fk), `content`, `created_at`.
+  - __content_blocks__
+  - `id` (PK), `title`, `content` (html/json), `status` (draft|ready|published|archived), `block_type` (html|dynamic), `layout`, `order_index`, `priority`, `author_id`, `publication_date?`, `tags?` (array), timestamps…
+  - Enums & contraintes: `block_type` (block_content_type: `html`, `dynamic`), `status` (content_block_status: `draft`, `ready`, `published`, `archived`), unique `order_index` pour les blocs non archivés.
+  - __dashboard_layouts__
+  - `id` (PK), `owner_type`, `owner_id`, `layout_json`.
+  - Unique: `(owner_type, owner_id)` — utilisé par `get-dashboard-layout` / `update-dashboard-layout`.
+  - __component_rules__
+  - `id` (PK), `component_key` (unique), `rules` (json), `updated_at`.
+
+Remarque: Les champs suffixés `?` sont déduits de l’UI et à confirmer côté schéma.
+
+
+## 17) Conventions Storage & chemins
+
+- Buckets et patrons de `file_path`:
+  - `avatars`: fichier au niveau racine du bucket. Nom: `${user.id}-${Date.now()}.${ext}`. Suppression de l’ancien via `avatar_url.split('/').pop()`.
+  - `resources`: `${user.id}/${uuid}.${ext}`. Publication via `getPublicUrl(filePath)`.
+  - `chat_attachments`: `${conversation.guest_id}/${uuid}-${file.name}`. Publication via `getPublicUrl`.
+  - `forum_attachments`: `${topicId}/${uuid}-${file.name}` (lecture publique via `getPublicUrl`).
+- Bonnes pratiques:
+  - Toujours supprimer le fichier Storage si la ressource DB est supprimée et que `file_path` est présent.
+  - Préférer des sous-dossiers par `user.id` ou par entité pour limiter les collisions et faciliter le nettoyage.
+
+
+## 18) Realtime — canaux & conventions
+
+- Canaux utilisés:
+  - `user-resources-channel-${user.id}` → tables: `resources`, `resource_assignments`, `resource_ratings` (rafraîchir liste utilisateur).
+  - `builder-catalog-changes` → tables: `builder_families`, `builder_subfamilies`, `builder_modules`, `courses`.
+  - `public:forum_topics` et `public:forum_posts` (Forum list + Topic).
+  - `public:chat_live_admin` (rafraîchir liste des conversations côté admin).
+- Filtre par colonne (ex: `filter: topic_id=eq.${id}`) pour réduire la charge.
+- Pattern recommandé: écouter INSERT/UPDATE/DELETE nécessaires, dédupliquer les re-fetchs, et nettoyer `removeChannel` au unmount.
+
+
+## 19) Conventions de nommage
+
+- RPC Postgres: `snake_case`, préfixes explicites (`get_`, `set_`, `search_`, `ensure_`, `snapshot_`, `cleanup_`).
+- Edge Functions: `kebab-case` descriptif orienté action (ex: `get-dashboard-layout`, `manage-content-block`).
+- Tables/colonnes: `snake_case`; clés étrangères explicites (`*_id`).
+- Permissions: namespace par domaine (ex: `builder:manage_catalog`).
+- Imports: alias `@` → `src/` (cf. `vite.config.js`).
+
+
+## 20) Checklists d’implémentation
+
+- Ajouter un module Dashboard client
+  1) Insérer dans `modules_registry` (`module_key`, `default_layout.span`, `required_permission`, `is_active`).
+  2) Mapper `module_key` → Composant dans `components/dashboard/ClientDashboardContent.jsx` (`componentMap`).
+  3) Définir la permission dans `role_permissions` et activer pour les rôles voulus.
+  4) Vérifier l’affichage via `hasPermission(module.required_permission)`.
+
+- Ajouter un bloc de contenu (Home)
+  1) Pour HTML simple: utiliser `home_blocks_create_html` (RPC) pour créer; sinon passer par `manage-content-block` (Edge Function) pour créer/éditer.
+  2) Assigner `layout`, `status`, `priority` et gérer `publication_date`.
+  3) Utiliser `home_blocks_*` (move/set_status/set_title/duplicate) pour les opérations.
+
+- Ajouter un nouveau format de ressource
+  1) Étendre `components/admin/NewResourceDialog.jsx` (sélecteur de `format` + champs).
+  2) Ajouter la logique Storage si fichier (`.upload`, `getPublicUrl`).
+  3) Étendre l’affichage et la consultation dans `ResourcesPanel`.
+
+- Ajouter une permission
+  1) Ajouter la `permission` dans `role_permissions` et cocher les colonnes de rôle.
+  2) Protéger la route avec `ProtectedRoute requiredPermission` et/ou stocker la permission dans `modules_registry`.
+  3) Adapter RLS si l’opération touche la DB.
+
+
+## 21) Performance & indexation
+
+- Index recommandés:
+  - `resource_assignments(resource_id, user_id)` (unique partiel si besoin) et index séparé par `user_id`.
+  - `resource_ratings(resource_id, user_id)` (unique), plus index par `user_id`.
+  - `builder_families(display_order)`, `builder_subfamilies(family_id, display_order)`, `builder_modules(subfamily_id, display_order)`.
+  - `forum_posts(topic_id, created_at)`, `chat_messages(conversation_id, created_at)`.
+  - `modules_registry(is_active)`, `admin_dashboard_tabs(row_order, col_order)`.
+  - `profiles(user_type_id)`, `user_formations(user_id, formation_id)`.
+- Realtime: filtrer au plus près (table+colonne) pour limiter les notifications.
+- RPC de recherche: prévoir la pagination côté SQL et des index alignés sur les `WHERE/ORDER BY`.
+
+
+## 22) CI/CD & environnement
+
+- Variables d’environnement (front): `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
+- Déploiement GitHub Actions (`.github/workflows/deploy.yml`):
+  - Déclencheur: push tags `v*`.
+  - Node 20 → `npm ci` → `npm run build` → déploiement FTPS.
+  - Secrets requis: `FTP_SERVER`, `FTP_USERNAME`, `FTP_PASSWORD`, `FTP_PORT`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
+- Publier une version: créer un tag `vX.Y.Z` et le pousser pour déclencher le workflow.
+- Dev local: `npm run dev` (Vite). Build: `npm run build`. Preview: `npm run preview`.
+
+---
+Mise à jour: compléter au fur et à mesure (nouvelles tables, RPC, fonctions Edge, composants).

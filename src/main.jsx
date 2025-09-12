@@ -1,11 +1,19 @@
-import React from 'react';
-    import ReactDOM from 'react-dom/client';
-    import App from '@/App';
-    import '@/index.css';
-    import { ThemeProvider } from '@/contexts/ThemeContext';
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import App from './App.jsx'
+import './index.css'
+import { ThemeProvider } from '@/contexts/ThemeContext';
 
-    ReactDOM.createRoot(document.getElementById('root')).render(
-      <React.StrictMode>
-        <App />
-      </React.StrictMode>
-    );
+// Import navigation probe for debugging critical tab switch bug
+if (import.meta.env.DEV) {
+  import('./debug/navigationProbe.ts').then(({ navigationProbe }) => {
+    navigationProbe.startProbe();
+    console.log('🔍 Navigation probe started for debugging tab switch issues');
+  });
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <ThemeProvider>
+    <App />
+  </ThemeProvider>
+);
