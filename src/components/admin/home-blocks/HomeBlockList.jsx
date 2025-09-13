@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useDebounce } from 'use-debounce';
-import {
-  Search, Plus, Star, Eye, MoreVertical, Loader2, AlertCircle, Code, Layers, Edit, Trash2, ChevronUp, ChevronDown
+import { 
+  Eye, Edit, Trash2, MoreHorizontal, MoreVertical, Search, Filter, Plus, 
+  ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Archive, RotateCcw, Copy, 
+  ArrowUpDown, ArrowUp, ArrowDown, X, Check, Bookmark, Loader2, 
+  Star, AlertCircle, Layers, Code 
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,11 +41,90 @@ const HomeBlockList = ({ mode = 'list' }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
 
-  const [view, setView] = useState(() => searchParams.get('view') || 'list');
-  const [selectedBlockId, setSelectedBlockId] = useState(() => searchParams.get('blockId') || null);
+
+  // Use sessionStorage to persist editor state across tab switches and component remounts
+  const getPersistedEditorState = () => {
+    try {
+      const stored = sessionStorage.getItem('homeBlockEditor');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        // Check if stored state is still valid (not older than 1 hour)
+        if (Date.now() - parsed.timestamp < 3600000) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to parse stored editor state:', e);
+    }
+    return null;
+  };
+
+  const persistEditorState = (view, blockId) => {
+    try {
+      if (view === 'edit') {
+        sessionStorage.setItem('homeBlockEditor', JSON.stringify({
+          view,
+          blockId,
+          timestamp: Date.now()
+        }));
+      } else {
+        sessionStorage.removeItem('homeBlockEditor');
+      }
+    } catch (e) {
+      console.warn('Failed to persist editor state:', e);
+    }
+  };
+
+  const [view, setView] = useState(() => {
+    // First check sessionStorage for persisted state
+    const persistedState = getPersistedEditorState();
+    if (persistedState && persistedState.view === 'edit') {
+      return 'edit';
+    }
+    
+    // Fallback to URL params
+    const urlView = searchParams.get('view');
+    const urlBlockId = searchParams.get('blockId');
+    return urlView === 'edit' && (urlBlockId || urlView === 'edit') ? 'edit' : 'list';
+  });
+
+  const [selectedBlockId, setSelectedBlockId] = useState(() => {
+    // First check sessionStorage for persisted state
+    const persistedState = getPersistedEditorState();
+    if (persistedState && persistedState.view === 'edit') {
+      return persistedState.blockId;
+    }
+    
+    // Fallback to URL params
+    return searchParams.get('blockId') || null;
+  });
+
+  // Persist editor state whenever it changes
+  useEffect(() => {
+    persistEditorState(view, selectedBlockId);
+  }, [view, selectedBlockId]);
+
+  // Clear persisted state on component unmount
+  useEffect(() => {
+    return () => {
+      if (view !== 'edit') {
+        sessionStorage.removeItem('homeBlockEditor');
+      }
+    };
+  }, [view]);
 
   useEffect(() => {
-    const newSearchParams = new URLSearchParams(searchParams);
+    // Only manage URL when we're on the 'list' subtab (read fresh params)
+    const freshParams = new URLSearchParams(window.location.search);
+    const currentSubtab = freshParams.get('subtab') || 'list';
+    if (currentSubtab !== 'list') return;
+
+    // Prevent URL updates if we're in edit mode to avoid conflicts with parent component
+    if (view === 'edit') {
+      return;
+    }
+
+    const newSearchParams = new URLSearchParams(freshParams);
     if (view === 'edit') {
       newSearchParams.set('view', 'edit');
       if (selectedBlockId) {
@@ -55,12 +137,13 @@ const HomeBlockList = ({ mode = 'list' }) => {
       newSearchParams.delete('blockId');
     }
     // preserve tab
-    const tab = searchParams.get('tab');
+    const tab = freshParams.get('tab');
     if (tab) {
       newSearchParams.set('tab', tab);
     }
     setSearchParams(newSearchParams, { replace: true });
   }, [view, selectedBlockId, setSearchParams]);
+
 
   const [blocks, setBlocks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -96,51 +179,39 @@ const HomeBlockList = ({ mode = 'list' }) => {
     };
 
     const sort = { field: sortField, dir: sortDir };
-
     try {
-      const { data, error: rpcError } = await supabase.functions.invoke('content-blocks-search', {
-        body: { filters, sort, page, perPage },
-      });
-
-      if (rpcError) throw rpcError;
-      if (data.error) throw new Error(data.error);
-
-      setBlocks(data.items || []);
-      setTotal(data.total || 0);
-    } catch (err) {
-      console.error("Error fetching content blocks (edge function):", err);
-      // Fallback to direct client query to keep UI functional
-      try {
-        let query = supabase.from('content_blocks').select('*', { count: 'exact' });
-        if (debouncedQuery && debouncedQuery.trim() !== '') {
-          query = query.ilike('title', `%${debouncedQuery.trim()}%`);
-        }
-        if (isArchivesMode) {
-          query = query.eq('status', 'archived');
-        } else {
-          if (status && status !== 'all') {
-            query = query.eq('status', status);
-          } else {
-            query = query.neq('status', 'archived');
-          }
-        }
-        if (isFeatured) {
-          query = query.order('priority', { ascending: false });
-        }
-        query = query.order(sortField, { ascending: (sortDir !== 'desc') });
-        const from = (page - 1) * perPage;
-        const to = from + perPage - 1;
-        query = query.range(from, to);
-
-        const { data: items, count, error: qErr } = await query;
-        if (qErr) throw qErr;
-        setBlocks(items || []);
-        setTotal(count || 0);
-      } catch (fallbackErr) {
-        console.error("Fallback content blocks query failed:", fallbackErr);
-        setError("Erreur lors de la récupération des blocs de contenu. " + (fallbackErr?.message || ''));
-        toast({ title: "Erreur", description: "Impossible de charger les blocs.", variant: "destructive" });
+      // Direct client query (no Edge Function) to avoid CORS issues
+      let query = supabase.from('content_blocks').select('*', { count: 'exact' });
+      if (debouncedQuery && debouncedQuery.trim() !== '') {
+        query = query.ilike('title', `%${debouncedQuery.trim()}%`);
       }
+      if (isArchivesMode) {
+        query = query.eq('status', 'archived');
+      } else {
+        if (status && status !== 'all') {
+          query = query.eq('status', status);
+        } else {
+          query = query.neq('status', 'archived');
+        }
+      }
+      if (isFeatured) {
+        // Primary sort by priority when featured toggle is on
+        query = query.order('priority', { ascending: false });
+      }
+      // Secondary sort by chosen field
+      query = query.order(sortField, { ascending: (sortDir !== 'desc') });
+      const from = (page - 1) * perPage;
+      const to = from + perPage - 1;
+      query = query.range(from, to);
+
+      const { data: items, count, error: qErr } = await query;
+      if (qErr) throw qErr;
+      setBlocks(items || []);
+      setTotal(count || 0);
+    } catch (err) {
+      console.error('Content blocks query failed:', err);
+      setError("Erreur lors de la récupération des blocs de contenu. " + (err?.message || ''));
+      toast({ title: "Erreur", description: "Impossible de charger les blocs.", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -149,24 +220,32 @@ const HomeBlockList = ({ mode = 'list' }) => {
   useEffect(() => {
     if (view === 'list') {
       fetchContentBlocks();
-      const newSearchParams = new URLSearchParams(searchParams);
-      if (query) newSearchParams.set('query', query); else newSearchParams.delete('query');
-      if (status !== 'all') newSearchParams.set('status', status); else newSearchParams.delete('status');
-      if (isFeatured) newSearchParams.set('featured', 'true'); else newSearchParams.delete('featured');
-      if (sortField !== 'order_index') newSearchParams.set('sortField', sortField); else newSearchParams.delete('sortField');
-      if (sortDir !== 'asc') newSearchParams.set('sortDir', sortDir); else newSearchParams.delete('sortDir');
-      if (page > 1) newSearchParams.set('page', page.toString()); else newSearchParams.delete('page');
-
-      const tab = searchParams.get('tab');
-      if (tab) {
-        newSearchParams.set('tab', tab);
-      }
-
-      if (searchParams.get('view')) newSearchParams.set('view', searchParams.get('view'));
-      if (searchParams.get('blockId')) newSearchParams.set('blockId', searchParams.get('blockId'));
-
-      setSearchParams(newSearchParams, { replace: true });
     }
+    
+    // Don't manage URL parameters when in edit mode to prevent conflicts
+    if (view === 'edit') {
+      return;
+    }
+
+    // Only manage URL when we're on the 'list' subtab (read fresh params)
+    const freshParams = new URLSearchParams(window.location.search);
+    const currentSubtab = freshParams.get('subtab') || 'list';
+    if (currentSubtab !== 'list') return;
+
+    const newSearchParams = new URLSearchParams(freshParams);
+    if (query) newSearchParams.set('query', query); else newSearchParams.delete('query');
+    if (status !== 'all') newSearchParams.set('status', status); else newSearchParams.delete('status');
+    if (isFeatured) newSearchParams.set('featured', 'true'); else newSearchParams.delete('featured');
+    if (sortField !== 'order_index') newSearchParams.set('sortField', sortField); else newSearchParams.delete('sortField');
+    if (sortDir !== 'asc') newSearchParams.set('sortDir', sortDir); else newSearchParams.delete('sortDir');
+    if (page > 1) newSearchParams.set('page', page.toString()); else newSearchParams.delete('page');
+
+    const tab = freshParams.get('tab');
+    if (tab) {
+      newSearchParams.set('tab', tab);
+    }
+
+    setSearchParams(newSearchParams, { replace: true });
   }, [debouncedQuery, status, isFeatured, sortField, sortDir, page, view, fetchContentBlocks]);
 
   const handlePageChange = (newPage) => {
@@ -223,17 +302,127 @@ const HomeBlockList = ({ mode = 'list' }) => {
     }
   };
 
+  // Save block as template
+  const handleSaveAsTemplate = async (block) => {
+    try {
+      // Fetch full block data
+      const { data: fullBlock, error: fetchError } = await supabase
+        .from('content_blocks')
+        .select('*')
+        .eq('id', block.id)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // Check if template with same title and layout already exists
+      const { data: existingTemplates, error: checkError } = await supabase
+        .from('block_samples')
+        .select('title')
+        .eq('title', fullBlock.title)
+        .eq('layout', fullBlock.layout);
+
+      if (checkError) throw checkError;
+
+      // Generate unique title if needed
+      let templateTitle = fullBlock.title;
+      if (existingTemplates && existingTemplates.length > 0) {
+        templateTitle = `${fullBlock.title} (Modèle)`;
+        
+        // Check if the suffixed version also exists
+        const { data: suffixedExists } = await supabase
+          .from('block_samples')
+          .select('title')
+          .eq('title', templateTitle)
+          .eq('layout', fullBlock.layout);
+
+        if (suffixedExists && suffixedExists.length > 0) {
+          templateTitle = `${fullBlock.title} (Modèle ${Date.now()})`;
+        }
+      }
+
+      // Prepare template payload
+      const templatePayload = {
+        title: templateTitle,
+        block_type: fullBlock.block_type,
+        layout: fullBlock.layout,
+        content: fullBlock.content
+      };
+
+      // Insert into block_samples and return the created row id for diagnostic
+      const { data: createdRows, error: insertError } = await supabase
+        .from('block_samples')
+        .insert([templatePayload])
+        .select('id, title, layout')
+        .limit(1);
+
+      if (insertError) throw insertError;
+
+      const created = Array.isArray(createdRows) ? createdRows[0] : createdRows;
+
+      toast({ 
+        title: 'Succès', 
+        description: created?.id
+          ? `Modèle créé (#${created.id}) sous le nom "${templateTitle}" pour le layout ${created.layout}.`
+          : `Le bloc "${fullBlock.title}" a été enregistré comme modèle sous le nom "${templateTitle}".` 
+      });
+
+    } catch (err) {
+      console.error('Save as template failed:', err);
+      toast({ 
+        title: 'Erreur', 
+        description: `Impossible d'enregistrer comme modèle: ${err.message}`, 
+        variant: 'destructive' 
+      });
+    }
+  };
+
   const handleEdit = (blockId) => {
+    // Sync URL immediately so the editor state survives focus changes/remounts
+    try {
+      const sp = new URLSearchParams(window.location.search);
+      sp.set('subtab', 'list');
+      sp.set('view', 'edit');
+      if (blockId) sp.set('blockId', String(blockId));
+      // Clear any template editing flags to avoid being bounced to the Samples tab
+      sp.delete('editing');
+      sp.delete('sampleId');
+      setSearchParams(sp, { replace: true });
+    } catch (e) {
+      // ignore URL sync errors
+    }
     setSelectedBlockId(blockId);
     setView('edit');
   };
 
   const handleCreate = () => {
+    // Same URL sync for the creation flow
+    try {
+      const sp = new URLSearchParams(window.location.search);
+      sp.set('subtab', 'list');
+      sp.set('view', 'edit');
+      sp.delete('blockId');
+      // Clear any template editing flags to avoid being bounced to the Samples tab
+      sp.delete('editing');
+      sp.delete('sampleId');
+      setSearchParams(sp, { replace: true });
+    } catch (e) {}
     setSelectedBlockId(null);
     setView('edit');
   };
 
   const handleBackToList = () => {
+    // Clear the URL parameters for edit mode
+    const sp = new URLSearchParams(window.location.search);
+    sp.delete('view');
+    sp.delete('blockId');
+    // Also ensure any lingering template editing flags are removed
+    sp.delete('editing');
+    sp.delete('sampleId');
+    setSearchParams(sp, { replace: true });
+    
+    // Clear persisted editor state
+    sessionStorage.removeItem('homeBlockEditor');
+    
     setView('list');
     setSelectedBlockId(null);
   };
@@ -253,12 +442,41 @@ const HomeBlockList = ({ mode = 'list' }) => {
       description: `Êtes-vous sûr de vouloir masquer ce bloc (archiver) ?`,
       action: (
         <Button variant="destructive" onClick={async () => {
-          const { error } = await supabase.from('content_blocks').update({ status: 'archived' }).eq('id', blockId);
-          if (error) {
-            toast({ title: "Erreur", description: "Impossible d'archiver le bloc.", variant: "destructive" });
-          } else {
-            toast({ title: "Succès", description: "Bloc archivé." });
+          try {
+            // Récupérer le titre du bloc pour le feedback
+            const { data: blockData, error: fetchError } = await supabase
+              .from('content_blocks')
+              .select('title')
+              .eq('id', blockId)
+              .single();
+
+            if (fetchError && fetchError.code !== 'PGRST116') {
+              throw new Error(`Erreur lors de la récupération: ${fetchError.message}`);
+            }
+
+            const blockTitle = blockData?.title || 'ce bloc';
+
+            const { error } = await supabase
+              .from('content_blocks')
+              .update({ status: 'archived', updated_at: new Date().toISOString() })
+              .eq('id', blockId);
+
+            if (error) {
+              throw error;
+            }
+
+            toast({ 
+              title: "Succès", 
+              description: `Le bloc "${blockTitle}" a été archivé et ne sera plus visible sur le site.` 
+            });
             fetchContentBlocks();
+          } catch (err) {
+            console.error('Archive failed:', err);
+            toast({ 
+              title: "Erreur", 
+              description: err.message || "Impossible d'archiver le bloc. Veuillez réessayer.", 
+              variant: "destructive" 
+            });
           }
         }}>
           Confirmer l'archivage
@@ -315,15 +533,51 @@ const HomeBlockList = ({ mode = 'list' }) => {
       action: (
         <Button variant="destructive" onClick={async () => {
           try {
+            // Vérifier d'abord si le bloc existe
+            const { data: blockExists, error: checkError } = await supabase
+              .from('content_blocks')
+              .select('id, title')
+              .eq('id', blockId)
+              .single();
+
+            if (checkError && checkError.code !== 'PGRST116') {
+              throw new Error(`Erreur lors de la vérification: ${checkError.message}`);
+            }
+
+            if (!blockExists) {
+              toast({
+                title: "Bloc introuvable",
+                description: "Ce bloc n'existe plus ou a déjà été supprimé.",
+                variant: "destructive",
+              });
+              fetchContentBlocks();
+              return;
+            }
+
+            // Procéder à la suppression
             const { error } = await supabase.rpc('home_blocks_delete_hard', { p_id: blockId });
-            if (error) throw error;
-            toast({ title: "Succès", description: "Bloc supprimé définitivement." });
+            
+            if (error) {
+              // Gérer les différents types d'erreurs
+              if (error.message.includes('owner/admin')) {
+                throw new Error("Vous n'avez pas les permissions nécessaires pour supprimer définitivement ce bloc. Seuls les propriétaires et administrateurs peuvent effectuer cette action.");
+              } else if (error.message.includes('non trouvé')) {
+                throw new Error("Ce bloc n'existe plus ou a déjà été supprimé.");
+              } else {
+                throw error;
+              }
+            }
+
+            toast({ 
+              title: "Succès", 
+              description: `Le bloc "${blockExists.title}" a été supprimé définitivement.` 
+            });
             fetchContentBlocks();
           } catch (err) {
             console.error('Hard delete failed:', err);
             toast({
               title: "Erreur de suppression",
-              description: err.message || "Impossible de supprimer définitivement ce bloc.",
+              description: err.message || "Impossible de supprimer définitivement ce bloc. Veuillez réessayer ou contacter l'administrateur.",
               variant: "destructive",
             });
           }
@@ -440,9 +694,13 @@ const HomeBlockList = ({ mode = 'list' }) => {
                       />
                     ) : (
                       <div className="flex items-center gap-1">
-                        <button onClick={() => handleEdit(block.id)} className="font-medium text-red-600 hover:underline text-left">
-                          {block.title}
-                        </button>
+                        {block.layout === 'home.formations' ? (
+                          <span className="font-medium text-left">{block.title}</span>
+                        ) : (
+                          <button onClick={() => handleEdit(block.id)} className="font-medium text-red-600 hover:underline text-left">
+                            {block.title}
+                          </button>
+                        )}
                       </div>
                     )}
                     <div className="text-xs text-muted-foreground">{block.layout}</div>
@@ -471,7 +729,7 @@ const HomeBlockList = ({ mode = 'list' }) => {
                         <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleEdit(block.id)} disabled={block.block_type !== 'html'}>
+                        <DropdownMenuItem onClick={() => handleEdit(block.id)} disabled={block.layout === 'home.formations'}>
                           <Edit className="mr-2 h-4 w-4" />
                           <span>Éditer</span>
                         </DropdownMenuItem>
@@ -485,6 +743,10 @@ const HomeBlockList = ({ mode = 'list' }) => {
                         <DropdownMenuItem onClick={() => startEditTitle(block)}>
                           <Edit className="mr-2 h-4 w-4" />
                           <span>Renommer</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleSaveAsTemplate(block)}>
+                          <Bookmark className="mr-2 h-4 w-4" />
+                          <span>Enregistrer comme modèle</span>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-900/50" onClick={() => handleDelete(block.id)}>

@@ -13,6 +13,7 @@ import ResourcesPanel from '@/components/dashboard/modules/ResourcesPanel';
 import BuilderPanel from '@/components/dashboard/modules/BuilderPanel';
 import KanbanPanel from '@/components/kanban/KanbanPanel';
 import KPIPanel from '@/components/dashboard/modules/KPIPanel';
+import HomepagePanel from '@/components/dashboard/modules/HomepagePanel';
 
 const componentMap = {
   client_formations: FormationsPanel,
@@ -21,6 +22,7 @@ const componentMap = {
   client_builder: BuilderPanel,
   client_kanban_formations: KanbanPanel,
   client_kpi: KPIPanel,
+  client_homepage: HomepagePanel,
 };
 
 const normalizeRow = (row) => {

@@ -1,57 +1,61 @@
 @tailwind base;
-    @tailwind components;
-    @tailwind utilities;
+@tailwind components;
+@tailwind utilities;
 
-    @layer base {
-      :root {
-        --background: 222.2 84% 4.9%; 
-        --foreground: 210 40% 98%;
-        --card: 222.2 84% 4.9%;
-        --card-foreground: 210 40% 98%;
-        --popover: 222.2 84% 4.9%;
-        --popover-foreground: 210 40% 98%;
-        --primary: 210 40% 98%;
-        --primary-foreground: 222.2 47.4% 11.2%;
-        --secondary: 217.2 32.6% 17.5%;
-        --secondary-foreground: 210 40% 98%;
-        --muted: 217.2 32.6% 17.5%;
-        --muted-foreground: 215 20.2% 65.1%;
-        --accent: 217.2 32.6% 17.5%;
-        --accent-foreground: 210 40% 98%;
-        --destructive: 0 62.8% 30.6%;
-        --destructive-foreground: 210 40% 98%;
-        --border: 217.2 32.6% 17.5%;
-        --input: 217.2 32.6% 17.5%;
-        --ring: 212.7 26.8% 83.9%;
-        --radius: 0.5rem;
-      }
-    }
-    
-    @layer base {
-      * {
-        @apply border-border;
-      }
-      body {
-        @apply bg-background text-foreground;
-        font-feature-settings: "rlig" 1, "calt" 1;
-      }
-    }
+@layer base {
+  html {
+    /* Standard + vendor to satisfy older Safari and quiet Issues panel */
+    text-size-adjust: 100%;
+    -webkit-text-size-adjust: 100%;
+  }
+  :root {
+    --background: 222.2 84% 4.9%; 
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+    --radius: 0.5rem;
+  }
+}
+  
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
 
-    .glass-effect {
-      @apply bg-card/60 backdrop-blur-xl border-2 border-white/20 rounded-2xl shadow-xl;
-      box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 10px 10px -5px rgb(0 0 0 / 0.04), 0 0 0 1px rgb(255 255 255 / 0.05);
-    }
-    
-    .glass-effect-light {
-      @apply bg-card/80 backdrop-blur-lg border border-white/5 rounded-lg shadow-md;
-    }
+.glass-effect {
+  @apply bg-card/60 backdrop-blur-xl border-2 border-white/20 rounded-2xl shadow-xl;
+  /* Standard + vendor-prefixed backdrop filters */
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 10px 10px -5px rgb(0 0 0 / 0.04), 0 0 0 1px rgb(255 255 255 / 0.05);
+}
 
-    .bg-grid-pattern {
-      background-image:
-        linear-gradient(to right, hsl(var(--border)) 1px, transparent 1px),
-        linear-gradient(to bottom, hsl(var(--border)) 1px, transparent 1px);
-      background-size: 3rem 3rem;
-    }
+.glass-effect-light {
+  @apply bg-card/80 backdrop-blur-lg border border-white/5 rounded-lg shadow-md;
+  /* Standard + vendor-prefixed backdrop filters */
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
 
     .react-flow .react-flow__handle {
       width: 10px;

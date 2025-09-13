@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { usePermissions } from '@/contexts/PermissionsContext';
 import { useAccountPanel } from '@/hooks/useAccountPanel';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -18,6 +19,7 @@ import { useNavigate } from 'react-router-dom';
 
 const UserAccountPanel = () => {
   const { user, signOut } = useAuth();
+  const { hasPermission } = usePermissions();
   const navigate = useNavigate();
   const {
     isOpen,
@@ -73,12 +75,17 @@ const UserAccountPanel = () => {
 
   const isAdmin = user && ['admin', 'prof', 'owner'].includes(user.profile?.user_type);
 
+  // Determine safest dashboard path to avoid redirect loops for admins without access
+  const dashboardPath = isAdmin
+    ? (hasPermission('admin:access_dashboard') ? '/admin/dashboard' : '/')
+    : '/dashboard';
+
   const menuItems = [
     {
       id: 'dashboard',
       title: 'Mon Dashboard',
       icon: LayoutDashboard,
-      action: () => handleNavigation(isAdmin ? '/admin/dashboard' : '/dashboard')
+      action: () => handleNavigation(dashboardPath)
     },
     {
       id: 'profile',

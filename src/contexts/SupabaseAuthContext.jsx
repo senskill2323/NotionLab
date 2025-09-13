@@ -9,10 +9,19 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [authLoading, setAuthLoading] = useState(false);
+  const [authReady, setAuthReady] = useState(false);
+  const [isTabSwitchEvent, setIsTabSwitchEvent] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
   const handleSignOutForced = useCallback(async (showToast = true) => {
+    // Vérifier si c'est vraiment une session invalide
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token && !isTabSwitchEvent) {
+      console.log('Session still valid, not forcing sign out');
+      return;
+    }
+    
     console.warn("Forcing sign out due to session error.");
     await supabase.auth.signOut();
     setUser(null);
@@ -23,11 +32,10 @@ export const AuthProvider = ({ children }) => {
         variant: "destructive",
       });
     }
-    // We use window.location to force a full refresh and clear all states.
-    if (window.location.pathname !== '/connexion') {
-      window.location.href = '/connexion';
+    if (!isTabSwitchEvent && window.location.pathname !== '/connexion') {
+      navigate('/connexion', { replace: true });
     }
-  }, [toast]);
+  }, [toast, navigate, isTabSwitchEvent]);
 
   const fetchProfileAndSetUser = useCallback(async (sessionUser) => {
     if (!sessionUser) {
@@ -69,6 +77,18 @@ export const AuthProvider = ({ children }) => {
     }
   }, [handleSignOutForced]);
 
+  // Tab switch detection to prevent auth navigation during focus changes
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        setIsTabSwitchEvent(true);
+        setTimeout(() => setIsTabSwitchEvent(false), 5000);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
+
   useEffect(() => {
     setLoading(true);
     const checkInitialSession = async () => {
@@ -82,26 +102,30 @@ export const AuthProvider = ({ children }) => {
             await fetchProfileAndSetUser(session.user);
         }
         setLoading(false);
+        setAuthReady(true);
     };
     checkInitialSession();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (_event === 'SIGNED_OUT') {
         setUser(null);
-        navigate('/connexion', { replace: true });
+        if (!isTabSwitchEvent) {
+          navigate('/connexion', { replace: true });
+        }
       } else if (_event === 'INITIAL_SESSION' || _event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED' || _event === 'USER_UPDATED') {
         if (session?.user) {
           await fetchProfileAndSetUser(session.user);
         } else {
           setUser(null);
         }
+        setAuthReady(true);
       }
     });
 
     return () => {
       authListener?.subscription?.unsubscribe();
     };
-  }, [fetchProfileAndSetUser, handleSignOutForced, navigate]);
+  }, [fetchProfileAndSetUser, handleSignOutForced, navigate, isTabSwitchEvent]);
   
   const signInWithPassword = async (email, password) => {
     setAuthLoading(true);
@@ -159,6 +183,7 @@ export const AuthProvider = ({ children }) => {
     user,
     loading,
     authLoading,
+    authReady,
     signInWithPassword,
     signUp,
     signOut,

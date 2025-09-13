@@ -17,8 +17,10 @@ const StatCard = ({ icon: Icon, value, label, color }) => (
   </motion.div>
 );
 
-const StatsSection = () => {
+const StatsSection = ({ content = {} }) => {
   const [stats, setStats] = useState({ users: 0, tickets: 0, formations: 0 });
+  const title = content.title || "La force d'une communauté";
+  const subtitle = content.subtitle || "Rejoignez une communauté grandissante et profitez d'un catalogue de formations riche et évolutif.";
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -50,9 +52,9 @@ const StatsSection = () => {
           transition={{ duration: 0.5 }}
         >
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold">La force d'une communauté</h2>
+            <h2 className="text-3xl md:text-4xl font-bold">{title}</h2>
             <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
-              Rejoignez une communauté grandissante et profitez d'un catalogue de formations riche et évolutif.
+              {subtitle}
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
