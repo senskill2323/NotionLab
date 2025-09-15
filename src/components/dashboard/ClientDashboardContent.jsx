@@ -69,14 +69,15 @@ const normalizeRow = (row) => {
 };
 
 const useDashboardData = () => {
-  const { hasPermission, loading: permissionsLoading, error: permissionsError, refreshPermissions } = usePermissions();
+  const { hasPermission, loading: permissionsLoading, error: permissionsError, refreshPermissions, ready: permissionsReady } = usePermissions();
   const [modules, setModules] = React.useState([]);
   const [layout, setLayout] = React.useState({ rows: [] });
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
 
   const fetchData = React.useCallback(async () => {
-    if (permissionsLoading) {
+    // Do not fetch until permissions are truly ready
+    if (permissionsLoading || !permissionsReady) {
         setLoading(true);
         return;
     }
@@ -120,7 +121,7 @@ const useDashboardData = () => {
     } finally {
       setLoading(false);
     }
-  }, [hasPermission, permissionsLoading]);
+  }, [hasPermission, permissionsLoading, permissionsReady]);
 
   React.useEffect(() => {
     fetchData();
@@ -136,7 +137,7 @@ const useDashboardData = () => {
   return {
     modules,
     layout,
-    loading: loading || permissionsLoading,
+    loading: loading || permissionsLoading || !permissionsReady,
     error: error || permissionsError,
     handleRetry,
   };
@@ -173,7 +174,7 @@ const ClientDashboardContent = () => {
         <div className="w-full px-4">
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }} className="mb-8">
             <h1 className="text-2xl md:text-3xl font-bold mb-2">
-              Bonjour <span className="gradient-text">{user.profile?.first_name || user.email.split('@')[0]}</span> !
+              Bonjour <span className="gradient-text">{user.profile?.pseudo || user.profile?.first_name || user.email.split('@')[0]}</span> !
             </h1>
             <p className="text-base text-foreground/80">Bienvenue sur votre espace de formation! Si vous avez une question, n'hésitez pas à me contacter, cette plateforme est nouvelle pour nous tous!</p>
           </motion.div>

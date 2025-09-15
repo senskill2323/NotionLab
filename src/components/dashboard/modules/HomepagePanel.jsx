@@ -10,29 +10,11 @@ import DOMPurify from 'dompurify';
 
 // Import des composants de blocs
 import CozySpaceSectionWithUpload from '@/components/admin/home-blocks/CozySpaceSectionWithUpload';
-import MainHeroSection from '@/components/home/MainHeroSection';
-import SystemsShowcase from '@/components/home/SystemsShowcase';
-import StatsSection from '@/components/home/StatsSection';
-import FormationsSection from '@/components/home/FormationsSection';
-import SupportSection from '@/components/home/SupportSection';
-import PromiseSection from '@/components/home/PromiseSection';
-import PersonalQuoteSection from '@/components/home/PersonalQuoteSection';
-import FinalCTA from '@/components/home/FinalCTA';
-import LaunchCTA from '@/components/home/LaunchCTA';
-import Footer from '@/components/Footer';
+import homeBlockRegistry from '@/components/home/homeBlockRegistry';
 
 const componentMap = {
+  ...homeBlockRegistry,
   'home.cozy_space': CozySpaceSectionWithUpload,
-  'home.main_hero': MainHeroSection,
-  'home.systems_showcase': SystemsShowcase,
-  'home.stats': StatsSection,
-  'home.formations': FormationsSection,
-  'home.support': SupportSection,
-  'home.promise': PromiseSection,
-  'home.personal_quote': PersonalQuoteSection,
-  'home.final_cta': FinalCTA,
-  'home.launch_cta': LaunchCTA,
-  'global.footer': Footer,
 };
 
 const getStatusColor = (status) => {

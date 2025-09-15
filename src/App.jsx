@@ -61,16 +61,11 @@ import React from 'react';
       const isChatPage = location.pathname.startsWith('/chat');
       const isLiveChatPage = location.pathname.startsWith('/admin/live-chat');
       const isFormationDetailPage = location.pathname.match(/^\/formation\/[^/]+$/);
+      const isHomePage = location.pathname === '/';
       
-      const showFooter = !isAdminRoute && !isDashboardRoute && !isBuilderPage && !isDemoDashboard && !isChatPage && !isLiveChatPage && !isFormationDetailPage;
+      const showFooter = !isAdminRoute && !isDashboardRoute && !isBuilderPage && !isDemoDashboard && !isChatPage && !isLiveChatPage && !isFormationDetailPage && !isHomePage;
 
-      if (themeLoading) {
-        return (
-          <div className="flex items-center justify-center h-screen bg-background">
-            <Loader2 className="w-12 h-12 animate-spin text-primary" />
-          </div>
-        );
-      }
+      // Do not block rendering on theme loading; a fallback theme is applied immediately.
 
       return (
         <div className="flex flex-col min-h-screen bg-background text-foreground transition-colors duration-300">
@@ -140,7 +135,7 @@ import React from 'react';
 
     function App() {
       return (
-        <Router>
+        <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <AuthProvider>
             <PermissionsProvider>
               <ComponentStateProvider>

@@ -37,10 +37,9 @@ const Pagination = ({ page, totalPages, onPageChange }) => {
   );
 };
 
-const HomeBlockList = ({ mode = 'list' }) => {
+const HomeBlockList = ({ mode = 'list', refreshKey = 0, activeSubTab = 'list' }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
-
 
   // Use sessionStorage to persist editor state across tab switches and component remounts
   const getPersistedEditorState = () => {
@@ -144,6 +143,14 @@ const HomeBlockList = ({ mode = 'list' }) => {
     setSearchParams(newSearchParams, { replace: true });
   }, [view, selectedBlockId, setSearchParams]);
 
+  // Refetch when parent indicates a refresh or when tab switches back to list
+  useEffect(() => {
+    if (activeSubTab === 'list') {
+      fetchContentBlocks();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshKey, activeSubTab]);
+
 
   const [blocks, setBlocks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -190,9 +197,8 @@ const HomeBlockList = ({ mode = 'list' }) => {
       } else {
         if (status && status !== 'all') {
           query = query.eq('status', status);
-        } else {
-          query = query.neq('status', 'archived');
         }
+        // Suppression du filtre .neq('status', 'archived') pour afficher tous les blocs
       }
       if (isFeatured) {
         // Primary sort by priority when featured toggle is on
@@ -282,7 +288,19 @@ const HomeBlockList = ({ mode = 'list' }) => {
   const handleStatusChange = async (block, newStatus) => {
     try {
       const { error } = await supabase.rpc('home_blocks_set_status', { p_id: block.id, p_status: newStatus });
-      if (error) throw error;
+      if (error) {
+        const msg = error?.message || '';
+        // Fallback si ambiguité de fonction (double définition ENUM/TEXT côté SQL)
+        if (msg.includes('Could not choose the best candidate function') || msg.includes('home_blocks_set_status')) {
+          const { error: fallbackError } = await supabase
+            .from('content_blocks')
+            .update({ status: newStatus, updated_at: new Date().toISOString() })
+            .eq('id', block.id);
+          if (fallbackError) throw fallbackError;
+        } else {
+          throw error;
+        }
+      }
       toast({ title: 'Succès', description: 'Statut mis à jour.' });
       fetchContentBlocks();
     } catch (err) {

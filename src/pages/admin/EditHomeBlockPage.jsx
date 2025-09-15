@@ -15,10 +15,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import TiptapEditor from '@/components/admin/TiptapEditor';
-import { ArrowLeft, CalendarPlus as CalendarIcon, Loader2, Upload, Eye, ChevronDown, ChevronUp, Sparkles, Star, Crown, Zap, Heart, Trophy, Gift, Gem, Shield, Rocket, Award, Bookmark, CheckCircle, Clock, Diamond, Flame, Flag, Globe, Lightbulb, Lock, Mail, MapPin, Music, Target, Users, CalendarDays, Settings } from 'lucide-react';
+import { ArrowLeft, CalendarPlus as CalendarIcon, Loader2, Upload, Eye, ChevronDown, ChevronUp, Sparkles, Star, Crown, Zap, Heart, Trophy, Gift, Gem, Shield, Rocket, Award, Bookmark, CheckCircle, Clock, Diamond, Flame, Flag, Globe, Lightbulb, Lock, Mail, MapPin, Music, Target, Users, CalendarDays, Settings, Plus, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/customSupabaseClient';
 import { Switch } from '@/components/ui/switch';
+import ImageUpload from '@/components/ui/image-upload';
 import CozySpaceSectionWithUpload from '@/components/admin/home-blocks/CozySpaceSectionWithUpload';
 import MainHeroSection from '@/components/home/MainHeroSection';
 import SystemsShowcase from '@/components/home/SystemsShowcase';
@@ -81,10 +82,11 @@ const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
     mh_imageUrl: 'https://horizons-cdn.hostinger.com/33d72ce2-b6b0-4274-b8ce-63300e44633e/2b4c9777bf94e4a5f5d5cffcc9da2f69.png',
     mh_overlayOpacity: 0.3,
     // systems_showcase
-    ss_title: 'Un système ',
+    ss_title: '',
     ss_titleSuffix: 'rodé',
     ss_buttonText: 'Faites un tour du propriétaire',
     ss_buttonLink: '/mes-systemes',
+    ss_images: [],
     // stats
     stats_title: "La force d'une communauté",
     stats_subtitle: "Rejoignez une communauté grandissante et profitez d'un catalogue de formations riche et évolutif.",
@@ -94,21 +96,29 @@ const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
     sup_subtitle: "Le vrai \"plus\" de mon projet, c'est un système qui vous aide! Vous avez une ligne directe avec un expert Notion, et j'espère à la longue, plusieurs passionnés qui me rejoindront. Rejoignez des milliers d'utilisateurs qui ont déjà révolutionné leur organisation avec Notion. Economisez du temps et de l'énergie en recevant au minimum des astuces pour commencer proprement sur Notion.",
     sup_imageUrl: 'https://horizons-cdn.hostinger.com/33d72ce2-b6b0-4274-b8ce-63300e44633e/capture-daa-c-cran-2025-08-24-235707-02xTj.png',
     sup_imageAlt: 'Un expert Notion souriant, disponible pour aider via un chat',
-    // promise
-    pro_title: 'Ma promesse,',
-    pro_titleSuffix: 'simple.',
-    pro_1_icon: 'Users',
-    pro_1_title: 'La passion avant-tout',
-    pro_1_text: "Je suis juste un passionné de systèmes, et un passionné de Notion. je suis bon pédagogue, et j'ai faim de vous apprendre! ",
-    pro_2_icon: 'CalendarDays',
-    pro_2_title: 'Premier rendez-vous gratuit',
-    pro_2_text: "Lancez-vous : aujourd’hui je suis seul, demain l’équipe grandit — mon envie ? Vous former. Le labo est prêt à acceuillir des modérateurs et d'autres experts Notion comme moi. ",
-    pro_3_icon: 'Zap',
-    pro_3_title: 'Support Notion éclair ⚡',
-    pro_3_text: "Décrivez votre souci, je réponds dans la journée.  Assignéez votre demande à un ticket, un message ou même au forum! Vous aurez de quoi venir les réponses! ",
-    // personal_quote
-    pq_line1: "Cela fait une quinzaine d’années que je teste ce type d’outils — c’est mon métier.",
-    pq_line2: "Mais depuis six ans, pas une seconde l’envie de quitter Notion. Aujourd'hui, je me lance, j'aimerais vous le présenter ✨✨✨",
+    // promise (advanced parity)
+    pr_title: 'Ma promesse,',
+    pr_titleSuffix: 'simple.',
+    pr_items: [
+      { icon: 'Users', title: 'La passion avant-tout', text: "Je suis juste un passionné de systèmes, et un passionné de Notion. je suis bon pédagogue, et j'ai faim de vous apprendre! " },
+      { icon: 'CalendarDays', title: 'Premier rendez-vous gratuit', text: "Lancez-vous : aujourd’hui je suis seul, demain l’équipe grandit — mon envie ? Vous former. Le labo est prêt à acceuillir des modérateurs et d'autres experts Notion comme moi. " },
+      { icon: 'Zap', title: 'Support Notion éclair ⚡', text: "Décrivez votre souci, je réponds dans la journée.  Assignéez votre demande à un ticket, un message ou même au forum! Vous aurez de quoi venir les réponses! " },
+    ],
+    pr_showCta: false,
+    pr_ctaText: 'Découvrir maintenant',
+    pr_ctaUrl: '#',
+    pr_useBackgroundImage: false,
+    pr_backgroundImage: '',
+    pr_backgroundOpacity: 0.5,
+    pr_useDefaultBackground: true,
+    pr_backgroundColor: '',
+    // personal_quote (advanced parity)
+    pq_quoteText: "Cela fait une quinzaine d’années que je teste ce type d’outils — c’est mon métier.\nMais depuis six ans, pas une seconde l’envie de quitter Notion. Aujourd'hui, je me lance, j'aimerais vous le présenter ✨✨✨",
+    pq_showCta: false,
+    pq_ctaText: 'En savoir plus',
+    pq_ctaUrl: '#',
+    pq_useDefaultBackground: true,
+    pq_backgroundColor: '#000000',
     // final_cta
     fcta_title: 'Boostons vraiment votre productivité ensemble ?',
     fcta_description: "Rejoignez des milliers d'utilisateurs qui ont déjà révolutionné leur organisation avec Notion. Economisez du temps et de l'énergie en recevant au minimum des astuces pour commencer proprement sur Notion. Contrairement aux autres professeurs, comme il s'agit d'un axe technologiques, j'ai développé la technologie pour vous supporter pendant votre ascension. je vous promets, j'ai mis le paquet sur l'espace de formation... ",
@@ -124,6 +134,13 @@ const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
     lcta_iconName: 'Heart',
     lcta_useDefaultBackground: true,
     lcta_backgroundColor: '#ff6b35',
+    // advanced gradient mode (parity with template editor)
+    lcta_useDefaultGradient: true,
+    lcta_backgroundGradient: '',
+    lcta_bgMode: 'color',
+    lcta_gradStart: '#ff6b35',
+    lcta_gradEnd: '#f7931e',
+    lcta_gradAngle: 135,
     // footer (global)
     foot_logoUrl: 'https://horizons-cdn.hostinger.com/33d72ce2-b6b0-4274-b8ce-63300e44633e/logo_clair-U67WQ.png',
     foot_address: '1315 La Sarraz, Suisse',
@@ -138,6 +155,7 @@ const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
     form_backgroundImageUrl: 'https://images.unsplash.com/photo-1687754946970-5ff99224bd70'
   });
   const [showBadgeIcons, setShowBadgeIcons] = useState(false);
+  const [showPromiseIcons, setShowPromiseIcons] = useState(null);
 
   // Icons library for badge (same as template editor)
   const badgeIcons = [
@@ -165,6 +183,19 @@ const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
     { name: 'MapPin', icon: MapPin, label: 'Épingle' },
     { name: 'Music', icon: Music, label: 'Musique' },
     { name: 'Target', icon: Target, label: 'Cible' },
+  ];
+
+  // Reuse the same icon choices for promise items
+  const promiseIcons = badgeIcons;
+
+  // Presets for Launch CTA custom gradients (parity with template editor)
+  const lctaGradientPresets = [
+    { name: 'Sunset', start: '#ff6b35', end: '#f7931e', angle: 135 },
+    { name: 'Ocean', start: '#36d1dc', end: '#5b86e5', angle: 135 },
+    { name: 'Purple', start: '#a18cd1', end: '#fbc2eb', angle: 135 },
+    { name: 'Forest', start: '#11998e', end: '#38ef7d', angle: 135 },
+    { name: 'Fire', start: '#f12711', end: '#f5af19', angle: 135 },
+    { name: 'Steel', start: '#bdc3c7', end: '#2c3e50', angle: 135 },
   ];
 
   const handleDynChange = (field) => (e) => setDyn(prev => ({ ...prev, [field]: e.target.value }));
@@ -211,6 +242,7 @@ const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
               // systems_showcase
               ss_title: c.title ?? prev.ss_title,
               ss_titleSuffix: c.titleSuffix ?? prev.ss_titleSuffix,
+              ss_images: Array.isArray(c.images) ? c.images : prev.ss_images,
               ss_buttonText: c.buttonText ?? prev.ss_buttonText,
               ss_buttonLink: c.buttonLink ?? prev.ss_buttonLink,
               // stats
@@ -227,21 +259,31 @@ const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
               sup_subtitle: c.subtitle ?? prev.sup_subtitle,
               sup_imageUrl: c.imageUrl ?? prev.sup_imageUrl,
               sup_imageAlt: c.imageAlt ?? prev.sup_imageAlt,
-              // promise
-              pro_title: c.title ?? prev.pro_title,
-              pro_titleSuffix: c.titleSuffix ?? prev.pro_titleSuffix,
-              pro_1_icon: c.items?.[0]?.icon ?? prev.pro_1_icon,
-              pro_1_title: c.items?.[0]?.title ?? prev.pro_1_title,
-              pro_1_text: c.items?.[0]?.text ?? prev.pro_1_text,
-              pro_2_icon: c.items?.[1]?.icon ?? prev.pro_2_icon,
-              pro_2_title: c.items?.[1]?.title ?? prev.pro_2_title,
-              pro_2_text: c.items?.[1]?.text ?? prev.pro_2_text,
-              pro_3_icon: c.items?.[2]?.icon ?? prev.pro_3_icon,
-              pro_3_title: c.items?.[2]?.title ?? prev.pro_3_title,
-              pro_3_text: c.items?.[2]?.text ?? prev.pro_3_text,
-              // personal_quote
-              pq_line1: c.quoteLine1 ?? prev.pq_line1,
-              pq_line2: c.quoteLine2 ?? prev.pq_line2,
+              // promise (advanced)
+              pr_title: c.pr_title ?? c.title ?? prev.pr_title,
+              pr_titleSuffix: c.pr_titleSuffix ?? c.titleSuffix ?? prev.pr_titleSuffix,
+              pr_items: Array.isArray(c.pr_items || c.items)
+                ? (c.pr_items || c.items).map((it) => ({
+                    icon: it.icon || 'Users',
+                    title: it.title || '',
+                    text: (it.description ?? it.text) || ''
+                  }))
+                : prev.pr_items,
+              pr_showCta: typeof c.pr_showCta === 'boolean' ? c.pr_showCta : (typeof c.showCta === 'boolean' ? c.showCta : prev.pr_showCta),
+              pr_ctaText: c.pr_ctaText ?? c.ctaText ?? prev.pr_ctaText,
+              pr_ctaUrl: c.pr_ctaUrl ?? c.ctaUrl ?? prev.pr_ctaUrl,
+              pr_useBackgroundImage: typeof c.pr_useBackgroundImage === 'boolean' ? c.pr_useBackgroundImage : (typeof c.useBackgroundImage === 'boolean' ? c.useBackgroundImage : prev.pr_useBackgroundImage),
+              pr_backgroundImage: c.pr_backgroundImage ?? c.backgroundImage ?? prev.pr_backgroundImage,
+              pr_backgroundOpacity: typeof c.pr_backgroundOpacity === 'number' ? c.pr_backgroundOpacity : (typeof c.backgroundOpacity === 'number' ? c.backgroundOpacity : prev.pr_backgroundOpacity),
+              pr_useDefaultBackground: typeof c.pr_useDefaultBackground === 'boolean' ? c.pr_useDefaultBackground : (typeof c.useDefaultBackground === 'boolean' ? c.useDefaultBackground : prev.pr_useDefaultBackground),
+              pr_backgroundColor: c.pr_backgroundColor ?? c.backgroundColor ?? prev.pr_backgroundColor,
+              // personal_quote (advanced)
+              pq_quoteText: c.quoteText ?? prev.pq_quoteText,
+              pq_showCta: typeof c.showCta === 'boolean' ? c.showCta : prev.pq_showCta,
+              pq_ctaText: c.ctaText ?? prev.pq_ctaText,
+              pq_ctaUrl: c.ctaUrl ?? prev.pq_ctaUrl,
+              pq_useDefaultBackground: typeof c.useDefaultBackground === 'boolean' ? c.useDefaultBackground : prev.pq_useDefaultBackground,
+              pq_backgroundColor: c.backgroundColor ?? prev.pq_backgroundColor,
               // final_cta
               fcta_title: c.title ?? prev.fcta_title,
               fcta_description: c.description ?? prev.fcta_description,
@@ -257,6 +299,12 @@ const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
               lcta_iconName: c.iconName ?? prev.lcta_iconName,
               lcta_useDefaultBackground: c.useDefaultBackground ?? prev.lcta_useDefaultBackground,
               lcta_backgroundColor: c.backgroundColor ?? prev.lcta_backgroundColor,
+              // advanced gradient mapping (if present in content)
+              lcta_useDefaultGradient: typeof c.useDefaultGradient === 'boolean' ? c.useDefaultGradient : prev.lcta_useDefaultGradient,
+              lcta_backgroundGradient: c.backgroundGradient ?? prev.lcta_backgroundGradient,
+              lcta_bgMode: (c.useDefaultBackground === false && c.useDefaultGradient === false && c.backgroundGradient)
+                ? 'gradient'
+                : prev.lcta_bgMode,
               // footer
               foot_logoUrl: c.logoUrl ?? prev.foot_logoUrl,
               foot_address: c.address ?? prev.foot_address,
@@ -283,7 +331,13 @@ const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
         case 'home.main_hero':
           return { imageUrl: dyn.mh_imageUrl, overlayOpacity: Number(dyn.mh_overlayOpacity) || 0.3 };
         case 'home.systems_showcase':
-          return { title: dyn.ss_title, titleSuffix: dyn.ss_titleSuffix, buttonText: dyn.ss_buttonText, buttonLink: dyn.ss_buttonLink };
+          return { 
+            title: dyn.ss_title, 
+            titleSuffix: dyn.ss_titleSuffix, 
+            images: (dyn.ss_images || []).filter((img) => typeof img === 'string' && img.trim() !== ''),
+            buttonText: dyn.ss_buttonText, 
+            buttonLink: dyn.ss_buttonLink 
+          };
         case 'home.stats':
           return { title: dyn.stats_title, subtitle: dyn.stats_subtitle };
         case 'home.support':
@@ -291,13 +345,28 @@ const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
         case 'home.formations':
           return { title: dyn.form_title, titleSuffix: dyn.form_titleSuffix, subtitle: dyn.form_subtitle, backgroundImageUrl: dyn.form_backgroundImageUrl };
         case 'home.promise':
-          return { title: dyn.pro_title, titleSuffix: dyn.pro_titleSuffix, items: [
-            { icon: dyn.pro_1_icon, title: dyn.pro_1_title, text: dyn.pro_1_text },
-            { icon: dyn.pro_2_icon, title: dyn.pro_2_title, text: dyn.pro_2_text },
-            { icon: dyn.pro_3_icon, title: dyn.pro_3_title, text: dyn.pro_3_text },
-          ]};
+          return {
+            title: dyn.pr_title,
+            titleSuffix: dyn.pr_titleSuffix,
+            items: (dyn.pr_items || []).map((it) => ({ icon: it.icon, title: it.title, text: it.text })),
+            pr_showCta: dyn.pr_showCta,
+            pr_ctaText: dyn.pr_ctaText,
+            pr_ctaUrl: dyn.pr_ctaUrl,
+            pr_useBackgroundImage: dyn.pr_useBackgroundImage,
+            pr_backgroundImage: dyn.pr_backgroundImage,
+            pr_backgroundOpacity: Number(dyn.pr_backgroundOpacity) || 0.5,
+            pr_useDefaultBackground: dyn.pr_useDefaultBackground,
+            pr_backgroundColor: dyn.pr_backgroundColor,
+          };
         case 'home.personal_quote':
-          return { quoteLine1: dyn.pq_line1, quoteLine2: dyn.pq_line2 };
+          return {
+            quoteText: dyn.pq_quoteText,
+            showCta: dyn.pq_showCta,
+            ctaText: dyn.pq_ctaText,
+            ctaUrl: dyn.pq_ctaUrl,
+            backgroundColor: dyn.pq_backgroundColor,
+            useDefaultBackground: dyn.pq_useDefaultBackground,
+          };
         case 'home.final_cta':
           return { title: dyn.fcta_title, description: dyn.fcta_description, buttonText: dyn.fcta_buttonText, buttonLink: dyn.fcta_buttonLink };
         case 'home.launch_cta':
@@ -310,7 +379,9 @@ const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
             showCta: dyn.lcta_showCta,
             iconName: dyn.lcta_iconName,
             useDefaultBackground: dyn.lcta_useDefaultBackground,
-            backgroundColor: dyn.lcta_backgroundColor
+            backgroundColor: dyn.lcta_backgroundColor,
+            useDefaultGradient: dyn.lcta_useDefaultGradient,
+            backgroundGradient: dyn.lcta_bgMode === 'gradient' ? (dyn.lcta_backgroundGradient || `linear-gradient(${dyn.lcta_gradAngle}deg, ${dyn.lcta_gradStart} 0%, ${dyn.lcta_gradEnd} 100%)`) : dyn.lcta_backgroundGradient
           };
         case 'global.footer':
           return { logoUrl: dyn.foot_logoUrl, address: dyn.foot_address, email: dyn.foot_email, phone: dyn.foot_phone, mapEmbedUrl: dyn.foot_mapEmbedUrl, mapLink: dyn.foot_mapLink };
@@ -395,7 +466,7 @@ const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
       case 'home.main_hero':
         return <MainHeroSection content={{ imageUrl: dyn.mh_imageUrl, overlayOpacity: Number(dyn.mh_overlayOpacity) || 0.3 }} />;
       case 'home.systems_showcase':
-        return <SystemsShowcase content={{ title: dyn.ss_title, titleSuffix: dyn.ss_titleSuffix, buttonText: dyn.ss_buttonText, buttonLink: dyn.ss_buttonLink }} />;
+        return <SystemsShowcase content={{ title: dyn.ss_title, titleSuffix: dyn.ss_titleSuffix, images: dyn.ss_images, buttonText: dyn.ss_buttonText, buttonLink: dyn.ss_buttonLink }} />;
       case 'home.stats':
         return <StatsSection content={{ title: dyn.stats_title, subtitle: dyn.stats_subtitle }} />;
       case 'home.formations':
@@ -403,11 +474,21 @@ const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
       case 'home.support':
         return <SupportSection content={{ badgeLabel: dyn.sup_badgeLabel, title: dyn.sup_title, subtitle: dyn.sup_subtitle, imageUrl: dyn.sup_imageUrl, imageAlt: dyn.sup_imageAlt }} />;
       case 'home.promise':
-        return <PromiseSection content={{ title: dyn.pro_title, titleSuffix: dyn.pro_titleSuffix, items: [
-          { icon: dyn.pro_1_icon, title: dyn.pro_1_title, text: dyn.pro_1_text },
-          { icon: dyn.pro_2_icon, title: dyn.pro_2_title, text: dyn.pro_2_text },
-          { icon: dyn.pro_3_icon, title: dyn.pro_3_title, text: dyn.pro_3_text },
-        ]}} />;
+        return (
+          <PromiseSection content={{
+            pr_title: dyn.pr_title,
+            pr_titleSuffix: dyn.pr_titleSuffix,
+            pr_items: dyn.pr_items,
+            pr_showCta: dyn.pr_showCta,
+            pr_ctaText: dyn.pr_ctaText,
+            pr_ctaUrl: dyn.pr_ctaUrl,
+            pr_useBackgroundImage: dyn.pr_useBackgroundImage,
+            pr_backgroundImage: dyn.pr_backgroundImage,
+            pr_backgroundOpacity: Number(dyn.pr_backgroundOpacity) || 0.5,
+            pr_useDefaultBackground: dyn.pr_useDefaultBackground,
+            pr_backgroundColor: dyn.pr_backgroundColor,
+          }} />
+        );
       case 'home.cozy_space':
         return (
           <CozySpaceSectionWithUpload
@@ -430,7 +511,7 @@ const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
           />
         );
       case 'home.personal_quote':
-        return <PersonalQuoteSection content={{ quoteLine1: dyn.pq_line1, quoteLine2: dyn.pq_line2 }} />;
+        return <PersonalQuoteSection content={{ quoteText: dyn.pq_quoteText, showCta: dyn.pq_showCta, ctaText: dyn.pq_ctaText, ctaUrl: dyn.pq_ctaUrl, backgroundColor: dyn.pq_backgroundColor, useDefaultBackground: dyn.pq_useDefaultBackground }} />;
       case 'home.final_cta':
         return <FinalCTA content={{ title: dyn.fcta_title, description: dyn.fcta_description, buttonText: dyn.fcta_buttonText, buttonLink: dyn.fcta_buttonLink }} />;
       case 'home.launch_cta':
@@ -443,7 +524,11 @@ const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
           showCta: dyn.lcta_showCta,
           iconName: dyn.lcta_iconName,
           useDefaultBackground: dyn.lcta_useDefaultBackground,
-          backgroundColor: dyn.lcta_backgroundColor
+          backgroundColor: dyn.lcta_backgroundColor,
+          useDefaultGradient: dyn.lcta_useDefaultGradient,
+          backgroundGradient: dyn.lcta_bgMode === 'gradient' 
+            ? (dyn.lcta_backgroundGradient || `linear-gradient(${dyn.lcta_gradAngle}deg, ${dyn.lcta_gradStart} 0%, ${dyn.lcta_gradEnd} 100%)`) 
+            : dyn.lcta_backgroundGradient,
         }} />;
       case 'global.footer':
         return <Footer isPreview={true} content={{ logoUrl: dyn.foot_logoUrl, address: dyn.foot_address, email: dyn.foot_email, phone: dyn.foot_phone, mapEmbedUrl: dyn.foot_mapEmbedUrl, mapLink: dyn.foot_mapLink }} />;
@@ -645,36 +730,93 @@ const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
                                   {layout === 'home.main_hero' && (
                                     <>
                                       <div>
-                                        <Label>Image URL</Label>
-                                        <Input value={dyn.mh_imageUrl} onChange={(e) => setDyn(prev => ({ ...prev, mh_imageUrl: e.target.value }))} />
+                                        <Label>Image de fond full screen</Label>
+                                        <ImageUpload
+                                          currentImageUrl={dyn.mh_imageUrl}
+                                          onImageSelected={(url) => setDyn(prev => ({ ...prev, mh_imageUrl: url }))}
+                                          acceptedTypes={['image/jpeg', 'image/jpg', 'image/png', 'image/webp']}
+                                          compact={true}
+                                        />
                                       </div>
                                       <div>
-                                        <Label>Opacité de l'overlay (0 à 1)</Label>
-                                        <Input type="number" step="0.05" min="0" max="1" value={dyn.mh_overlayOpacity} onChange={(e) => setDyn(prev => ({ ...prev, mh_overlayOpacity: e.target.value }))} />
+                                        <Label>Opacité de l'overlay (0 = transparent, 1 = opaque)</Label>
+                                        <div className="flex gap-2 items-center">
+                                          <input
+                                            type="range"
+                                            min="0"
+                                            max="1"
+                                            step="0.05"
+                                            value={dyn.mh_overlayOpacity || 0.3}
+                                            onChange={(e) => setDyn(prev => ({ ...prev, mh_overlayOpacity: parseFloat(e.target.value) }))}
+                                            className="flex-1"
+                                          />
+                                          <span className="text-sm text-muted-foreground w-12">{(dyn.mh_overlayOpacity || 0.3).toFixed(2)}</span>
+                                        </div>
                                       </div>
                                     </>
                                   )}
 
                                   {layout === 'home.systems_showcase' && (
-                                    <div className="space-y-3">
-                                      <div className="grid grid-cols-2 gap-3">
-                                        <div>
-                                          <Label className="text-sm">Titre</Label>
-                                          <Input 
-                                            value={dyn.ss_title} 
-                                            onChange={(e) => setDyn(prev => ({ ...prev, ss_title: e.target.value }))} 
-                                            className="h-9"
-                                          />
-                                        </div>
-                                        <div>
-                                          <Label className="text-sm">Mot en dégradé</Label>
-                                          <Input 
-                                            value={dyn.ss_titleSuffix} 
-                                            onChange={(e) => setDyn(prev => ({ ...prev, ss_titleSuffix: e.target.value }))} 
-                                            className="h-9"
-                                          />
+                                    <div className="space-y-4">
+                                      <div>
+                                        <Label className="text-sm">Titre</Label>
+                                        <Input 
+                                          value={dyn.ss_title || ''}
+                                          onChange={(e) => setDyn(prev => ({ ...prev, ss_title: e.target.value }))}
+                                          className="h-9"
+                                          placeholder="Un système rodé"
+                                        />
+                                      </div>
+                                      
+                                      <div>
+                                        <Label className="text-sm">Images du carrousel (1 à 4)</Label>
+                                        <div className="space-y-3 mt-2">
+                                          {(dyn.ss_images || []).map((image, index) => (
+                                            <div key={index} className="border rounded-lg p-3 bg-muted/20">
+                                              <div className="flex items-start gap-2 mb-2">
+                                                <span className="text-sm text-muted-foreground">Image {index + 1}</span>
+                                                <Button
+                                                  type="button"
+                                                  variant="outline"
+                                                  size="sm"
+                                                  onClick={() => {
+                                                    const updated = (dyn.ss_images || []).filter((_, i) => i !== index);
+                                                    setDyn((prev) => ({ ...prev, ss_images: updated }));
+                                                  }}
+                                                  className="ml-auto text-red-600 hover:text-red-700"
+                                                >
+                                                  Supprimer
+                                                </Button>
+                                              </div>
+                                              <ImageUpload
+                                                currentImageUrl={image}
+                                                onImageSelected={(url) => {
+                                                  const updated = [...(dyn.ss_images || [])];
+                                                  updated[index] = url;
+                                                  setDyn((prev) => ({ ...prev, ss_images: updated }));
+                                                }}
+                                                bucketName="block-images"
+                                                cropAspectRatio={16/9}
+                                                maxSizeMB={5}
+                                                compact={true}
+                                              />
+                                            </div>
+                                          ))}
+                                          {(!dyn.ss_images || dyn.ss_images.length < 4) && (
+                                            <Button
+                                              type="button"
+                                              variant="outline"
+                                              size="sm"
+                                              onClick={() => setDyn((prev) => ({ ...prev, ss_images: [...(prev.ss_images || []), ''] }))}
+                                              className="w-full"
+                                            >
+                                              <Plus className="h-4 w-4 mr-2" />
+                                              Ajouter une image
+                                            </Button>
+                                          )}
                                         </div>
                                       </div>
+                                      
                                       <div className="grid grid-cols-2 gap-3">
                                         <div>
                                           <Label className="text-sm">Texte du bouton</Label>
@@ -735,39 +877,301 @@ const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
                                   )}
 
                                   {layout === 'home.promise' && (
-                                    <>
+                                    <div className="space-y-4">
                                       <div>
-                                        <Label>Titre (avant le mot en dégradé)</Label>
-                                        <Input value={dyn.pro_title} onChange={(e) => setDyn(prev => ({ ...prev, pro_title: e.target.value }))} />
+                                        <Label>Titre complet</Label>
+                                        <Input 
+                                          value={dyn.pr_title} 
+                                          onChange={(e) => setDyn(prev => ({ ...prev, pr_title: e.target.value }))} 
+                                          placeholder="Ma **promesse**, simple. (utilisez ** pour la couleur)"
+                                        />
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                          Utilisez **texte** pour mettre une partie du titre en couleur
+                                        </p>
                                       </div>
+
                                       <div>
-                                        <Label>Mot en dégradé</Label>
-                                        <Input value={dyn.pro_titleSuffix} onChange={(e) => setDyn(prev => ({ ...prev, pro_titleSuffix: e.target.value }))} />
-                                      </div>
-                                      {[1,2,3].map(i => (
-                                        <div key={i} className="border rounded-md p-3 bg-muted/20 space-y-2">
-                                          <Label>Icône {`{Users, CalendarDays, Zap}`}</Label>
-                                          <Input value={dyn[`pro_${i}_icon`]} onChange={(e) => setDyn(prev => ({ ...prev, [`pro_${i}_icon`]: e.target.value }))} />
-                                          <Label>Titre</Label>
-                                          <Input value={dyn[`pro_${i}_title`]} onChange={(e) => setDyn(prev => ({ ...prev, [`pro_${i}_title`]: e.target.value }))} />
-                                          <Label>Texte</Label>
-                                          <Textarea rows={3} value={dyn[`pro_${i}_text`]} onChange={(e) => setDyn(prev => ({ ...prev, [`pro_${i}_text`]: e.target.value }))} />
+                                        <Label>Colonnes de promesses</Label>
+                                        <div className="space-y-3">
+                                          {(dyn.pr_items || []).map((item, index) => (
+                                            <div key={index} className="border rounded-lg p-3 bg-muted/30">
+                                              <div className="flex gap-2 items-center mb-2">
+                                                <div className="flex-1">
+                                                  <Label className="text-xs">Titre</Label>
+                                                  <Input
+                                                    value={item.title || ''}
+                                                    onChange={(e) => {
+                                                      const newItems = [...(dyn.pr_items || [])];
+                                                      newItems[index] = { ...newItems[index], title: e.target.value };
+                                                      setDyn(prev => ({ ...prev, pr_items: newItems }));
+                                                    }}
+                                                    placeholder="Titre de la promesse"
+                                                    className="mt-1"
+                                                  />
+                                                </div>
+                                                <Button
+                                                  type="button"
+                                                  variant="outline"
+                                                  size="sm"
+                                                  onClick={() => {
+                                                    const newItems = (dyn.pr_items || []).filter((_, i) => i !== index);
+                                                    setDyn(prev => ({ ...prev, pr_items: newItems }));
+                                                  }}
+                                                  className="text-red-600 hover:text-red-700 self-end"
+                                                >
+                                                  <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                              </div>
+
+                                              <div className="space-y-2">
+                                                <div>
+                                                  <Label className="text-xs">Icône</Label>
+                                                  <div className="flex gap-2 mt-1">
+                                                    <Button
+                                                      type="button"
+                                                      variant="outline"
+                                                      size="sm"
+                                                      onClick={() => setShowPromiseIcons(showPromiseIcons === index ? null : index)}
+                                                      className="flex items-center gap-2"
+                                                    >
+                                                      {(() => {
+                                                        const IconComponent = promiseIcons.find(icon => icon.name === item.icon)?.icon || Users;
+                                                        return <IconComponent className="h-4 w-4" />;
+                                                      })()}
+                                                      {promiseIcons.find(icon => icon.name === item.icon)?.label || 'Choisir'}
+                                                    </Button>
+                                                  </div>
+                                                  {showPromiseIcons === index && (
+                                                    <div className="grid grid-cols-4 gap-2 mt-2 p-3 border rounded-lg bg-background">
+                                                      {promiseIcons.map((iconItem) => {
+                                                        const IconComponent = iconItem.icon;
+                                                        return (
+                                                          <Button
+                                                            key={iconItem.name}
+                                                            type="button"
+                                                            variant={item.icon === iconItem.name ? "default" : "outline"}
+                                                            size="sm"
+                                                            onClick={() => {
+                                                              const newItems = [...(dyn.pr_items || [])];
+                                                              newItems[index] = { ...newItems[index], icon: iconItem.name };
+                                                              setDyn(prev => ({ ...prev, pr_items: newItems }));
+                                                              setShowPromiseIcons(null);
+                                                            }}
+                                                            className="flex flex-col items-center gap-1 h-auto py-2"
+                                                          >
+                                                            <IconComponent className="h-4 w-4" />
+                                                            <span className="text-xs">{iconItem.label}</span>
+                                                          </Button>
+                                                        );
+                                                      })}
+                                                    </div>
+                                                  )}
+                                                </div>
+                                                <div>
+                                                  <Label className="text-xs">Description</Label>
+                                                  <Textarea 
+                                                    value={item.text || ''} 
+                                                    onChange={(e) => {
+                                                      const newItems = [...(dyn.pr_items || [])];
+                                                      newItems[index] = { ...newItems[index], text: e.target.value };
+                                                      setDyn(prev => ({ ...prev, pr_items: newItems }));
+                                                    }}
+                                                    placeholder="Description de la promesse"
+                                                    rows={2}
+                                                    className="mt-1"
+                                                  />
+                                                </div>
+                                              </div>
+                                            </div>
+                                          ))}
+                                          <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => {
+                                              const newItems = [...(dyn.pr_items || []), { icon: 'Users', title: '', text: '' }];
+                                              setDyn(prev => ({ ...prev, pr_items: newItems }));
+                                            }}
+                                            className="w-full"
+                                          >
+                                            <Plus className="h-4 w-4 mr-2" />
+                                            Ajouter une colonne
+                                          </Button>
                                         </div>
-                                      ))}
-                                    </>
+                                      </div>
+
+                                      <div className="space-y-3">
+                                        <div className="flex items-center space-x-2">
+                                          <Switch 
+                                            id="pr-show-cta" 
+                                            checked={dyn.pr_showCta} 
+                                            onCheckedChange={(checked) => setDyn(prev => ({ ...prev, pr_showCta: checked }))} 
+                                          />
+                                          <Label htmlFor="pr-show-cta">Afficher un bouton Call-to-Action</Label>
+                                        </div>
+                                        
+                                        {dyn.pr_showCta && (
+                                          <div className="space-y-3 pl-6 border-l-2 border-muted">
+                                            <div>
+                                              <Label>Texte du bouton</Label>
+                                              <Input 
+                                                value={dyn.pr_ctaText || ''} 
+                                                onChange={(e) => setDyn(prev => ({ ...prev, pr_ctaText: e.target.value }))} 
+                                                placeholder="Découvrir maintenant"
+                                              />
+                                            </div>
+                                            <div>
+                                              <Label>Lien du bouton</Label>
+                                              <Input 
+                                                value={dyn.pr_ctaUrl || ''} 
+                                                onChange={(e) => setDyn(prev => ({ ...prev, pr_ctaUrl: e.target.value }))} 
+                                                placeholder="#"
+                                              />
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      <div className="space-y-3">
+                                        <div className="flex items-center space-x-2">
+                                          <Switch 
+                                            id="pr-use-bg-image" 
+                                            checked={dyn.pr_useBackgroundImage} 
+                                            onCheckedChange={(checked) => setDyn(prev => ({ ...prev, pr_useBackgroundImage: checked }))} 
+                                          />
+                                          <Label htmlFor="pr-use-bg-image">Utiliser une image de fond</Label>
+                                        </div>
+                                        
+                                        {dyn.pr_useBackgroundImage ? (
+                                          <div className="space-y-3 pl-6 border-l-2 border-muted">
+                                            <div>
+                                              <Label>Image de fond</Label>
+                                              <ImageUpload
+                                                currentImageUrl={dyn.pr_backgroundImage}
+                                                onImageSelected={(url) => setDyn(prev => ({ ...prev, pr_backgroundImage: url }))}
+                                                bucketName="block-images"
+                                                cropAspectRatio={16/9}
+                                                maxSizeMB={5}
+                                                compact={true}
+                                              />
+                                            </div>
+                                            <div>
+                                              <Label>Opacité de l'image (0 = transparent, 1 = opaque)</Label>
+                                              <div className="flex gap-2 items-center">
+                                                <input
+                                                  type="range"
+                                                  min="0"
+                                                  max="1"
+                                                  step="0.05"
+                                                  value={dyn.pr_backgroundOpacity || 0.5}
+                                                  onChange={(e) => setDyn(prev => ({ ...prev, pr_backgroundOpacity: parseFloat(e.target.value) }))}
+                                                  className="flex-1"
+                                                />
+                                                <span className="text-sm text-muted-foreground w-12">{(dyn.pr_backgroundOpacity || 0.5).toFixed(2)}</span>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <div className="space-y-3 pl-6 border-l-2 border-muted">
+                                            <div className="flex items-center space-x-2">
+                                              <Switch 
+                                                id="pr-use-default-bg" 
+                                                checked={dyn.pr_useDefaultBackground} 
+                                                onCheckedChange={(checked) => setDyn(prev => ({ ...prev, pr_useDefaultBackground: checked }))} 
+                                              />
+                                              <Label htmlFor="pr-use-default-bg">Utiliser la couleur de fond par défaut (transparent)</Label>
+                                            </div>
+                                            
+                                            {!dyn.pr_useDefaultBackground && (
+                                              <div>
+                                                <Label>Couleur de fond personnalisée</Label>
+                                                <div className="flex gap-2 mt-1 items-center">
+                                                  <Input 
+                                                    type="color"
+                                                    value={dyn.pr_backgroundColor || '#ffffff'} 
+                                                    onChange={(e) => setDyn(prev => ({ ...prev, pr_backgroundColor: e.target.value }))} 
+                                                    className="w-16 h-10 p-1 border rounded"
+                                                  />
+                                                  <Input 
+                                                    value={dyn.pr_backgroundColor || ''} 
+                                                    onChange={(e) => setDyn(prev => ({ ...prev, pr_backgroundColor: e.target.value }))} 
+                                                    placeholder="#ffffff"
+                                                    className="flex-1"
+                                                  />
+                                                </div>
+                                              </div>
+                                            )}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
                                   )}
 
                                   {layout === 'home.personal_quote' && (
-                                    <>
+                                    <div className="space-y-4">
                                       <div>
-                                        <Label>Ligne 1</Label>
-                                        <Textarea rows={2} value={dyn.pq_line1} onChange={(e) => setDyn(prev => ({ ...prev, pq_line1: e.target.value }))} />
+                                        <Label>Citation personnelle</Label>
+                                        <Textarea 
+                                          rows={6} 
+                                          value={dyn.pq_quoteText} 
+                                          onChange={handleDynChange('pq_quoteText')} 
+                                          placeholder={"Cela fait une quinzaine d'années que je teste ce type d'outils — c'est mon métier.\nMais depuis six ans, pas une seconde l'envie de quitter Notion. Aujourd'hui, je me lance, j'aimerais vous le présenter ✨✨✨"}
+                                        />
                                       </div>
-                                      <div>
-                                        <Label>Ligne 2</Label>
-                                        <Textarea rows={2} value={dyn.pq_line2} onChange={(e) => setDyn(prev => ({ ...prev, pq_line2: e.target.value }))} />
+
+                                      <div className="space-y-3">
+                                        <div className="flex items-center space-x-2">
+                                          <Switch 
+                                            id="pq-show-cta" 
+                                            checked={dyn.pq_showCta} 
+                                            onCheckedChange={(checked) => setDyn(prev => ({ ...prev, pq_showCta: checked }))} 
+                                          />
+                                          <Label htmlFor="pq-show-cta">Afficher un bouton Call-to-Action</Label>
+                                        </div>
+                                        {dyn.pq_showCta && (
+                                          <div className="space-y-3 pl-6 border-l-2 border-muted">
+                                            <div>
+                                              <Label>Texte du bouton</Label>
+                                              <Input value={dyn.pq_ctaText || ''} onChange={handleDynChange('pq_ctaText')} placeholder="En savoir plus" />
+                                            </div>
+                                            <div>
+                                              <Label>Lien du bouton</Label>
+                                              <Input value={dyn.pq_ctaUrl || ''} onChange={handleDynChange('pq_ctaUrl')} placeholder="#" />
+                                            </div>
+                                          </div>
+                                        )}
                                       </div>
-                                    </>
+
+                                      <div className="space-y-3">
+                                        <div className="flex items-center space-x-2">
+                                          <Switch 
+                                            id="pq-use-default-bg" 
+                                            checked={dyn.pq_useDefaultBackground} 
+                                            onCheckedChange={(checked) => setDyn(prev => ({ ...prev, pq_useDefaultBackground: checked }))} 
+                                          />
+                                          <Label htmlFor="pq-use-default-bg">Utiliser la couleur de fond par défaut (noir)</Label>
+                                        </div>
+                                        {!dyn.pq_useDefaultBackground && (
+                                          <div className="pl-6 border-l-2 border-muted">
+                                            <Label>Couleur de fond personnalisée</Label>
+                                            <div className="flex gap-2 mt-1 items-center">
+                                              <Input 
+                                                type="color"
+                                                value={dyn.pq_backgroundColor || '#000000'} 
+                                                onChange={handleDynChange('pq_backgroundColor')} 
+                                                className="w-16 h-10 p-1 border rounded"
+                                              />
+                                              <Input 
+                                                value={dyn.pq_backgroundColor || ''} 
+                                                onChange={handleDynChange('pq_backgroundColor')} 
+                                                placeholder="#000000"
+                                                className="flex-1"
+                                              />
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
                                   )}
 
                                   {layout === 'home.final_cta' && (
@@ -861,38 +1265,206 @@ const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
                                         <p className="text-sm text-muted-foreground mt-1">Icône sélectionnée: {dyn.lcta_iconName}</p>
                                       </div>
 
-                                      {/* Background Color Section */}
+                                      {/* Background Section - Advanced (parity with template editor) */}
                                       <div className="space-y-4 p-4 border rounded-lg">
+                                        {/* 1) Toggle default background vs custom */}
                                         <div className="flex items-center space-x-2">
                                           <Switch 
                                             checked={dyn.lcta_useDefaultBackground} 
                                             onCheckedChange={(checked) => setDyn(prev => ({ ...prev, lcta_useDefaultBackground: checked }))}
                                           />
-                                          <Label>Utiliser la couleur par défaut</Label>
+                                          <Label>Utiliser l'arrière-plan par défaut</Label>
                                         </div>
+
+                                        {/* 2) Custom background editor */}
                                         {!dyn.lcta_useDefaultBackground && (
-                                          <div>
-                                            <Label>Couleur de base (génère un dégradé automatiquement)</Label>
-                                            <div className="flex items-center space-x-2 mt-2">
-                                              <input
-                                                type="color"
-                                                value={dyn.lcta_backgroundColor}
-                                                onChange={(e) => setDyn(prev => ({ ...prev, lcta_backgroundColor: e.target.value }))}
-                                                className="w-12 h-8 rounded border"
-                                              />
-                                              <Input 
-                                                value={dyn.lcta_backgroundColor} 
-                                                onChange={handleDynChange('lcta_backgroundColor')} 
-                                                placeholder="#ff6b35" 
-                                                className="flex-1"
-                                              />
+                                          <div className="space-y-4 pl-2 sm:pl-4">
+                                            {/* Mode selector */}
+                                            <div>
+                                              <Label>Mode d'arrière-plan</Label>
+                                              <div className="flex gap-2 mt-2">
+                                                <Button
+                                                  type="button"
+                                                  variant={dyn.lcta_bgMode === 'color' ? 'default' : 'outline'}
+                                                  size="sm"
+                                                  onClick={() => setDyn(prev => ({
+                                                    ...prev,
+                                                    lcta_bgMode: 'color',
+                                                    lcta_useDefaultGradient: true,
+                                                  }))}
+                                                >
+                                                  Couleur unie
+                                                </Button>
+                                                <Button
+                                                  type="button"
+                                                  variant={dyn.lcta_bgMode === 'gradient' ? 'default' : 'outline'}
+                                                  size="sm"
+                                                  onClick={() => setDyn(prev => ({
+                                                    ...prev,
+                                                    lcta_bgMode: 'gradient',
+                                                    lcta_useDefaultGradient: false,
+                                                    lcta_backgroundGradient: prev.lcta_backgroundGradient || `linear-gradient(${prev.lcta_gradAngle || 135}deg, ${prev.lcta_gradStart || '#ff6b35'} 0%, ${prev.lcta_gradEnd || '#f7931e'} 100%)`
+                                                  }))}
+                                                >
+                                                  Dégradé
+                                                </Button>
+                                              </div>
                                             </div>
-                                            <p className="text-sm text-muted-foreground mt-1">
-                                              Un dégradé sera généré automatiquement à partir de cette couleur
-                                            </p>
+
+                                            {/* Color mode */}
+                                            {dyn.lcta_bgMode === 'color' && (
+                                              <div className="space-y-2">
+                                                <Label>Couleur de fond personnalisée</Label>
+                                                <div className="flex gap-2 mt-1 items-center">
+                                                  <input
+                                                    type="color"
+                                                    value={dyn.lcta_backgroundColor || '#ff6b35'}
+                                                    onChange={(e) => setDyn(prev => ({ ...prev, lcta_backgroundColor: e.target.value }))}
+                                                    className="w-12 h-8 rounded border"
+                                                  />
+                                                  <Input
+                                                    value={dyn.lcta_backgroundColor || ''}
+                                                    onChange={handleDynChange('lcta_backgroundColor')}
+                                                    placeholder="#ff6b35"
+                                                    className="flex-1"
+                                                  />
+                                                  <div
+                                                    className="w-10 h-10 rounded border"
+                                                    style={{ background: dyn.lcta_backgroundColor || '#ff6b35' }}
+                                                    aria-label="Aperçu couleur"
+                                                  />
+                                                </div>
+                                                <p className="text-xs text-muted-foreground">Astuce: une couleur unie produit un dégradé harmonisé automatiquement dans l'aperçu.</p>
+                                              </div>
+                                            )}
+
+                                            {/* Gradient mode */}
+                                            {dyn.lcta_bgMode === 'gradient' && (
+                                              <div className="space-y-3">
+                                                <div>
+                                                  <Label>Couleurs du dégradé</Label>
+                                                  <div className="flex gap-3 mt-2 items-center">
+                                                    <div className="flex items-center gap-2">
+                                                      <span className="text-xs text-muted-foreground w-10">Début</span>
+                                                      <Input type="color" value={dyn.lcta_gradStart} onChange={(e) => {
+                                                        const start = e.target.value;
+                                                        setDyn(prev => ({
+                                                          ...prev,
+                                                          lcta_gradStart: start,
+                                                          lcta_useDefaultGradient: false,
+                                                          lcta_backgroundGradient: `linear-gradient(${prev.lcta_gradAngle}deg, ${start} 0%, ${prev.lcta_gradEnd} 100%)`
+                                                        }));
+                                                      }} className="w-12 h-10 p-1 border rounded" />
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                      <span className="text-xs text-muted-foreground w-10">Fin</span>
+                                                      <Input type="color" value={dyn.lcta_gradEnd} onChange={(e) => {
+                                                        const end = e.target.value;
+                                                        setDyn(prev => ({
+                                                          ...prev,
+                                                          lcta_gradEnd: end,
+                                                          lcta_useDefaultGradient: false,
+                                                          lcta_backgroundGradient: `linear-gradient(${prev.lcta_gradAngle}deg, ${prev.lcta_gradStart} 0%, ${end} 100%)`
+                                                        }));
+                                                      }} className="w-12 h-10 p-1 border rounded" />
+                                                    </div>
+                                                    <div
+                                                      className="flex-1 h-10 rounded border"
+                                                      style={{ background: dyn.lcta_backgroundGradient || `linear-gradient(${dyn.lcta_gradAngle}deg, ${dyn.lcta_gradStart} 0%, ${dyn.lcta_gradEnd} 100%)` }}
+                                                      aria-label="Aperçu dégradé"
+                                                    />
+                                                  </div>
+                                                </div>
+                                                <div>
+                                                  <Label>Angle du dégradé: {dyn.lcta_gradAngle}°</Label>
+                                                  <input
+                                                    type="range"
+                                                    min={0}
+                                                    max={360}
+                                                    step={1}
+                                                    value={dyn.lcta_gradAngle}
+                                                    onChange={(e) => {
+                                                      const angle = Number(e.target.value);
+                                                      setDyn(prev => ({
+                                                        ...prev,
+                                                        lcta_gradAngle: angle,
+                                                        lcta_useDefaultGradient: false,
+                                                        lcta_backgroundGradient: `linear-gradient(${angle}deg, ${prev.lcta_gradStart} 0%, ${prev.lcta_gradEnd} 100%)`
+                                                      }));
+                                                    }}
+                                                    className="w-full"
+                                                  />
+                                                </div>
+                                                <div>
+                                                  <Label>Préréglages</Label>
+                                                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mt-2">
+                                                    {lctaGradientPresets.map(p => (
+                                                      <button
+                                                        key={p.name}
+                                                        type="button"
+                                                        onClick={() => setDyn(prev => ({
+                                                          ...prev,
+                                                          lcta_bgMode: 'gradient',
+                                                          lcta_useDefaultGradient: false,
+                                                          lcta_gradStart: p.start,
+                                                          lcta_gradEnd: p.end,
+                                                          lcta_gradAngle: p.angle,
+                                                          lcta_backgroundGradient: `linear-gradient(${p.angle}deg, ${p.start} 0%, ${p.end} 100%)`
+                                                        }))}
+                                                        className="h-10 rounded border"
+                                                        title={p.name}
+                                                        style={{ background: `linear-gradient(${p.angle}deg, ${p.start} 0%, ${p.end} 100%)` }}
+                                                      />
+                                                    ))}
+                                                  </div>
+                                                </div>
+                                                <div>
+                                                  <Label>Dégradé CSS (avancé)</Label>
+                                                  <Input
+                                                    value={dyn.lcta_backgroundGradient || ''}
+                                                    onChange={(e) => setDyn(prev => ({ ...prev, lcta_backgroundGradient: e.target.value, lcta_useDefaultGradient: false }))}
+                                                    placeholder="linear-gradient(135deg, #ff6b35 0%, #f7931e 100%)"
+                                                  />
+                                                  <p className="text-xs text-muted-foreground mt-1">Vous pouvez coller un CSS de dégradé ici. Les réglages ci-dessus s'adapteront au prochain changement.</p>
+                                                </div>
+                                              </div>
+                                            )}
+
+                                            {/* Reset buttons */}
+                                            <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                                              <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => setDyn(prev => ({
+                                                  ...prev,
+                                                  lcta_useDefaultBackground: true
+                                                }))}
+                                              >
+                                                Revenir au fond par défaut
+                                              </Button>
+                                              <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => setDyn(prev => ({
+                                                  ...prev,
+                                                  lcta_bgMode: 'color',
+                                                  lcta_useDefaultGradient: true,
+                                                  lcta_backgroundColor: '#ff6b35',
+                                                  lcta_backgroundGradient: '',
+                                                  lcta_gradStart: '#ff6b35',
+                                                  lcta_gradEnd: '#f7931e',
+                                                  lcta_gradAngle: 135,
+                                                }))}
+                                              >
+                                                Réinitialiser l'éditeur
+                                              </Button>
+                                            </div>
                                           </div>
                                         )}
                                       </div>
+
                                     </>
                                   )}
 

@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from './SupabaseAuthContext';
 
@@ -13,68 +14,235 @@ export const usePermissions = () => {
 };
 
 export const PermissionsProvider = ({ children }) => {
+  const location = useLocation();
   const { user } = useAuth();
   const [permissions, setPermissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userType, setUserType] = useState(null);
+  const [error, setError] = useState(null);
+  const [usingFallback, setUsingFallback] = useState(false);
+  const [ready, setReady] = useState(false); // true when we have a valid cache or a fresh network result
+  const retryRef = useRef({ timer: null, backoff: 5000 });
+  const isProtectedPath = useCallback((path) => {
+    const protectedPrefixes = [
+      '/dashboard',
+      '/chat',
+      '/nouveau-ticket',
+      '/ticket',
+      '/tickets',
+      '/formation-builder',
+      '/parcours',
+      '/forum',
+      '/admin',
+    ];
+    return protectedPrefixes.some((p) => path.startsWith(p));
+  }, []);
+
+  const CACHE_PREFIX = 'perm_cache_v1:';
+  const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes TTL to avoid stale perms
+  const getCacheKey = (u) => {
+    if (!u || !u.id) return `${CACHE_PREFIX}guest`;
+    return `${CACHE_PREFIX}${u.id}`;
+  };
+
+  const readCache = (u) => {
+    try {
+      const cacheKey = getCacheKey(u);
+      const raw = localStorage.getItem(cacheKey);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || !Array.isArray(parsed.permissions)) return null;
+      if (!parsed.ts || (Date.now() - parsed.ts) > CACHE_TTL_MS) {
+        return null; // stale
+      }
+      return parsed;
+    } catch (_) {
+      return null;
+    }
+  };
+
+  const writeCache = (u, perms, type) => {
+    try {
+      const cacheKey = getCacheKey(u);
+      localStorage.setItem(cacheKey, JSON.stringify({ permissions: perms, userType: type, ts: Date.now() }));
+    } catch (_) {
+      // ignore cache write errors
+    }
+  };
 
   const fetchPermissions = useCallback(async () => {
-    setLoading(true);
     setUserType(null);
+    setError(null);
+    setUsingFallback(false);
+    setReady(false);
+
+    // Fast path: valid cache for this user
+    const cached = readCache(user);
+    const hasValidCache = !!cached;
+    if (hasValidCache) {
+      setPermissions(cached.permissions);
+      setUserType(cached.userType || (user?.profile?.user_type ?? 'guest'));
+      setReady(true);
+      setLoading(false);
+      // Skip immediate network fetch; rely on TTL, visibility/online events, or explicit refresh
+      return;
+    } else {
+      // No valid cache: set minimal fallback, but mark as not ready
+      const fallbackType = user?.profile?.user_type || 'guest';
+      setUserType(fallbackType);
+      setPermissions([]);
+      setUsingFallback(true);
+      setReady(true); // allow UI to proceed with minimal permissions
+      setLoading(false);
+    }
+
     try {
+      // Safety timeout via Promise.race to avoid blocking the UI
+      const TIMEOUT_MS = 6000;
+      const timeoutPromise = new Promise((resolve) =>
+        setTimeout(() => resolve({ __timeout: true }), TIMEOUT_MS)
+      );
+
+      // If no authenticated user or profile not loaded yet, do not hit the network at all.
       if (!user || !user.profile || !user.profile.user_type) {
-        const { data, error } = await supabase.from('role_permissions').select('permission').eq('guest', true);
-        if (error) throw error;
-        setPermissions(data.map(p => p.permission));
         setUserType('guest');
-      } else {
+        setUsingFallback(!hasValidCache);
+        // Not ready yet: wait for profile or explicit refresh
+        setReady(false);
+        setLoading(false);
+        return;
+      }
+
+      let result;
+      {
         const currentUserType = user.profile.user_type;
         setUserType(currentUserType);
-        
-        let query = supabase.from('role_permissions').select('permission');
-        
-        // 'owner' gets all permissions, handled in hasPermission. 
-        // For DB query, fetch admin perms to have a base set if needed, but the override is what matters.
         const typeToQuery = currentUserType === 'owner' ? 'admin' : currentUserType;
-        
-        query = query.eq(typeToQuery, true);
-        
-        const { data, error } = await query;
-
-        if (error) {
-            if (error.code === '42703') { 
-                console.warn(`Permissions column for role '${typeToQuery}' not found. User may have limited permissions.`);
-                setPermissions([]);
-            } else {
-                throw error;
-            }
-        } else {
-            const userPermissions = new Set(data.map(p => p.permission));
-            setPermissions(Array.from(userPermissions));
-        }
+        const query = supabase.from('role_permissions').select('permission').eq(typeToQuery, true);
+        result = await Promise.race([query, timeoutPromise]);
       }
-    } catch (error) {
-      console.error('Error fetching permissions:', error);
+
+      if (result && result.__timeout) {
+        console.debug('Permissions fetch timed out. Using minimal or cached permissions.');
+        setUsingFallback(!hasValidCache);
+        // Fail-open for UI readiness: allow app to continue with fallback
+        setReady(true);
+        setLoading(false);
+        return;
+      }
+
+      const { data, error: fetchErr } = result || {};
+      if (fetchErr) {
+        if (fetchErr.code === '42703') {
+          console.warn('Permissions column not found for role. User may have limited permissions.');
+          setPermissions([]);
+          setUsingFallback(!hasValidCache);
+          setReady(hasValidCache);
+        } else {
+          throw fetchErr;
+        }
+      } else if (Array.isArray(data)) {
+        const userPermissions = Array.from(new Set(data.map(p => p.permission)));
+        setPermissions(userPermissions);
+        writeCache(user, userPermissions, user?.profile?.user_type ?? 'guest');
+        setUsingFallback(false);
+        setReady(true);
+      }
+      setLoading(false);
+    } catch (err) {
+      console.error('Error fetching permissions:', err);
+      setError(err);
       setPermissions([]);
+      setUsingFallback(!hasValidCache);
+      // Fail-open for UI readiness on error as well
+      setReady(true);
     } finally {
       setLoading(false);
     }
   }, [user]);
 
+  // Prefetch permissions only on protected routes
   useEffect(() => {
-    fetchPermissions();
-  }, [fetchPermissions]);
+    const path = location.pathname || '';
+    if (isProtectedPath(path)) {
+      fetchPermissions();
+    }
+  }, [location.pathname, fetchPermissions, isProtectedPath]);
+  
+  // Background retry if we're using fallback (timeout or temporary failure)
+  useEffect(() => {
+    if (!ready || !usingFallback) {
+      // clear any pending retries
+      if (retryRef.current.timer) {
+        clearTimeout(retryRef.current.timer);
+        retryRef.current.timer = null;
+      }
+      retryRef.current.backoff = 5000;
+      return;
+    }
+
+    if (retryRef.current.timer) return; // already scheduled
+
+    const retry = async () => {
+      await fetchPermissions();
+      // if still usingFallback after fetch, schedule next retry with backoff
+      if (retryRef.current) {
+        retryRef.current.backoff = Math.min((retryRef.current.backoff || 5000) * 2, 60000);
+        retryRef.current.timer = setTimeout(retry, retryRef.current.backoff);
+      }
+    };
+
+    retryRef.current.backoff = 5000;
+    retryRef.current.timer = setTimeout(retry, retryRef.current.backoff);
+
+    return () => {
+      if (retryRef.current.timer) {
+        clearTimeout(retryRef.current.timer);
+        retryRef.current.timer = null;
+      }
+    };
+  }, [ready, usingFallback, fetchPermissions]);
+
+  // Refresh on network regain and when tab becomes visible (protected pages only)
+  useEffect(() => {
+    const onOnline = () => {
+      const path = window.location?.pathname || '';
+      if (isProtectedPath(path)) fetchPermissions();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        const path = window.location?.pathname || '';
+        if (isProtectedPath(path)) fetchPermissions();
+      }
+    };
+    window.addEventListener('online', onOnline);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('online', onOnline);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [fetchPermissions, isProtectedPath]);
   
   const hasPermission = useCallback((requiredPermission) => {
-    if (loading) return false;
     // The owner has all permissions, always. This is the ultimate override.
     if (userType === 'owner') return true;
+    if (loading) return false;
     if (!requiredPermission) return true;
     return permissions.includes(requiredPermission);
   }, [permissions, loading, userType]);
 
   return (
-    <PermissionsContext.Provider value={{ permissions, hasPermission, loading, refetchPermissions: fetchPermissions }}>
+    <PermissionsContext.Provider value={{
+      permissions,
+      hasPermission,
+      loading,
+      error,
+      ready,
+      usingFallback,
+      // keep backwards compatibility: both names
+      refetchPermissions: fetchPermissions,
+      refreshPermissions: fetchPermissions,
+    }}>
       {children}
     </PermissionsContext.Provider>
   );

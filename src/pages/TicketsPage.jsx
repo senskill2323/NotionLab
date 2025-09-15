@@ -6,17 +6,21 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
-import { Ticket, Plus, Loader2, CheckCircle, Clock, ArrowLeft, PackageX } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
+import { Ticket, Plus, Loader2, CheckCircle, Clock, ArrowLeft, PackageX, AlertCircle, HelpCircle, ShieldAlert, Edit3 } from 'lucide-react';
 import { supabase } from '@/lib/customSupabaseClient';
 
 const TicketsPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [allTickets, setAllTickets] = useState([]);
   const [filteredTickets, setFilteredTickets] = useState([]);
   const [activeTab, setActiveTab] = useState('en-cours');
   const [loading, setLoading] = useState(true);
+  const [editingTicket, setEditingTicket] = useState(null);
 
   useEffect(() => {
     if (!user) {
@@ -35,7 +39,7 @@ const TicketsPage = () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('tickets')
-      .select('*')
+      .select('id, title, description, status, priority, created_at, user_id, client_email')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
@@ -45,6 +49,37 @@ const TicketsPage = () => {
       setAllTickets(data || []);
     }
     setLoading(false);
+  };
+
+  const updateTicket = async (ticketId, updates) => {
+    try {
+      const { error } = await supabase
+        .from('tickets')
+        .update(updates)
+        .eq('id', ticketId)
+        .eq('user_id', user.id); // Ensure user can only update their own tickets
+
+      if (error) throw error;
+
+      // Update local state
+      setAllTickets(prev => prev.map(ticket => 
+        ticket.id === ticketId ? { ...ticket, ...updates } : ticket
+      ));
+
+      toast({
+        title: "Ticket mis à jour",
+        description: "Les modifications ont été enregistrées avec succès.",
+      });
+
+      setEditingTicket(null);
+    } catch (error) {
+      console.error('Error updating ticket:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de mettre à jour le ticket.",
+        variant: "destructive"
+      });
+    }
   };
 
   const filterTickets = () => {
@@ -58,6 +93,33 @@ const TicketsPage = () => {
     }
   };
   
+  const getPriorityBadge = (priority) => {
+    let text, className, icon;
+    switch(priority) {
+        case 'Faible':
+            text = 'Faible';
+            className = 'bg-blue-200 text-blue-800 dark:bg-blue-800/50 dark:text-blue-200';
+            icon = <HelpCircle className="w-3 h-3 mr-1" />;
+            break;
+        case 'Moyen':
+            text = 'Moyen';
+            className = 'bg-yellow-200 text-yellow-800 dark:bg-yellow-800/50 dark:text-yellow-200';
+            icon = <AlertCircle className="w-3 h-3 mr-1" />;
+            break;
+        case 'Élevé':
+        case 'Urgent':
+            text = priority;
+            className = 'bg-red-200 text-red-800 dark:bg-red-800/50 dark:text-red-200';
+            icon = <ShieldAlert className="w-3 h-3 mr-1" />;
+            break;
+        default:
+            text = priority || 'Moyen';
+            className = 'bg-yellow-200 text-yellow-800 dark:bg-yellow-800/50 dark:text-yellow-200';
+            icon = <AlertCircle className="w-3 h-3 mr-1" />;
+    }
+    return <Badge className={`border-none ${className} flex items-center`}>{icon}{text}</Badge>;
+  };
+
   const getStatusBadge = (status) => {
     let text, className;
     switch(status) {
@@ -125,7 +187,7 @@ const TicketsPage = () => {
       <div className="min-h-screen">
         
         <div className="pt-32 pb-16">
-          <div className="container mx-auto px-4">
+          <div className="w-full px-6">
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
@@ -179,9 +241,13 @@ const TicketsPage = () => {
                   <TicketsList 
                     tickets={filteredTickets} 
                     getStatusBadge={getStatusBadge} 
+                    getPriorityBadge={getPriorityBadge}
                     getStatusIcon={getStatusIcon}
                     loading={loading}
                     activeTab={activeTab}
+                    editingTicket={editingTicket}
+                    setEditingTicket={setEditingTicket}
+                    updateTicket={updateTicket}
                   />
                 </motion.div>
               </AnimatePresence>
@@ -193,7 +259,7 @@ const TicketsPage = () => {
   );
 };
 
-const TicketsList = ({ tickets, getStatusBadge, getStatusIcon, loading, activeTab }) => {
+const TicketsList = ({ tickets, getStatusBadge, getPriorityBadge, getStatusIcon, loading, activeTab, editingTicket, setEditingTicket, updateTicket }) => {
   if (loading) {
     return <div className="text-center py-12 flex items-center justify-center gap-2"><Loader2 className="h-5 w-5 animate-spin" />Chargement des tickets...</div>;
   }
@@ -217,9 +283,27 @@ const TicketsList = ({ tickets, getStatusBadge, getStatusIcon, loading, activeTa
     );
   }
 
+  const handleStatusChange = (ticketId, newStatus) => {
+    updateTicket(ticketId, { status: newStatus });
+  };
+
+  const handlePriorityChange = (ticketId, newPriority) => {
+    updateTicket(ticketId, { priority: newPriority });
+  };
+
   return (
     <Card className="glass-effect">
       <CardContent className="p-0">
+        {/* Header */}
+        <div className="grid grid-cols-[80px_1fr_120px_120px_120px_60px] items-center px-4 py-3 border-b bg-muted/30 font-medium text-sm">
+          <div>Réf.</div>
+          <div>Titre</div>
+          <div>Priorité</div>
+          <div>Statut</div>
+          <div>Date création</div>
+          <div></div>
+        </div>
+        
         <div className="divide-y divide-border">
           {tickets.map((ticket, index) => (
             <motion.div
@@ -227,19 +311,72 @@ const TicketsList = ({ tickets, getStatusBadge, getStatusIcon, loading, activeTa
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: index * 0.05 }}
-              className="grid grid-cols-[1fr_auto] md:grid-cols-[2fr_1fr_1fr] items-center px-4 py-3 hover:bg-secondary/50 transition-colors gap-4"
-              onClick={() => (window.location.href = `/ticket/${ticket.id}`)}
-              style={{ cursor: 'pointer' }}
+              className="grid grid-cols-[80px_1fr_120px_120px_120px_60px] items-center px-4 py-4 hover:bg-secondary/50 transition-colors gap-4"
             >
+              {/* Référence */}
+              <div className="text-sm font-mono text-muted-foreground">
+                #{ticket.id.toString().padStart(4, '0')}
+              </div>
+              
+              {/* Titre */}
               <div className="flex items-center space-x-3 overflow-hidden">
                 {getStatusIcon(ticket.status)}
                 <p className="font-semibold truncate" title={ticket.title}>{ticket.title}</p>
               </div>
-              <div className="hidden md:block text-sm text-muted-foreground text-right">
-                Créé le {new Date(ticket.created_at).toLocaleDateString('fr-FR')}
+              
+              {/* Priorité - Directement modifiable */}
+              <div>
+                <Select 
+                  value={ticket.priority || 'Moyen'} 
+                  onValueChange={(value) => handlePriorityChange(ticket.id, value)}
+                >
+                  <SelectTrigger className="h-8 text-xs border-none bg-transparent hover:bg-muted/50">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Faible">Faible</SelectItem>
+                    <SelectItem value="Moyen">Moyen</SelectItem>
+                    <SelectItem value="Élevé">Élevé</SelectItem>
+                    <SelectItem value="Urgent">Urgent</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <div className="flex justify-end">
-                {getStatusBadge(ticket.status)}
+              
+              {/* Statut - Directement modifiable */}
+              <div>
+                <Select 
+                  value={ticket.status} 
+                  onValueChange={(value) => handleStatusChange(ticket.id, value)}
+                >
+                  <SelectTrigger className="h-8 text-xs border-none bg-transparent hover:bg-muted/50">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="A traiter">À traiter</SelectItem>
+                    <SelectItem value="En cours">En cours</SelectItem>
+                    <SelectItem value="Répondu">Répondu</SelectItem>
+                    <SelectItem value="Résolu">Résolu</SelectItem>
+                    <SelectItem value="Abandonné">Abandonné</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {/* Date */}
+              <div className="text-sm text-muted-foreground">
+                {new Date(ticket.created_at).toLocaleDateString('fr-FR')}
+              </div>
+              
+              {/* Voir détail */}
+              <div>
+                <Link to={`/ticket/${ticket.id}`}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2 text-xs"
+                  >
+                    Voir
+                  </Button>
+                </Link>
               </div>
             </motion.div>
           ))}

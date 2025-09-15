@@ -39,7 +39,7 @@ import FinalCTA from '@/components/home/FinalCTA';
 import LaunchCTA from '@/components/home/LaunchCTA';
 import Footer from '@/components/Footer';
 
-const BlockSamplesPanel = () => {
+const BlockSamplesPanel = ({ onBlockCreated }) => {
   const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const [samples, setSamples] = useState([]);
@@ -326,7 +326,6 @@ const BlockSamplesPanel = () => {
     }
   }, []);
 
-
   const fetchSamples = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -600,13 +599,12 @@ const BlockSamplesPanel = () => {
       };
       console.log('blockData prepared:', blockData);
 
-      // Déterminer un order_index unique (éviter la contrainte content_blocks_order_index_unique_active)
+      // Déterminer un order_index unique GLOBAL (éviter la contrainte content_blocks_order_index_unique_active)
       try {
         const { data: rows, error: maxErr } = await supabase
           .from('content_blocks')
           .select('order_index')
           .neq('status', 'archived')
-          .eq('layout', blockData.layout)
           .order('order_index', { ascending: false })
           .limit(1);
         if (!maxErr && Array.isArray(rows) && rows.length > 0 && typeof rows[0].order_index === 'number') {
@@ -630,6 +628,8 @@ const BlockSamplesPanel = () => {
           .single();
         if (!error) {
           toast({ title: 'Succès', description: `Bloc "${blockData.title}" créé en brouillon.` });
+          // Notify parent to switch to list and open the editor for this new block
+          try { onBlockCreated?.(data?.id); } catch (_) {}
           insertError = null;
           break;
         }
@@ -655,8 +655,17 @@ const BlockSamplesPanel = () => {
 
     // Populate form with sample data
     const c = sample?.content || {};
+    // Determine default title override for "Gallerie 'Full screen' design" (handle common variants)
+    const normalizedSampleTitle = (sample?.title || '').trim().toLowerCase();
+    const isGalleryFullscreenDesign =
+      normalizedSampleTitle === 'gallerie "full screen" design' ||
+      normalizedSampleTitle === 'galerie "full screen" design' ||
+      ((normalizedSampleTitle.includes('gallerie') || normalizedSampleTitle.includes('galerie')) &&
+        normalizedSampleTitle.includes('full screen') &&
+        normalizedSampleTitle.includes('design'));
+    const effectiveTitle = isGalleryFullscreenDesign ? 'Gallerie fullscreen' : (sample?.title || '');
     setForm({
-      title: sample.title || '',
+      title: effectiveTitle,
       badgeText: c.badgeText || 'Votre Espace Privilégié',
       badgeIcon: c.badgeIcon || 'Sparkles',
       titleText: c.title || 'Installez-vous confortablement dans votre espace de formation',
@@ -671,7 +680,7 @@ const BlockSamplesPanel = () => {
       useDefaultBackground: c.useDefaultBackground !== false,
       contentJsonText: JSON.stringify(c, null, 2),
       // Systems showcase fields
-      ss_title: c.title || 'Un système ',
+      ss_title: c.title || '',
       ss_titleSuffix: c.titleSuffix || 'rodé',
       ss_images: Array.isArray(c.images) ? c.images : [
         'https://horizons-cdn.hostinger.com/33d72ce2-b6b0-4274-b8ce-63300e44633e/4b9378a927cc2b60cd474d6d2e76f8e6.png',
@@ -1028,21 +1037,25 @@ const BlockSamplesPanel = () => {
         </div>
       </div>
 
-      <div className="bg-muted/50 dark:bg-card/30 p-4 rounded-lg space-y-4">
-        <div className="flex flex-col md:flex-row gap-3">
+      <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
+        <div className="flex flex-col md:flex-row gap-3 md:items-end">
           <div className="relative flex-grow">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Rechercher un modèle..."
-              className="pl-10"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
+            <Label htmlFor="search-input" className="block text-sm font-medium mb-2">Rechercher un modèle</Label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                id="search-input"
+                placeholder="Rechercher un modèle..."
+                className="pl-10"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </div>
           </div>
           <div className="w-full md:w-64">
-            <Label>Filtrer par layout</Label>
+            <Label htmlFor="layout-filter" className="block text-sm font-medium mb-2">Filtrer par layout</Label>
             <Select value={layoutFilter} onValueChange={setLayoutFilter}>
-              <SelectTrigger>
+              <SelectTrigger id="layout-filter">
                 <SelectValue placeholder="Tous les layouts" />
               </SelectTrigger>
               <SelectContent>
@@ -1066,7 +1079,7 @@ const BlockSamplesPanel = () => {
       <div className="border rounded-lg overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow className="bg-muted/30">
+            <TableRow className="bg-green-50 dark:bg-green-900/20">
               <TableHead className="w-12">
                 <Checkbox
                   checked={selectAll}
@@ -1493,19 +1506,11 @@ const BlockSamplesPanel = () => {
               {editingSample?.layout === 'home.systems_showcase' && (
                 <div className="space-y-4">
                   <div>
-                    <Label>Titre principal</Label>
+                    <Label>Titre</Label>
                     <Input 
                       value={form.ss_title || ''} 
                       onChange={(e) => setForm(prev => ({ ...prev, ss_title: e.target.value }))} 
-                      placeholder="Un système"
-                    />
-                  </div>
-                  <div>
-                    <Label>Suffixe du titre (coloré)</Label>
-                    <Input 
-                      value={form.ss_titleSuffix || ''} 
-                      onChange={(e) => setForm(prev => ({ ...prev, ss_titleSuffix: e.target.value }))} 
-                      placeholder="rodé"
+                      placeholder="Un système rodé"
                     />
                   </div>
                   <div>

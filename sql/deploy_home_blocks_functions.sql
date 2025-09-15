@@ -92,25 +92,49 @@ END;
 $$;
 
 -- Fonction pour changer le statut d'un bloc
+-- Supprimer une version obsolète avec surcharge enum pour éviter l'ambiguïté PostgREST
+DROP FUNCTION IF EXISTS home_blocks_set_status(uuid, public.content_block_status);
 CREATE OR REPLACE FUNCTION home_blocks_set_status(p_id UUID, p_status TEXT)
 RETURNS VOID
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
+DECLARE
+  current_status TEXT;
+  new_order_index INTEGER;
 BEGIN
   -- Valider le statut
   IF p_status NOT IN ('draft', 'published', 'archived') THEN
     RAISE EXCEPTION 'Statut invalide. Utilisez: draft, published, archived.';
   END IF;
 
-  -- Mettre à jour le statut
-  UPDATE content_blocks 
-  SET status = p_status,
-      updated_at = NOW()
-  WHERE id = p_id;
+  -- Récupérer le statut actuel
+  SELECT status INTO current_status FROM content_blocks WHERE id = p_id;
   
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Bloc non trouvé.';
+  END IF;
+
+  -- Si on passe d'archived à un statut actif, attribuer un nouvel order_index
+  IF current_status = 'archived' AND p_status IN ('draft', 'published') THEN
+    -- Trouver le prochain order_index disponible
+    SELECT COALESCE(MAX(order_index), 0) + 1 
+    INTO new_order_index 
+    FROM content_blocks 
+    WHERE status != 'archived';
+    
+    -- Mettre à jour avec le nouveau statut et order_index
+    UPDATE content_blocks 
+    SET status = p_status::public.content_block_status,
+        order_index = new_order_index,
+        updated_at = NOW()
+    WHERE id = p_id;
+  ELSE
+    -- Mettre à jour seulement le statut
+    UPDATE content_blocks 
+    SET status = p_status::public.content_block_status,
+        updated_at = NOW()
+    WHERE id = p_id;
   END IF;
 END;
 $$;
@@ -133,10 +157,10 @@ BEGIN
     RAISE EXCEPTION 'Bloc non trouvé.';
   END IF;
 
-  -- Trouver le prochain order_index disponible
+  -- Trouver le prochain order_index disponible (global parmi les blocs non archivés)
   SELECT COALESCE(MAX(order_index), 0) + 1 INTO max_order
   FROM content_blocks 
-  WHERE layout = original_block.layout AND status != 'archived';
+  WHERE status != 'archived';
 
   -- Créer le nouveau bloc
   INSERT INTO content_blocks (
@@ -145,7 +169,7 @@ BEGIN
   ) VALUES (
     original_block.title || ' (Copie)',
     original_block.content,
-    'draft',
+    'draft'::public.content_block_status,
     original_block.type,
     original_block.block_type,
     original_block.layout,
@@ -200,10 +224,10 @@ DECLARE
   new_id UUID;
   max_order INTEGER;
 BEGIN
-  -- Trouver le prochain order_index disponible
+  -- Trouver le prochain order_index disponible (global parmi les blocs non archivés)
   SELECT COALESCE(MAX(order_index), 0) + 1 INTO max_order
   FROM content_blocks 
-  WHERE layout = p_layout AND status != 'archived';
+  WHERE status != 'archived';
 
   -- Créer le nouveau bloc
   INSERT INTO content_blocks (
@@ -212,7 +236,7 @@ BEGIN
   ) VALUES (
     p_title,
     p_content,
-    p_status,
+    p_status::public.content_block_status,
     p_type,
     'html',
     p_layout,

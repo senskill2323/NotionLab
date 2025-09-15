@@ -19,7 +19,7 @@ import { useNavigate } from 'react-router-dom';
 
 const UserAccountPanel = () => {
   const { user, signOut } = useAuth();
-  const { hasPermission } = usePermissions();
+  const { hasPermission, ready: permissionsReady } = usePermissions();
   const navigate = useNavigate();
   const {
     isOpen,
@@ -48,14 +48,15 @@ const UserAccountPanel = () => {
   };
 
   const getFirstName = () => {
-    // Priorité 1: utiliser last_name s'il existe
-    if (user.profile?.last_name && user.profile.last_name.trim()) {
-      return user.profile.last_name.trim() + ',';
+    // Priorité 1: utiliser first_name s'il existe
+    if (user.profile?.first_name && user.profile.first_name.trim()) {
+      return user.profile.first_name.trim() + ',';
     }
     
-    // Priorité 2: utiliser full_name s'il existe
+    // Priorité 2: extraire le prénom du full_name s'il existe
     if (user.profile?.full_name && user.profile.full_name.trim()) {
-      return user.profile.full_name.trim() + ',';
+      const firstWord = user.profile.full_name.trim().split(' ')[0];
+      return firstWord + ',';
     }
     
     // Priorité 3: extraire un nom lisible de l'email
@@ -77,7 +78,7 @@ const UserAccountPanel = () => {
 
   // Determine safest dashboard path to avoid redirect loops for admins without access
   const dashboardPath = isAdmin
-    ? (hasPermission('admin:access_dashboard') ? '/admin/dashboard' : '/')
+    ? ((permissionsReady && hasPermission('admin:access_dashboard')) ? '/admin/dashboard' : '/')
     : '/dashboard';
 
   const menuItems = [
@@ -92,13 +93,6 @@ const UserAccountPanel = () => {
       title: 'Données personnelles',
       icon: User,
       action: () => handleNavigation('/compte-client')
-    },
-    {
-      id: 'formations',
-      title: 'Mes formations',
-      icon: GraduationCap,
-      badge: '3',
-      action: () => handleNavigation('/formations')
     },
     {
       id: 'tickets',

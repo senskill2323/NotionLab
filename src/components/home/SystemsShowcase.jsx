@@ -12,8 +12,8 @@ const defaultCarouselImages = [
 ];
 
 const SystemsShowcase = ({ content = {} }) => {
-  const title = content.title || 'Un système ';
-  const titleSuffix = content.titleSuffix || 'rodé';
+  const title = content.title || '';
+  const titleSuffix = content.titleSuffix || '';
   const images = Array.isArray(content.images) && content.images.length > 0
     ? content.images
     : defaultCarouselImages;
