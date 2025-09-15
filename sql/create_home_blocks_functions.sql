@@ -89,6 +89,8 @@ END;
 $$;
 
 -- Fonction pour changer le statut d'un bloc
+-- Supprimer une version obsolète avec surcharge enum pour éviter l'ambiguïté PostgREST
+DROP FUNCTION IF EXISTS home_blocks_set_status(uuid, public.content_block_status);
 CREATE OR REPLACE FUNCTION home_blocks_set_status(p_id UUID, p_status TEXT)
 RETURNS VOID
 LANGUAGE plpgsql
@@ -102,7 +104,7 @@ BEGIN
 
   -- Mettre à jour le statut
   UPDATE content_blocks 
-  SET status = p_status,
+  SET status = p_status::public.content_block_status,
       updated_at = NOW()
   WHERE id = p_id;
   
@@ -130,10 +132,10 @@ BEGIN
     RAISE EXCEPTION 'Bloc non trouvé.';
   END IF;
 
-  -- Trouver le prochain order_index disponible
+  -- Trouver le prochain order_index disponible (global parmi les blocs non archivés)
   SELECT COALESCE(MAX(order_index), 0) + 1 INTO max_order
   FROM content_blocks 
-  WHERE layout = original_block.layout AND status != 'archived';
+  WHERE status != 'archived';
 
   -- Créer le nouveau bloc
   INSERT INTO content_blocks (
@@ -142,7 +144,7 @@ BEGIN
   ) VALUES (
     original_block.title || ' (Copie)',
     original_block.content,
-    'draft',
+    'draft'::public.content_block_status,
     original_block.type,
     original_block.block_type,
     original_block.layout,

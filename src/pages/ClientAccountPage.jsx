@@ -102,22 +102,6 @@ const ClientAccountPage = () => {
                 <CardContent className="space-y-4">
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">
-                      Email
-                    </label>
-                    <p className="text-sm font-mono bg-muted p-2 rounded mt-1">
-                      {user.email}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">
-                      Type de compte
-                    </label>
-                    <p className="text-sm capitalize mt-1">
-                      {user.profile?.user_type || 'Client'}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">
                       Membre depuis
                     </label>
                     <p className="text-sm mt-1">

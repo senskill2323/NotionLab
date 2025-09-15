@@ -1,106 +1,77 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Helmet } from 'react-helmet';
-import { supabase } from '@/lib/customSupabaseClient';
-
-import MainHeroSection from '@/components/home/MainHeroSection';
-import NextHeroSection from '@/components/home/NextHeroSection';
-import QuoteSection from '@/components/home/QuoteSection';
-import HeroSection from '@/components/home/HeroSection';
-import SystemsShowcase from '@/components/home/SystemsShowcase';
-import StatsSection from '@/components/home/StatsSection';
-import FormationsSection from '@/components/home/FormationsSection';
-import SupportSection from '@/components/home/SupportSection';
-import PromiseSection from '@/components/home/PromiseSection';
-import FinalCTA from '@/components/home/FinalCTA';
-import LaunchCTA from '@/components/home/LaunchCTA';
-import { useAuth } from '@/contexts/SupabaseAuthContext';
-import CozySpaceSection from '@/components/home/CozySpaceSection';
-import PersonalQuoteSection from '@/components/home/PersonalQuoteSection';
+import DOMPurify from 'dompurify';
+import { supabasePublic } from '@/lib/customSupabaseClient';
+import homeBlockRegistry from '@/components/home/homeBlockRegistry';
 import Footer from '@/components/Footer';
 
 const HomePage = () => {
-  const { user } = useAuth();
-
   const [blocks, setBlocks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    let isMounted = true;
+
     const fetchBlocks = async () => {
       setLoading(true);
       setError(null);
       try {
-        // Récupère uniquement les blocs publiés dans l'ordre défini
-        const { data, error } = await supabase
-          .from('content_blocks')
-          .select('*')
-          .eq('status', 'published')
-          .order('order_index', { ascending: true });
+        const timeoutMs = 10000; // 10s
+        const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), timeoutMs));
+        const query = (async () => {
+          const { data, error } = await supabasePublic
+            .from('content_blocks')
+            .select('*')
+            .eq('status', 'published')
+            .order('order_index', { ascending: true });
+          if (error) throw error;
+          return data;
+        })();
 
-        if (error) throw error;
-        setBlocks(data || []);
+        const data = await Promise.race([query, timeout]);
+        if (!isMounted) return;
+        setBlocks(Array.isArray(data) ? data : []);
       } catch (err) {
         console.error('Error loading homepage blocks:', err);
-        setError("Impossible de charger les blocs de la page d'accueil.");
+        if (!isMounted) return;
+        if (String(err?.message || '').toLowerCase().includes('timeout')) {
+          setError("Le chargement a pris trop de temps. Veuillez actualiser la page.");
+        } else {
+          setError("Impossible de charger les blocs de la page d'accueil.");
+        }
       } finally {
+        if (!isMounted) return;
         setLoading(false);
       }
     };
 
     fetchBlocks();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const renderBlock = (block) => {
-    // Fallback: render raw HTML blocks regardless of layout
     if (block.block_type === 'html') {
+      const sanitized = DOMPurify.sanitize(block.content || '');
       return (
-        <div key={block.id} dangerouslySetInnerHTML={{ __html: block.content || '' }} />
+        <div key={block.id} dangerouslySetInnerHTML={{ __html: sanitized }} />
       );
     }
-    const props = { content: block.content };
-    switch (block.layout) {
-      case 'home.main_hero':
-        return <MainHeroSection key={block.id} {...props} />;
-      case 'home.systems_showcase':
-        return <SystemsShowcase key={block.id} {...props} />;
-      case 'home.stats':
-        return <StatsSection key={block.id} {...props} />;
-      case 'home.formations':
-        return <FormationsSection key={block.id} {...props} />;
-      case 'home.support':
-        return <SupportSection key={block.id} {...props} />;
-      case 'home.promise':
-        return <PromiseSection key={block.id} {...props} />;
-      case 'home.cozy_space':
-        return <CozySpaceSection key={block.id} {...props} />;
-      case 'home.personal_quote':
-        return <PersonalQuoteSection key={block.id} {...props} />;
-      case 'home.final_cta':
-        return <FinalCTA key={block.id} {...props} />;
-      case 'home.launch_cta':
-        return <LaunchCTA key={block.id} {...props} />;
-      case 'global.footer':
-        return <Footer key={block.id} {...props} isPreview={false} />;
-      default:
-        return null;
-    }
+    const Component = homeBlockRegistry[block.layout];
+    if (!Component) return null;
+    return <Component key={block.id} content={block.content} isPreview={false} />;
   };
 
   const renderedBlocks = useMemo(() => blocks.map(renderBlock).filter(Boolean), [blocks]);
-  const hasDynamicBlocks = renderedBlocks.length > 0;
+  const hasBlocks = renderedBlocks.length > 0;
+  const hasFooterBlock = useMemo(() => blocks.some(b => b.layout === 'global.footer'), [blocks]);
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <span className="text-muted-foreground">Chargement de la page d'accueil…</span>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <span className="text-destructive">{error}</span>
       </div>
     );
   }
@@ -115,25 +86,17 @@ const HomePage = () => {
       </Helmet>
 
       <div className="min-h-screen">
-        {hasDynamicBlocks ? (
-          renderedBlocks
-        ) : (
-          // Fallback: version statique actuelle si aucun bloc dynamique n'est configuré
+        {error ? (
+          <div className="py-16 text-center text-destructive">{error}</div>
+        ) : hasBlocks ? (
           <>
-            {!user && <MainHeroSection />}
-            {!user && <NextHeroSection />} 
-            {!user && <QuoteSection />}
-            <HeroSection />
-            <SystemsShowcase />
-            <StatsSection />
-            <FormationsSection />
-            <SupportSection />
-            <PromiseSection />
-            <CozySpaceSection />
-            <PersonalQuoteSection />
-            <FinalCTA />
-            <LaunchCTA />
+            {renderedBlocks}
+            {!hasFooterBlock && <Footer />}
           </>
+        ) : (
+          <div className="py-16 text-center text-muted-foreground">
+            Aucun bloc publié n'est disponible pour le moment.
+          </div>
         )}
       </div>
     </>

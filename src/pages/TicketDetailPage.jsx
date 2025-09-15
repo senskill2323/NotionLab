@@ -34,36 +34,44 @@ const TicketDetailPage = () => {
   const [error, setError] = useState(null);
 
   const fetchTicketData = useCallback(async () => {
-    if (!user) return;
     setLoading(true);
+
+    // Add a timeout guard to avoid infinite loading if network hangs
+    const withTimeout = (p, ms = 8000) => Promise.race([
+      p,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout de chargement')), ms))
+    ]);
+
     try {
-      const { data: ticketData, error: ticketError } = await supabase
+      const ticketPromise = supabase
         .from('tickets')
         .select('*')
         .eq('id', id)
-        .eq('user_id', user.id)
         .single();
 
+      const { data: ticketData, error: ticketError } = await withTimeout(ticketPromise);
       if (ticketError) throw new Error("Ticket non trouvé ou accès non autorisé.");
       setTicket(ticketData);
 
-      const { data: repliesData, error: repliesError } = await supabase
+      const repliesPromise = supabase
         .from('ticket_replies')
         .select('*, profile:user_id(email, user_types(type_name))')
         .eq('ticket_id', id)
         .order('created_at', { ascending: true });
 
+      const { data: repliesData, error: repliesError } = await withTimeout(repliesPromise);
       if (repliesError) throw repliesError;
       setReplies(repliesData);
 
     } catch (err) {
-      setError(err.message);
-      toast({ title: "Erreur", description: err.message, variant: "destructive" });
-      navigate('/dashboard');
+      console.error('TicketDetailPage load error:', err);
+      setError(err.message || 'Erreur de chargement du ticket.');
+      toast({ title: "Erreur", description: err.message || 'Erreur de chargement du ticket.', variant: "destructive" });
+      // Do not navigate away; show the error on this page so user understands
     } finally {
       setLoading(false);
     }
-  }, [id, user, toast, navigate]);
+  }, [id, toast]);
 
   useEffect(() => {
     fetchTicketData();
@@ -182,7 +190,7 @@ const TicketDetailPage = () => {
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
-    link.setAttribute("download", `ticket-${ticket.reference_number}.csv`);
+    link.setAttribute("download", `ticket-${ticket.id}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -247,7 +255,7 @@ const TicketDetailPage = () => {
 
   return (
     <>
-      <Helmet><title>Ticket {ticket.reference_number}</title></Helmet>
+      <Helmet><title>Ticket #{ticket.id.toString().padStart(4, '0')}</title></Helmet>
       <div className="min-h-screen">
         <main className="container mx-auto px-4 py-8">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
@@ -281,7 +289,7 @@ const TicketDetailPage = () => {
                 <div className="flex justify-between items-start flex-wrap gap-2">
                   <div>
                     <CardTitle className="text-2xl flex items-center gap-2">
-                      <span className="text-primary">{ticket.reference_number}</span>
+                      <span className="text-primary">#{ticket.id.toString().padStart(4, '0')}</span>
                       <span>{ticket.title}</span>
                     </CardTitle>
                     <div className="flex items-center gap-4 mt-2">

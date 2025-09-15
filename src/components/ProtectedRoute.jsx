@@ -6,10 +6,21 @@ import { Loader2 } from 'lucide-react';
 
 const ProtectedRoute = ({ children, allowedUserTypes, requiredPermission }) => {
   const { user, loading: authLoading, authReady } = useAuth();
-  const { hasPermission, loading: permsLoading } = usePermissions();
+  const { hasPermission, loading: permsLoading, ready: permsReady, usingFallback } = usePermissions();
   const location = useLocation();
 
-  const isLoading = authLoading || permsLoading || !authReady;
+  // Avoid blocking on permissions loading for routes that can self-guard safely
+  const isNonBlockingPermRoute = (perm) => {
+    if (!perm) return false;
+    return perm === 'tickets:view_own' || perm.startsWith('builder:');
+  };
+
+  // Consider permissions 'loading' until they are ready for blocking routes
+  const effectivePermsLoading =
+    permsLoading ||
+    (!permsReady && !isNonBlockingPermRoute(requiredPermission)) ||
+    (usingFallback && !isNonBlockingPermRoute(requiredPermission));
+  const isLoading = authLoading || !authReady || effectivePermsLoading;
 
   if (isLoading) {
     return (
@@ -27,11 +38,10 @@ const ProtectedRoute = ({ children, allowedUserTypes, requiredPermission }) => {
     return <Navigate to="/dashboard" replace />;
   }
   
-  if (requiredPermission && !hasPermission(requiredPermission)) {
-    // For specific cases like builder, a user might not have perms *yet* but can access the page.
-    // The component itself will handle the logic. This prevents redirection loops.
-    if (requiredPermission.startsWith('builder:')) {
-        return children;
+  if (requiredPermission && !effectivePermsLoading && !hasPermission(requiredPermission)) {
+    // Allow specific non-blocking routes to render and self-guard (RLS + component logic)
+    if (isNonBlockingPermRoute(requiredPermission)) {
+      return children;
     }
     return <Navigate to="/dashboard" replace />;
   }

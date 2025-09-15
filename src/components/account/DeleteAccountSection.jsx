@@ -40,9 +40,10 @@ const DeleteAccountSection = () => {
       // Supprimer l'avatar s'il existe
       if (user.profile?.avatar_url) {
         const avatarPath = user.profile.avatar_url.split('/').pop();
+        // Path must be relative to bucket root; do not prefix with bucket name
         await supabase.storage
           .from('avatars')
-          .remove([`avatars/${avatarPath}`]);
+          .remove([avatarPath]);
       }
 
       // Supprimer le profil (cascade delete configuré en base)
