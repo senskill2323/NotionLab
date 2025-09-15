@@ -681,7 +681,7 @@ const BlockSamplesPanel = ({ onBlockCreated }) => {
       contentJsonText: JSON.stringify(c, null, 2),
       // Systems showcase fields
       ss_title: c.title || '',
-      ss_titleSuffix: c.titleSuffix || 'rodé',
+      ss_titleSuffix: c.titleSuffix ?? '',
       ss_images: Array.isArray(c.images) ? c.images : [
         'https://horizons-cdn.hostinger.com/33d72ce2-b6b0-4274-b8ce-63300e44633e/4b9378a927cc2b60cd474d6d2e76f8e6.png',
         'https://horizons-cdn.hostinger.com/33d72ce2-b6b0-4274-b8ce-63300e44633e/efa638b85ff0afb61bd0d102973a387b.png',
@@ -1511,6 +1511,14 @@ const BlockSamplesPanel = ({ onBlockCreated }) => {
                       value={form.ss_title || ''} 
                       onChange={(e) => setForm(prev => ({ ...prev, ss_title: e.target.value }))} 
                       placeholder="Un système rodé"
+                    />
+                  </div>
+                  <div>
+                    <Label>Suffixe du titre</Label>
+                    <Input 
+                      value={form.ss_titleSuffix || ''} 
+                      onChange={(e) => setForm(prev => ({ ...prev, ss_titleSuffix: e.target.value }))} 
+                      placeholder="rodé"
                     />
                   </div>
                   <div>
