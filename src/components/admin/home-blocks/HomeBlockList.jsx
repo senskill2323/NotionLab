@@ -201,8 +201,9 @@ const HomeBlockList = ({ mode = 'list', refreshKey = 0, activeSubTab = 'list' })
         // Suppression du filtre .neq('status', 'archived') pour afficher tous les blocs
       }
       if (isFeatured) {
-        // Primary sort by priority when featured toggle is on
-        query = query.order('priority', { ascending: false });
+        // Quand l'option « à la une » est activée, on n'affiche que les blocs mis en avant
+        // pour que le réordonnancement corresponde exactement à la liste visible.
+        query = query.gt('priority', 0);
       }
       // Secondary sort by chosen field
       query = query.order(sortField, { ascending: (sortDir !== 'desc') });
@@ -272,16 +273,94 @@ const HomeBlockList = ({ mode = 'list', refreshKey = 0, activeSubTab = 'list' })
   };
 
   const handleMove = async (block, direction) => {
+    // Réordonnancement fiable: échange l'order_index avec le voisin immédiat affiché
     try {
-      const { error } = await supabase.rpc('home_blocks_move', {
-        p_id: block.id,
-        p_direction: direction,
+      const currentIndex = blocks.findIndex(b => b.id === block.id);
+      if (currentIndex === -1) return;
+      const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+      if (targetIndex < 0 || targetIndex >= blocks.length) return;
+
+      const neighbor = blocks[targetIndex];
+      if (!neighbor) return;
+
+      const aOld = block.order_index;
+      const bOld = neighbor.order_index;
+
+      // 1) Récupérer un index temporaire unique pour éviter toute collision d'unicité
+      let tempIndex = aOld;
+      try {
+        const { data: rows, error: maxErr } = await supabase
+          .from('content_blocks')
+          .select('order_index')
+          .neq('status', 'archived')
+          .order('order_index', { ascending: false })
+          .limit(1);
+        if (maxErr) throw maxErr;
+        const maxOrder = Array.isArray(rows) && rows.length > 0 && typeof rows[0].order_index === 'number' ? rows[0].order_index : 0;
+        tempIndex = maxOrder + 1;
+      } catch (e) {
+        // Fallback si échec: utiliser un timestamp (toujours positif et très grand)
+        tempIndex = Math.floor(Date.now() / 1000);
+      }
+
+      // 2) Déplacer le bloc courant sur l'index temporaire pour libérer son index d'origine
+      let { error: e1 } = await supabase
+        .from('content_blocks')
+        .update({ order_index: tempIndex, updated_at: new Date().toISOString() })
+        .eq('id', block.id);
+      if (e1) throw e1;
+
+      // 3) Donner l'ancien index du bloc courant au voisin
+      let { error: e2 } = await supabase
+        .from('content_blocks')
+        .update({ order_index: aOld, updated_at: new Date().toISOString() })
+        .eq('id', neighbor.id);
+      if (e2) {
+        // tentative de rollback
+        await supabase.from('content_blocks').update({ order_index: aOld }).eq('id', block.id);
+        throw e2;
+      }
+
+      // 4) Donner l'ancien index du voisin au bloc courant
+      let { error: e3 } = await supabase
+        .from('content_blocks')
+        .update({ order_index: bOld, updated_at: new Date().toISOString() })
+        .eq('id', block.id);
+      if (e3) {
+        // rollback pour garder un état cohérent
+        try { await supabase.from('content_blocks').update({ order_index: bOld }).eq('id', neighbor.id); } catch {}
+        try { await supabase.from('content_blocks').update({ order_index: aOld }).eq('id', block.id); } catch {}
+        throw e3;
+      }
+
+      // Optimistic UI: échanger dans la liste locale pour un retour instantané
+      setBlocks(prev => {
+        const copy = [...prev];
+        const a = copy[currentIndex];
+        const b = copy[targetIndex];
+        if (!a || !b) return prev;
+        // échanger les éléments
+        copy[currentIndex] = b;
+        copy[targetIndex] = a;
+        // mettre à jour les order_index locaux
+        copy[currentIndex].order_index = aOld;
+        copy[targetIndex].order_index = bOld;
+        return copy;
       });
-      if (error) throw error;
+
       toast({ title: 'Succès', description: 'Ordre mis à jour.' });
+      // Puis resynchroniser depuis la base pour refléter d'éventuels tri/filtres
       fetchContentBlocks();
     } catch (err) {
-      toast({ title: 'Erreur', description: `Impossible de réordonner: ${err.message}`, variant: 'destructive' });
+      // Fallback: essayer le RPC existant si la stratégie locale échoue
+      try {
+        const { error } = await supabase.rpc('home_blocks_move', { p_id: block.id, p_direction: direction });
+        if (error) throw error;
+        toast({ title: 'Succès', description: 'Ordre mis à jour.' });
+        fetchContentBlocks();
+      } catch (err2) {
+        toast({ title: 'Erreur', description: `Impossible de réordonner: ${(err2?.message || err?.message || 'Inconnu')}` , variant: 'destructive' });
+      }
     }
   };
 
