@@ -1,7 +1,4 @@
 // src/lib/supabaseClient.js
-import { createClient } from '@supabase/supabase-js'
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Alias module kept for backward-compatibility with older imports.
+// Re-export the canonical client to avoid creating multiple GoTrueClient instances.
+export { supabase } from './customSupabaseClient';

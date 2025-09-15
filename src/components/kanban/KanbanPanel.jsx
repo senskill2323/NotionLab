@@ -98,12 +98,14 @@ const KanbanPanel = () => {
           }
         }
 
-        // 2) Cleanup orphaned Kanban cards (e.g., when admin deleted courses or enrollments)
-        try {
-          await supabase.rpc('cleanup_orphan_kanban_for_user', { p_user_id: user.id });
-        } catch (e) {
-          console.warn('cleanup_orphan_kanban_for_user error', e);
-        }
+        // 2) Cleanup orphaned Kanban cards (optional)
+        // This RPC may not exist in all environments. To avoid noisy 404 console errors,
+        // it's disabled by default. If you deploy the RPC `cleanup_orphan_kanban_for_user`,
+        // set VITE_ENABLE_KANBAN_CLEANUP=true and uncomment the block below.
+        // if (import.meta.env.VITE_ENABLE_KANBAN_CLEANUP === 'true') {
+        //   const { error: cleanupErr } = await supabase.rpc('cleanup_orphan_kanban_for_user', { p_user_id: user.id });
+        //   if (cleanupErr) console.warn('cleanup_orphan_kanban_for_user error', cleanupErr);
+        // }
 
         // 3) Fetch Kanban rows after ensuring initialization and cleanup
         const rows = await fetchKanbanView();
