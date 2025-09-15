@@ -14,6 +14,8 @@ const defaultCarouselImages = [
 const SystemsShowcase = ({ content = {} }) => {
   const title = content.title || '';
   const titleSuffix = content.titleSuffix || '';
+  const safeSuffix = (titleSuffix || '').trim();
+
   const images = Array.isArray(content.images) && content.images.length > 0
     ? content.images
     : defaultCarouselImages;
@@ -32,7 +34,8 @@ const SystemsShowcase = ({ content = {} }) => {
         >
           <h2 className="text-4xl md:text-5xl font-bold mb-6">
             {title}
-            <span className="gradient-text">{titleSuffix}</span>
+            {safeSuffix ? ' ' : ''}
+            {safeSuffix ? <span className="gradient-text">{safeSuffix}</span> : null}
           </h2>
         </motion.div>
       </div>

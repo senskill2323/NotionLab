@@ -13,7 +13,6 @@ import { motion } from 'framer-motion';
 import UserManagementPanel from '@/components/admin/UserManagementPanel';
 import TicketManagementPanel from '@/components/admin/TicketManagementPanel';
 import ResourcesPanel from '@/components/admin/ResourcesPanel';
-import BuilderSettingsPanel from '@/components/admin/BuilderSettingsPanel';
 import RolesPermissionsPage from '@/pages/admin/RolesPermissionsPage';
 import ModuleManagerPage from '@/pages/admin/ModuleManagerPage';
 import ComponentManagerPage from '@/pages/admin/ComponentManagerPage';
@@ -46,7 +45,6 @@ const adminComponentMap = {
   UserManagementPanel,
   TicketManagementPanel,
   ResourcesPanel,
-  BuilderSettingsPanel,
   RolesPermissionsPage,
   ModuleManagerPage,
   ComponentManagerPage,
@@ -168,10 +166,12 @@ const AdminDashboardPage = () => {
     };
   }, [fetchAdminConfig, fetchKpis]);
   
-  // Exclude legacy "Formations" tab (old module) while keeping "Formations (Avancé)"
+  // Exclude legacy tabs and unwanted tabs
   const accessibleTabs = tabsConfig
     .filter(tab => hasPermission(tab.permission_required))
-    .filter(tab => tab.label !== 'Formations');
+    .filter(tab => tab.label !== 'Formations')
+    .filter(tab => tab.label !== 'Builder Settings')
+    .filter(tab => tab.label !== 'Parcours');
 
   const tabsByRow = accessibleTabs.reduce((acc, tab) => {
     const row = tab.row_order || 0;
@@ -290,8 +290,13 @@ const AdminDashboardPage = () => {
                             hasNewActivity={newActivity[tab.tab_id]}
                             onClick={() => handleTabChange(tab.tab_id)}
                           >
-                            <Icon className="h-4 w-4" />
-                            {tab.label}
+                            {tab.label !== 'Formation Live' && <Icon className="h-4 w-4" />}
+                            <div className="flex items-center gap-2">
+                              {tab.label === 'Formation Live' && (
+                                <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                              )}
+                              {tab.label}
+                            </div>
                           </AnimatedTabTrigger>
                         );
                       })}

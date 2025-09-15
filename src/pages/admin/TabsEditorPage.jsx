@@ -102,7 +102,7 @@ const TabsEditorPage = () => {
     if (error) {
       toast({ title: "Erreur", description: "Impossible de charger les onglets.", variant: "destructive" });
     } else {
-      setTabs((data || []).filter(t => t.label !== 'Formations'));
+      setTabs((data || []).filter(t => t.label !== 'Formations' && t.label !== 'Builder Settings' && t.label !== 'Parcours'));
     }
     setLoading(false);
   }, [toast]);

@@ -81,7 +81,12 @@ const UserFormationSubmissionsPanel = () => {
   return (
     <Card className="glass-effect w-full">
       <CardHeader>
-        <CardTitle>Formation Live</CardTitle>
+        <CardTitle>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+            Formation Live
+          </div>
+        </CardTitle>
         <CardDescription>Gérez le cycle de vie des parcours personnalisés soumis par les clients.</CardDescription>
       </CardHeader>
       <CardContent>
