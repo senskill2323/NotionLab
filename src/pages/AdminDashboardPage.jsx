@@ -106,8 +106,9 @@ const AdminDashboardPage = () => {
   const [modulesConfig, setModulesConfig] = useState([]);
   const [modulesLoading, setModulesLoading] = useState(true);
   
+  const DEFAULT_TAB_ID = 'user_submissions';
   const queryParams = new URLSearchParams(location.search);
-  const tabFromUrl = queryParams.get('tab');
+  const tabFromUrl = queryParams.get('tab') || DEFAULT_TAB_ID;
 
   const fetchKpis = useCallback(async () => {
     setKpiLoading(true);
@@ -180,17 +181,20 @@ const AdminDashboardPage = () => {
     return acc;
   }, {});
 
+  const userType = user?.profile?.user_type;
+  const permsLoadingEffective = userType === 'owner' ? false : permissionsLoading;
+
   const determineInitialTab = useCallback(() => {
-    if (permissionsLoading || tabsLoading) return null;
+    if (permsLoadingEffective || tabsLoading) return DEFAULT_TAB_ID;
     if (tabFromUrl && accessibleTabs.some(t => t.tab_id === tabFromUrl)) return tabFromUrl;
     if (accessibleTabs.length > 0) return accessibleTabs[0].tab_id;
-    return null;
-  }, [tabFromUrl, accessibleTabs, permissionsLoading, tabsLoading]);
+    return DEFAULT_TAB_ID;
+  }, [tabFromUrl, accessibleTabs, permsLoadingEffective, tabsLoading]);
 
   const [activeTab, setActiveTab] = useState(determineInitialTab);
   
   useEffect(() => {
-    if(!permissionsLoading && !tabsLoading) {
+    if(!permsLoadingEffective && !tabsLoading) {
         const initialTab = determineInitialTab();
         setActiveTab(initialTab);
         if (initialTab) {
@@ -201,7 +205,7 @@ const AdminDashboardPage = () => {
           }
         }
     }
-  }, [permissionsLoading, tabsLoading, determineInitialTab, navigate, location.search]);
+  }, [permsLoadingEffective, tabsLoading, determineInitialTab, navigate, location.search]);
   
   const handleTabChange = (value) => {
     if (value === 'live-chat') {
@@ -253,7 +257,7 @@ const AdminDashboardPage = () => {
     );
   };
 
-  if (permissionsLoading || tabsLoading) {
+  if (permsLoadingEffective || tabsLoading) {
     return (
       <div className="flex justify-center items-center h-[calc(100vh-200px)]">
         <Icons.Loader2 className="w-12 h-12 animate-spin text-primary" />
@@ -276,7 +280,7 @@ const AdminDashboardPage = () => {
               </h1>
             </header>
 
-            <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+            <Tabs value={activeTab || DEFAULT_TAB_ID} onValueChange={handleTabChange} className="w-full">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                 <div className="flex flex-col gap-2 w-full">
                   {Object.keys(tabsByRow).sort().map(rowKey => (

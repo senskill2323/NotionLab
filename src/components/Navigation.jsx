@@ -1,4 +1,5 @@
 import React from 'react';
+
 import { NavLink, Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -39,7 +40,7 @@ const NavItem = ({ to, children, componentKey, onClick }) => {
 };
 
 const Navigation = () => {
-  const { user, signOut } = useAuth();
+  const { user, signOut, authReady } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -78,6 +79,7 @@ const Navigation = () => {
           )}
         </nav>
         <div className="flex items-center space-x-2">
+
           <ManagedComponent componentKey="nav:client_forum">
             <Tooltip>
               <TooltipTrigger asChild>
@@ -115,17 +117,23 @@ const Navigation = () => {
             <UserAccountPanel />
           </ManagedComponent>
 
-          <ManagedComponent componentKey="nav:login">
-            <Button variant="outline" size="sm" onClick={() => navigate('/connexion')}>
-              Connexion
-            </Button>
-          </ManagedComponent>
+          {/* Afficher Connexion uniquement quand l'auth est prête et qu'aucun user n'est présent */}
+          {authReady && !user && (
+            <ManagedComponent componentKey="nav:login">
+              <Button variant="outline" size="sm" onClick={() => navigate('/connexion')}>
+                Connexion
+              </Button>
+            </ManagedComponent>
+          )}
 
-          <ManagedComponent componentKey="nav:register">
-            <Button size="sm" onClick={() => navigate('/inscription')}>
-              Inscription
-            </Button>
-          </ManagedComponent>
+          {/* Afficher Inscription uniquement quand l'auth est prête et qu'aucun user n'est présent */}
+          {authReady && !user && (
+            <ManagedComponent componentKey="nav:register">
+              <Button size="sm" onClick={() => navigate('/inscription')}>
+                Inscription
+              </Button>
+            </ManagedComponent>
+          )}
         </div>
       </div>
     </motion.header>

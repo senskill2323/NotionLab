@@ -16,10 +16,15 @@ const ProtectedRoute = ({ children, allowedUserTypes, requiredPermission }) => {
   };
 
   // Consider permissions 'loading' until they are ready for blocking routes
+  const userType = user?.profile?.user_type;
   const effectivePermsLoading =
-    permsLoading ||
-    (!permsReady && !isNonBlockingPermRoute(requiredPermission)) ||
-    (usingFallback && !isNonBlockingPermRoute(requiredPermission));
+    userType === 'owner'
+      ? false
+      : (
+          permsLoading ||
+          (!permsReady && !isNonBlockingPermRoute(requiredPermission)) ||
+          (usingFallback && !isNonBlockingPermRoute(requiredPermission))
+        );
   const isLoading = authLoading || !authReady || effectivePermsLoading;
 
   if (isLoading) {

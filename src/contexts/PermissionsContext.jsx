@@ -15,7 +15,7 @@ export const usePermissions = () => {
 
 export const PermissionsProvider = ({ children }) => {
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, authReady } = useAuth();
   const [permissions, setPermissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userType, setUserType] = useState(null);
@@ -23,6 +23,8 @@ export const PermissionsProvider = ({ children }) => {
   const [usingFallback, setUsingFallback] = useState(false);
   const [ready, setReady] = useState(false); // true when we have a valid cache or a fresh network result
   const retryRef = useRef({ timer: null, backoff: 5000 });
+  const lastVisibilityFetchRef = useRef(0);
+
   const isProtectedPath = useCallback((path) => {
     const protectedPrefixes = [
       '/dashboard',
@@ -71,10 +73,11 @@ export const PermissionsProvider = ({ children }) => {
   };
 
   const fetchPermissions = useCallback(async () => {
+    // Avoid racing before auth and profile are settled
+    if (!authReady) return;
     setUserType(null);
     setError(null);
     setUsingFallback(false);
-    setReady(false);
 
     // Fast path: valid cache for this user
     const cached = readCache(user);
@@ -90,10 +93,13 @@ export const PermissionsProvider = ({ children }) => {
       // No valid cache: set minimal fallback, but mark as not ready
       const fallbackType = user?.profile?.user_type || 'guest';
       setUserType(fallbackType);
-      setPermissions([]);
-      setUsingFallback(true);
-      setReady(true); // allow UI to proceed with minimal permissions
-      setLoading(false);
+      // If we were already ready once, keep UI ready and fetch in background without forcing fallback UI
+      if (!ready) {
+        setPermissions([]);
+        setUsingFallback(true);
+        setReady(false);
+        setLoading(false);
+      }
     }
 
     try {
@@ -159,16 +165,16 @@ export const PermissionsProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, authReady, ready]);
 
-  // Prefetch permissions only on protected routes
+  // Prefetch permissions only on protected routes, once auth is ready
   useEffect(() => {
     const path = location.pathname || '';
-    if (isProtectedPath(path)) {
+    if (authReady && isProtectedPath(path)) {
       fetchPermissions();
     }
-  }, [location.pathname, fetchPermissions, isProtectedPath]);
-  
+  }, [authReady, location.pathname, fetchPermissions, isProtectedPath]);
+
   // Background retry if we're using fallback (timeout or temporary failure)
   useEffect(() => {
     if (!ready || !usingFallback) {
@@ -207,12 +213,17 @@ export const PermissionsProvider = ({ children }) => {
   useEffect(() => {
     const onOnline = () => {
       const path = window.location?.pathname || '';
-      if (isProtectedPath(path)) fetchPermissions();
+      if (authReady && isProtectedPath(path)) fetchPermissions();
     };
     const onVisibility = () => {
       if (document.visibilityState === 'visible') {
         const path = window.location?.pathname || '';
-        if (isProtectedPath(path)) fetchPermissions();
+        const now = Date.now();
+        // Throttle to once every 3 seconds to prevent loops on Windows focus/blur storms
+        if (authReady && isProtectedPath(path) && now - (lastVisibilityFetchRef.current || 0) > 3000) {
+          lastVisibilityFetchRef.current = now;
+          fetchPermissions();
+        }
       }
     };
     window.addEventListener('online', onOnline);
@@ -221,8 +232,8 @@ export const PermissionsProvider = ({ children }) => {
       window.removeEventListener('online', onOnline);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, [fetchPermissions, isProtectedPath]);
-  
+  }, [fetchPermissions, isProtectedPath, authReady]);
+
   const hasPermission = useCallback((requiredPermission) => {
     // The owner has all permissions, always. This is the ultimate override.
     if (userType === 'owner') return true;
