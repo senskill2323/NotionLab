@@ -23,7 +23,7 @@ const KanbanColumn = ({ id, title, cards, onCardClick }) => {
       </div>
       <ScrollArea 
         ref={setNodeRef}
-        className="bg-gray-800/50 rounded-b-lg p-4 flex-grow h-full"
+        className="bg-gray-800/50 rounded-b-lg p-4"
       >
         <SortableContext items={cardIds}>
           {cards.map((card) => (

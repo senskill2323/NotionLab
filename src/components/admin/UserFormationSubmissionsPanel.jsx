@@ -9,6 +9,7 @@ import SubmissionCard from '@/components/admin/formation-live/SubmissionCard';
 import SubmissionFilters from '@/components/admin/formation-live/SubmissionFilters';
 import RejectSubmissionDialog from '@/components/admin/formation-live/RejectSubmissionDialog';
 import AdminKanbanView from '@/components/admin/formation-live/AdminKanbanView';
+import UserKanbanDashboard from '@/components/admin/formation-live/UserKanbanDashboard';
 
 const UserFormationSubmissionsPanel = () => {
   const {
@@ -140,6 +141,14 @@ const UserFormationSubmissionsPanel = () => {
           notes={rejectionNotes}
           setNotes={setRejectionNotes}
         />
+
+        <div className="mt-10">
+          <div className="mb-3">
+            <h3 className="text-lg font-semibold">Dashboard d’avancement</h3>
+            <p className="text-sm text-muted-foreground">Accédez à chaque Kanban par utilisateur et formation LIVE.</p>
+          </div>
+          <UserKanbanDashboard submissions={submissions} users={users} />
+        </div>
       </CardContent>
     </Card>
   );

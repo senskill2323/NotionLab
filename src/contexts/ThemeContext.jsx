@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
+
 import { supabase } from '@/lib/customSupabaseClient';
 
 const ThemeContext = createContext();
@@ -84,15 +85,18 @@ const DEFAULT_THEME = {
 export const ThemeProvider = ({ children }) => {
   const [theme, setTheme] = useState(null);
   const [loading, setLoading] = useState(true);
+  const didInitRef = useRef(false);
+  const appliedDefaultRef = useRef(false);
 
   const fetchAndApplyTheme = useCallback(async () => {
     setLoading(true);
 
     // Apply immediate fallback to avoid blocking UI
     try {
-      if (!theme) {
+      if (!appliedDefaultRef.current) {
         setTheme(DEFAULT_THEME);
         applyThemeToDOM(DEFAULT_THEME);
+        appliedDefaultRef.current = true;
       }
     } catch (e) {
       console.error('Failed to apply default theme:', e);
@@ -120,9 +124,11 @@ export const ThemeProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, [theme]);
+  }, []);
 
   useEffect(() => {
+    if (didInitRef.current) return;
+    didInitRef.current = true;
     fetchAndApplyTheme();
   }, [fetchAndApplyTheme]);
   
