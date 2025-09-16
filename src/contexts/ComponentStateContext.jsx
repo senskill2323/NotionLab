@@ -7,7 +7,7 @@ const ComponentStateContext = createContext();
 export const useComponentState = () => useContext(ComponentStateContext);
 
 export const ComponentStateProvider = ({ children }) => {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, authReady } = useAuth();
   const [rules, setRules] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -51,8 +51,21 @@ export const ComponentStateProvider = ({ children }) => {
   }, [fetchRules]);
 
   const getComponentState = useCallback((componentKey) => {
-    if (authLoading || loading) {
-      return 'hidden'; // Default to hidden while loading to prevent flicker
+    if (authLoading || loading || !authReady) {
+      // Do not hide global navigation while contexts are loading to avoid header disappearance.
+      // Prefer a conservative visible/disabled fallback for nav elements.
+      if (componentKey && typeof componentKey === 'string' && componentKey.startsWith('nav:')) {
+        // Keep the account trigger present but inert while auth is settling.
+        if (componentKey === 'nav:dashboard') {
+          return 'disabled';
+        }
+        // Avoid flashing login/register while auth isn't settled
+        if (componentKey === 'nav:login' || componentKey === 'nav:register') {
+          return 'hidden';
+        }
+        return 'visible';
+      }
+      return 'hidden'; // For non-nav components, keep previous behavior
     }
 
     const rule = rules.find(r => r.component_key === componentKey);
@@ -61,12 +74,14 @@ export const ComponentStateProvider = ({ children }) => {
       return 'visible'; // Default to visible if no rule is found
     }
 
-    const userType = user ? user.profile?.user_type : 'anonymous';
+    // When a session exists but the profile isn't loaded yet, fallback to 'guest'
+    // to avoid resolving an undefined state that would hide components.
+    const userType = user?.profile?.user_type ?? (user ? 'guest' : 'anonymous');
     const state = rule[`${userType}_state`];
     
     return state || 'hidden';
 
-  }, [user, rules, authLoading, loading]);
+  }, [user, rules, authLoading, loading, authReady]);
 
   const value = {
     loading,

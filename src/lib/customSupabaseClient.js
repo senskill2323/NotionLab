@@ -7,8 +7,11 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('Supabase env vars missing. Check .env (VITE_SUPABASE_URL/ANON_KEY).');
 }
 
+// Ensure singletons across HMR/tab contexts to avoid multiple GoTrueClient instances
+const globalScope = typeof window !== 'undefined' ? window : globalThis;
+
 // Public client to fetch public resources without user session interference
-export const supabasePublic = createClient(supabaseUrl, supabaseAnonKey, {
+const createPublicClient = () => createClient(supabaseUrl, supabaseAnonKey, {
   global: {
     headers: {
       apikey: supabaseAnonKey || '',
@@ -51,9 +54,14 @@ export const supabasePublic = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
+export const supabasePublic = globalScope.__nl_supabase_public || createPublicClient();
+if (!globalScope.__nl_supabase_public) {
+  globalScope.__nl_supabase_public = supabasePublic;
+}
+
 // Force apikey + Authorization headers globally to avoid intermittent missing-header issues
 // (e.g., when intermediaries strip headers or internal fetches occur)
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+const createAuthedClient = () => createClient(supabaseUrl, supabaseAnonKey, {
   global: {
     headers: {
       apikey: supabaseAnonKey || '',
@@ -95,3 +103,19 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     multiTab: true,
   },
 });
+
+export const supabase = globalScope.__nl_supabase || createAuthedClient();
+if (!globalScope.__nl_supabase) {
+  globalScope.__nl_supabase = supabase;
+}
+
+// DEV-only: expose supabase on window for debugging tools (e.g., navigationProbe)
+try {
+  if (typeof window !== 'undefined' && import.meta && import.meta.env && import.meta.env.DEV) {
+    if (!globalScope.supabase) {
+      globalScope.supabase = supabase;
+    }
+  }
+} catch (_) {
+  // ignore if import.meta not available
+}

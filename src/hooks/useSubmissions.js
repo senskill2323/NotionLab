@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { useDebounce } from 'use-debounce';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
 
 export const useSubmissions = () => {
   const [submissions, setSubmissions] = useState([]);
@@ -10,6 +11,7 @@ export const useSubmissions = () => {
   const [debouncedFilters] = useDebounce(filters, 500);
   const [users, setUsers] = useState([]);
   const { toast } = useToast();
+  const { authReady } = useAuth();
 
   const fetchSubmissionsAndUsers = useCallback(async () => {
     setLoading(true);
@@ -35,8 +37,9 @@ export const useSubmissions = () => {
   }, [debouncedFilters, toast]);
 
   useEffect(() => {
+    if (!authReady) return;
     fetchSubmissionsAndUsers();
-  }, [fetchSubmissionsAndUsers]);
+  }, [fetchSubmissionsAndUsers, authReady]);
 
   const handleStatusUpdate = async (submissionId, newStatus) => {
     const originalSubmissions = [...submissions];

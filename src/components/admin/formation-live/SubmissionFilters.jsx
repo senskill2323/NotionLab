@@ -11,12 +11,12 @@ const SubmissionFilters = ({ filters, setFilters, users }) => {
         <Input
           placeholder="Rechercher un parcours..."
           className="pl-8"
-          value={filters.searchTerm}
+          value={filters.searchTerm ?? ''}
           onChange={(e) => setFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
         />
       </div>
       <Select
-        value={filters.userId}
+        value={filters.userId || 'all'}
         onValueChange={(value) => setFilters(prev => ({ ...prev, userId: value === 'all' ? '' : value }))}
       >
         <SelectTrigger className="w-[240px]">
