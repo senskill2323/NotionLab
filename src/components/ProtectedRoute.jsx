@@ -5,7 +5,7 @@ import { usePermissions } from '@/contexts/PermissionsContext';
 import { Loader2 } from 'lucide-react';
 
 const ProtectedRoute = ({ children, allowedUserTypes, requiredPermission }) => {
-  const { user, loading: authLoading, authReady } = useAuth();
+  const { user, authReady } = useAuth();
   const { hasPermission, loading: permsLoading, ready: permsReady, usingFallback } = usePermissions();
   const location = useLocation();
 
@@ -25,7 +25,9 @@ const ProtectedRoute = ({ children, allowedUserTypes, requiredPermission }) => {
           (!permsReady && !isNonBlockingPermRoute(requiredPermission)) ||
           (usingFallback && !isNonBlockingPermRoute(requiredPermission))
         );
-  const isLoading = authLoading || !authReady || effectivePermsLoading;
+  // Only gate by authReady (true means auth is settled). Avoid using transient 'loading' state
+  // which can flip during tab visibility changes, causing infinite spinners.
+  const isLoading = !authReady || effectivePermsLoading;
 
   if (isLoading) {
     return (

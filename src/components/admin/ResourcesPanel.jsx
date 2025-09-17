@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
     import { FolderKanban, Plus, Loader2 } from 'lucide-react';
     import { useToast } from '@/components/ui/use-toast';
     import { supabase } from '@/lib/customSupabaseClient';
+    import { useSessionRefresh } from '@/lib/sessionRefreshBus';
     import NewResourceDialog from './NewResourceDialog';
     import ResourcesToolbar from './resources/ResourcesToolbar';
     import ResourcesTable from './resources/ResourcesTable';
@@ -65,6 +66,11 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
           .subscribe();
 
         return () => supabase.removeChannel(channel);
+      }, [fetchResources, fetchRelatedData]);
+
+      useSessionRefresh(() => {
+        fetchResources();
+        fetchRelatedData();
       }, [fetchResources, fetchRelatedData]);
 
 

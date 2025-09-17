@@ -4,9 +4,10 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Loader2 } from 'lucide-react';
 
 const PublicOnlyRoute = ({ children }) => {
-  const { user, loading } = useAuth();
+  const { user, authReady } = useAuth();
 
-  if (loading) {
+  // Only block until authReady is true. Avoid using transient 'loading' which can flip on tab switches.
+  if (!authReady) {
     return (
       <div className="flex items-center justify-center h-screen bg-background">
         <div className="text-center">

@@ -7,99 +7,133 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('Supabase env vars missing. Check .env (VITE_SUPABASE_URL/ANON_KEY).');
 }
 
-// Ensure singletons across HMR/tab contexts to avoid multiple GoTrueClient instances
+// Ensure singletons across HMR/tab contexts to avoid multiple GoTrueClient instances.
 const globalScope = typeof window !== 'undefined' ? window : globalThis;
 
-// Public client to fetch public resources without user session interference
-const createPublicClient = () => createClient(supabaseUrl, supabaseAnonKey, {
-  global: {
+const supabaseBaseUrl = (() => {
+  try {
+    return supabaseUrl ? new URL(supabaseUrl) : null;
+  } catch (error) {
+    console.error('Invalid Supabase URL. Check VITE_SUPABASE_URL.', error);
+    return null;
+  }
+})();
+
+const appendApiKeyIfMissing = (input) => {
+  if (!supabaseAnonKey || !supabaseBaseUrl) return input;
+  const urlStr = typeof input === 'string' ? input : (input && input.url) ? input.url : null;
+  if (!urlStr) return input;
+
+  try {
+    const url = new URL(urlStr);
+    if (url.origin === supabaseBaseUrl.origin && url.pathname.startsWith('/rest/v1') && !url.searchParams.has('apikey')) {
+      url.searchParams.set('apikey', supabaseAnonKey);
+      return url.toString();
+    }
+  } catch (_) {
+    // Ignore parse issues; headers still contain apikey.
+  }
+
+  return input;
+};
+
+const NETWORK_ERROR_CODE = 'NETWORK_ERROR';
+const SUPABASE_FETCH_TIMEOUT_MS = 8000; // fallback timeout to unfreeze sleeping Edge tabs
+
+const createNetworkErrorResponse = (error, clientLabel) => {
+  const message = error?.message || 'Network request failed';
+  if (typeof console !== 'undefined') {
+    console.warn(`[supabase:${clientLabel}] network request failed`, error);
+  }
+
+  const payload = {
+    message,
+    details: error?.stack || null,
+    hint: 'network_error',
+    code: NETWORK_ERROR_CODE,
+    error: NETWORK_ERROR_CODE,
+    error_description: message,
+  };
+
+  return new Response(JSON.stringify(payload), {
+    status: 503,
+    statusText: 'Network Error',
     headers: {
-      apikey: supabaseAnonKey || '',
-      Authorization: `Bearer ${supabaseAnonKey || ''}`,
+      'Content-Type': 'application/json',
+      'X-Supabase-Network-Error': '1',
     },
-    fetch: async (input, init = {}) => {
-      const headers = new Headers(init.headers || {});
-      headers.set('apikey', supabaseAnonKey || '');
-      headers.set('Authorization', `Bearer ${supabaseAnonKey || ''}`);
+  });
+};
 
-      // Fallback: add apikey as query param for REST calls if some intermediary strips headers
-      let finalInput = input;
-      try {
-        const urlStr = typeof input === 'string' ? input : (input && input.url) ? input.url : null;
-        if (urlStr) {
-          const u = new URL(urlStr);
-          const base = new URL(supabaseUrl);
-          if (u.origin === base.origin && u.pathname.startsWith('/rest/v1')) {
-            if (!u.searchParams.has('apikey') && supabaseAnonKey) {
-              u.searchParams.set('apikey', supabaseAnonKey);
-              finalInput = u.toString();
-            }
-          }
+const buildSupabaseFetch = ({ clientLabel, ensureHeaders }) => async (input, init = {}) => {
+  const headers = new Headers(init.headers || {});
+  ensureHeaders(headers);
+
+  const upstreamSignal = init.signal;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    if (!controller.signal.aborted) {
+      controller.abort('supabase-fetch-timeout');
+    }
+  }, SUPABASE_FETCH_TIMEOUT_MS);
+
+  if (upstreamSignal) {
+    if (upstreamSignal.aborted) {
+      clearTimeout(timeoutId);
+      throw new DOMException('Aborted', 'AbortError');
+    }
+    upstreamSignal.addEventListener(
+      'abort',
+      () => {
+        if (!controller.signal.aborted) {
+          controller.abort(upstreamSignal.reason ?? 'upstream-abort');
         }
-      } catch (_) {
-        // ignore URL parse issues; headers still ensure auth
+      },
+      { once: true },
+    );
+  }
+
+  const finalInit = { ...init, headers, signal: controller.signal };
+  const finalInput = appendApiKeyIfMissing(input);
+
+  try {
+    return await fetch(finalInput, finalInit);
+  } catch (error) {
+    if (controller.signal.aborted) {
+      const reason = controller.signal.reason;
+      if (reason === 'supabase-fetch-timeout') {
+        return createNetworkErrorResponse(new Error('Supabase fetch timed out'), clientLabel);
       }
+      throw error;
+    }
+    if (error?.name === 'AbortError') {
+      throw error;
+    }
+    return createNetworkErrorResponse(error, clientLabel);
+  } finally {
+    clearTimeout(timeoutId);
+  }
+};
 
-      return fetch(finalInput, { ...init, headers });
-    },
-  },
-  auth: {
-    persistSession: false,
-    autoRefreshToken: false,
-    detectSessionInUrl: false,
-    // Utiliser une storageKey unique pour éviter les collisions avec le client authentifié
-    storageKey: 'nl-public-auth',
-    // Le client public n'a pas besoin de multi‑onglets/broadcast
-    multiTab: false,
-  },
-});
-
-export const supabasePublic = globalScope.__nl_supabase_public || createPublicClient();
-if (!globalScope.__nl_supabase_public) {
-  globalScope.__nl_supabase_public = supabasePublic;
-}
-
-// Force apikey + Authorization headers globally to avoid intermittent missing-header issues
-// (e.g., when intermediaries strip headers or internal fetches occur)
 const createAuthedClient = () => createClient(supabaseUrl, supabaseAnonKey, {
   global: {
     headers: {
       apikey: supabaseAnonKey || '',
     },
-    // Enforce headers even if an internal call overrides them
-    fetch: async (input, init = {}) => {
-      const headers = new Headers(init.headers || {});
-      if (!headers.has('apikey')) headers.set('apikey', supabaseAnonKey || '');
-      if (!headers.has('Authorization')) headers.set('Authorization', `Bearer ${supabaseAnonKey || ''}`);
-
-      // Fallback: add apikey as query param for REST calls if some intermediary strips headers
-      let finalInput = input;
-      try {
-        const urlStr = typeof input === 'string' ? input : (input && input.url) ? input.url : null;
-        if (urlStr) {
-          const u = new URL(urlStr);
-          const base = new URL(supabaseUrl);
-          if (u.origin === base.origin && u.pathname.startsWith('/rest/v1')) {
-            if (!u.searchParams.has('apikey') && supabaseAnonKey) {
-              u.searchParams.set('apikey', supabaseAnonKey);
-              finalInput = u.toString();
-            }
-          }
+    fetch: buildSupabaseFetch({
+      clientLabel: 'authed',
+      ensureHeaders: (headers) => {
+        if (!headers.has('apikey')) {
+          headers.set('apikey', supabaseAnonKey || '');
         }
-      } catch (_) {
-        // ignore URL parse issues; headers still ensure auth
-      }
-
-      return fetch(finalInput, { ...init, headers });
-    },
+      },
+    }),
   },
   auth: {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
-    // StorageKey dédiée pour le client authentifié
     storageKey: 'nl-auth',
-    // Conserver le fonctionnement multi-onglets pour la session utilisateur
     multiTab: true,
   },
 });
@@ -109,7 +143,6 @@ if (!globalScope.__nl_supabase) {
   globalScope.__nl_supabase = supabase;
 }
 
-// DEV-only: expose supabase on window for debugging tools (e.g., navigationProbe)
 try {
   if (typeof window !== 'undefined' && import.meta && import.meta.env && import.meta.env.DEV) {
     if (!globalScope.supabase) {
