@@ -102,21 +102,19 @@ const FormationDetailPage = () => {
     }
 
     setIsEnrolling(true);
-    const { error } = await supabase.rpc('enroll_user_in_course', { p_course_id: id });
+    const { error } = await supabase.rpc('submit_course_for_validation', { p_course_id: id });
 
     if (error) {
       toast({
-        title: 'Erreur d\'inscription',
+        title: 'Erreur de soumission',
         description: error.message,
         variant: 'destructive',
       });
     } else {
       toast({
-        title: 'Inscription réussie !',
-        description: `Vous êtes maintenant inscrit à la formation "${formation.title}".`,
-        className: 'bg-green-500 text-white',
+        title: 'Demande envoyée',
+        description: `Votre demande de validation pour "${formation.title}" a été soumise. Vous verrez "Démarré" après validation par l’administrateur.`,
       });
-      setIsEnrolled(true);
     }
     setIsEnrolling(false);
   };
@@ -171,7 +169,7 @@ const FormationDetailPage = () => {
                   className="notion-gradient text-white"
                 >
                   {isEnrolling && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  S'inscrire à la formation
+                  Soumettre pour validation
                 </Button>
               )}
             </div>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Clock, GripVertical, MoreVertical, Pencil, Trash2, MoveRight } from 'lucide-react';
+import { Clock, GripVertical, MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Button } from '@/components/ui/button';
@@ -86,24 +86,6 @@ export const ModuleItemDraggable = ({ module, family, hasPermission, onAddModule
             <DropdownMenuItem onClick={() => setShowDeleteConfirm(true)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" />Supprimer</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        {/* Handle dédié pour glisser sur la grille (ReactFlow) */}
-        <div
-          draggable={true}
-          onDragStart={handleDragStartToGrid}
-          onMouseDown={(e) => e.stopPropagation()}
-          onDragEnd={(e) => e.stopPropagation()}
-          className="cursor-grab"
-        >
-          <Button
-            variant="ghost"
-            size="icon"
-            className="w-7 h-7 pointer-events-none"
-            title="Glisser vers la grille"
-          >
-            <MoveRight className="h-4 w-4" />
-          </Button>
-        </div>
-
         <EditModuleDialog
           open={isEditing}
           onOpenChange={setIsEditing}
@@ -141,6 +123,7 @@ export const ModuleItemDraggable = ({ module, family, hasPermission, onAddModule
         className="w-6 h-6 cursor-grab"
         {...(hasPermission ? attributes : {})}
         {...(hasPermission ? listeners : {})}
+        {...(!hasPermission ? { draggable: true, onDragStart: handleDragStartToGrid, onMouseDown: (e) => e.stopPropagation(), onDragEnd: (e) => e.stopPropagation() } : {})}
         onClick={(e) => e.stopPropagation()} // Stop propagation to avoid adding to flow when dragging
       >
         <GripVertical className="w-4 h-4 text-muted-foreground" />
@@ -153,7 +136,9 @@ export const ModuleItemDraggable = ({ module, family, hasPermission, onAddModule
           <span>{module.duration} min</span>
         </div>
       </div>
-      {renderMenu()}
+      <div className="flex items-center gap-1">
+        {renderMenu()}
+      </div>
     </div>
   );
 };

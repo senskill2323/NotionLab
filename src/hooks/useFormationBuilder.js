@@ -257,6 +257,19 @@ export const useFormationBuilder = () => {
     navigate('/dashboard');
   }, [navigate]);
 
+  const handleSubmitForValidation = useCallback(async () => {
+    if (!parcoursId) return;
+    try {
+      // Ensure latest graph is saved before submission
+      await handleSave({ withToast: false });
+      const { error } = await supabase.rpc('submit_course_for_validation', { p_course_id: parcoursId });
+      if (error) throw error;
+      toast({ title: 'Demande envoyée', description: 'Votre formation a été soumise pour validation. Vous verrez "Démarré" après approbation.' });
+    } catch (e) {
+      toast({ title: 'Erreur', description: `Soumission impossible: ${e.message}`, variant: 'destructive' });
+    }
+  }, [parcoursId, handleSave, toast]);
+
   const handleCreateNewParcours = async () => {
     if (!user) return;
     const newParcoursTitle = `Nouvelle formation Sans Titre...`;
@@ -389,6 +402,7 @@ export const useFormationBuilder = () => {
     handleSave,
     handleParcoursNameSave,
     handleCloseAndReturn,
+    handleSubmitForValidation,
     handleCreateNewParcours,
     handleDuplicateParcours,
     handleDeleteParcours,

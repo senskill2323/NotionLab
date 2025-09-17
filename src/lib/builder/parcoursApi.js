@@ -44,7 +44,7 @@ export const fetchModuleCatalog = async () => {
 export const fetchUserParcoursList = async (userId) => {
   const { data, error } = await supabase
     .from('courses')
-    .select('id, title, updated_at')
+    .select('id, title, status, updated_at')
     .eq('author_id', userId)
     .eq('course_type', 'custom')
     .order('updated_at', { ascending: false });

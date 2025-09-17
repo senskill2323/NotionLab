@@ -7,6 +7,7 @@ import React, { useState, useEffect, useMemo } from 'react';
       KeyboardSensor,
       useSensor,
       useSensors,
+      closestCenter,
     } from '@dnd-kit/core';
     import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
     import { arrayMove } from '@dnd-kit/sortable';
@@ -33,6 +34,7 @@ const KanbanPanel = () => {
   const [activeCard, setActiveCard] = useState(null);
   const [loading, setLoading] = useState(true);
   const [initializing, setInitializing] = useState(false);
+  const [refreshTick, setRefreshTick] = useState(0);
 
   useEffect(() => {
     if (!user) return;
@@ -70,62 +72,58 @@ const KanbanPanel = () => {
       });
     };
 
-    const fetchAndMaybeInitialize = async () => {
+    const fetchKanbanOnly = async () => {
       setLoading(true);
       try {
-        // 1) Initialize all started formations (idempotent)
-        setInitializing(true);
-        const { data: formations, error: formationsErr } = await supabase
-          .rpc('get_user_courses_and_parcours', { p_user_id: user.id });
-        if (formationsErr) throw formationsErr;
-
-        const started = (formations || []).filter(f => f.status === 'demarre');
-        for (const f of started) {
-          try {
-            if (f.course_type === 'custom') {
-              const { error: ensureErr } = await supabase.rpc('ensure_custom_submission_and_init', {
-                p_course_id: f.id,
-              });
-              if (ensureErr) console.warn('ensure_custom_submission_and_init error', ensureErr);
-            } else {
-              const { error: snapErr } = await supabase.rpc('snapshot_and_init_kanban', {
-                p_course_id: f.id,
-              });
-              if (snapErr) console.warn('snapshot_and_init_kanban error', snapErr);
-            }
-          } catch (e) {
-            console.warn('Initialization loop error', e);
-          }
-        }
-
-        // 2) Cleanup orphaned Kanban cards (optional)
-        // This RPC may not exist in all environments. To avoid noisy 404 console errors,
-        // it's disabled by default. If you deploy the RPC `cleanup_orphan_kanban_for_user`,
-        // set VITE_ENABLE_KANBAN_CLEANUP=true and uncomment the block below.
-        // if (import.meta.env.VITE_ENABLE_KANBAN_CLEANUP === 'true') {
-        //   const { error: cleanupErr } = await supabase.rpc('cleanup_orphan_kanban_for_user', { p_user_id: user.id });
-        //   if (cleanupErr) console.warn('cleanup_orphan_kanban_for_user error', cleanupErr);
-        // }
-
-        // 3) Fetch Kanban rows after ensuring initialization and cleanup
+        // Read-only: cards exist only after admin APPROVAL
+        setInitializing(false);
         const rows = await fetchKanbanView();
         const formattedData = await enrichWithModuleMetadata(rows);
         setCards(formattedData || []);
       } catch (error) {
-        console.error('Error fetching/initializing kanban data:', error);
+        console.error('Error fetching kanban data:', error);
         toast({
           title: 'Erreur',
           description: 'Impossible de charger les modules du Kanban.',
           variant: 'destructive',
         });
       } finally {
-        setInitializing(false);
         setLoading(false);
       }
     };
 
-    fetchAndMaybeInitialize();
-  }, [user, toast]);
+    fetchKanbanOnly();
+  }, [user, toast, refreshTick]);
+
+  // Realtime subscription: refresh when user's module statuses change
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel(`user-kanban-channel-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'formation_module_statuses',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          // Trigger a refetch through the existing effect
+          setRefreshTick((t) => t + 1);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      try {
+        supabase.removeChannel(channel);
+      } catch (_) {
+        // noop
+      }
+    };
+  }, [user?.id]);
 
   const cardsByColumn = useMemo(() => {
     const grouped = {};
@@ -148,6 +146,7 @@ const KanbanPanel = () => {
     const { active } = event;
     const card = cards.find(c => c.status_id === active.id);
     setActiveCard(card);
+    try { console.debug('[KanbanPanel] onDragStart', { activeId: active?.id, card }); } catch (_) {}
   };
 
   const handleDragOver = (event) => {
@@ -184,7 +183,11 @@ const KanbanPanel = () => {
   const handleDragEnd = async (event) => {
     setActiveCard(null);
     const { active, over } = event;
-    if (!over || active.id === over.id) return;
+    if (!over) {
+      try { console.debug('[KanbanPanel] onDragEnd: no over target', { activeId: active?.id }); } catch (_) {}
+      return;
+    }
+    // Do not early-return when active.id === over.id. The column may have changed during onDragOver.
 
     const originalCards = [...cards];
     let finalCards = [...cards];
@@ -192,9 +195,13 @@ const KanbanPanel = () => {
     const activeIndex = finalCards.findIndex(c => c.status_id === active.id);
     const overIndex = finalCards.findIndex(c => c.status_id === over.id);
     
-    if (activeIndex === -1) return;
+    if (activeIndex === -1) {
+      try { console.debug('[KanbanPanel] onDragEnd: active card not found in state', { activeId: active?.id, cardIds: finalCards.map(c => c.status_id) }); } catch (_) {}
+      return;
+    }
 
     const newStatus = overIndex !== -1 ? finalCards[overIndex].status : over.id;
+    try { console.debug('[KanbanPanel] onDragEnd', { activeId: active?.id, overId: over?.id, newStatus }); } catch (_) {}
     
     finalCards[activeIndex] = { ...finalCards[activeIndex], status: newStatus };
     if (overIndex !== -1) {
@@ -215,16 +222,16 @@ const KanbanPanel = () => {
         .from('formation_module_statuses')
         .update({ status: card.status, position: card.position })
         .eq('id', card.status_id)
+        .throwOnError()
     );
 
-    const results = await Promise.all(dbUpdates);
-    const hasError = results.some(res => res.error);
-
-    if (hasError) {
+    try {
+      await Promise.all(dbUpdates);
+      toast({ title: 'Succès', description: 'Le statut du module a été mis à jour.' });
+    } catch (error) {
+      try { console.error('[KanbanPanel] Error updating module status', error); } catch (_) {}
       setCards(originalCards);
       toast({ title: 'Erreur', description: 'La carte n\'a pas pu être déplacée.', variant: 'destructive' });
-    } else {
-      toast({ title: 'Succès', description: 'Le statut du module a été mis à jour.' });
     }
   };
 
@@ -268,29 +275,36 @@ const KanbanPanel = () => {
         </div>
       </div>
       <div className="p-4 bg-gradient-to-br from-blue-900/10 to-gray-50 dark:from-blue-900/20 dark:to-gray-900 rounded-lg">
-        <DndContext
-          sensors={sensors}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-          onDragOver={handleDragOver}
-        >
-          <div className="flex flex-col md:flex-row gap-4">
-            {columns.map((col) => (
-              <KanbanColumn
-                key={col.id}
-                id={col.id}
-                title={col.title}
-                cards={cardsByColumn[col.id] || []}
-              />
-            ))}
+        {(cards?.length ?? 0) === 0 ? (
+          <div className="flex items-center justify-center h-40 text-sm text-muted-foreground">
+            En attente de validation de l’administrateur.
           </div>
-          {createPortal(
-            <DragOverlay>
-              {activeCard && <KanbanCard card={activeCard} isOverlay />}
-            </DragOverlay>,
-            document.body
-          )}
-        </DndContext>
+        ) : (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            onDragOver={handleDragOver}
+          >
+            <div className="flex flex-col md:flex-row gap-4">
+              {columns.map((col) => (
+                <KanbanColumn
+                  key={col.id}
+                  id={col.id}
+                  title={col.title}
+                  cards={cardsByColumn[col.id] || []}
+                />
+              ))}
+            </div>
+            {createPortal(
+              <DragOverlay>
+                {activeCard && <KanbanCard card={activeCard} isOverlay />}
+              </DragOverlay>,
+              document.body
+            )}
+          </DndContext>
+        )}
       </div>
     </div>
   );

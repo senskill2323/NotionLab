@@ -17,6 +17,7 @@ const FormationManagementPanel = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all'); // all | courses | submissions
   const [viewMode, setViewMode] = useState('gallery');
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -44,6 +45,10 @@ const FormationManagementPanel = () => {
       filteredData = filteredData.filter(f => f.status === statusFilter);
     }
 
+    if (typeFilter !== 'all') {
+      filteredData = filteredData.filter(f => typeFilter === 'submissions' ? f.is_user_submission : !f.is_user_submission);
+    }
+
     if (searchTerm) {
       filteredData = filteredData.filter(f => 
         f.title.toLowerCase().includes(searchTerm.toLowerCase())
@@ -51,28 +56,33 @@ const FormationManagementPanel = () => {
     }
 
     // Transformer les données pour correspondre au format attendu
-    const formattedData = filteredData.map(item => ({
-      id: item.id,
-      title: item.title,
-      status: item.status,
-      course_type: item.course_type,
-      delivery_mode: item.delivery_mode ?? 'hybrid', // Fallback pour compatibilité
-      created_at: item.created_at,
-      cover_image_url: item.cover_image_url,
-      nodes: item.nodes,
-      edges: item.edges,
-      author_id: item.author_id,
-      author: {
-        id: item.author_id,
-        first_name: item.author_first_name,
-        last_name: item.author_last_name
-      },
-      // Nouvelles propriétés pour les inscriptions clients
-      is_user_submission: item.is_user_submission,
-      user_id: item.user_id,
-      user_email: item.user_email,
-      enrolled_at: item.enrolled_at
-    }));
+    const formattedData = filteredData.map(item => {
+      const isSubmission = Boolean(item.is_user_submission);
+      const base = {
+        id: item.id,
+        displayId: isSubmission ? `submission:${item.id}` : `course:${item.id}`,
+        title: item.title,
+        status: item.status,
+        submission_status: item.submission_status || null,
+        course_type: item.course_type,
+        delivery_mode: item.delivery_mode ?? 'hybrid',
+        created_at: item.created_at,
+        cover_image_url: item.cover_image_url,
+        nodes: item.nodes,
+        edges: item.edges,
+        author_id: item.author_id,
+        author: {
+          id: item.author_id,
+          first_name: item.author_first_name,
+          last_name: item.author_last_name
+        },
+        is_user_submission: isSubmission,
+        user_id: item.user_id,
+        user_email: item.user_email,
+        enrolled_at: item.enrolled_at,
+      };
+      return base;
+    });
 
     setFormations(formattedData);
     setLoading(false);
@@ -179,6 +189,16 @@ const FormationManagementPanel = () => {
                 <SelectItem value="a_valider">À valider</SelectItem>
                 <SelectItem value="live">Live</SelectItem>
                 <SelectItem value="archived">Archivé</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger className="w-[220px] h-9">
+                <SelectValue placeholder="Filtrer par type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les types</SelectItem>
+                <SelectItem value="courses">Formations (catalogue)</SelectItem>
+                <SelectItem value="submissions">Demandes clients (soumissions)</SelectItem>
               </SelectContent>
             </Select>
           </div>

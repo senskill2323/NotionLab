@@ -31,12 +31,22 @@ import React from 'react';
         transform: CSS.Transform.toString(transform),
         transition,
       };
-      
-      const truncateText = (text, maxLength) => {
-        if (!text) return '';
-        if (text.length <= maxLength) return text;
-        return text.substr(0, maxLength) + '...';
+
+      // Try to detect bullet-like content and render as a list for readability
+      const getBulletItems = (text) => {
+        if (!text) return null;
+        // Normalize potential separators and collapse spaces
+        const normalized = String(text).replace(/\s*•\s*/g, '\n• ').trim();
+        const lines = normalized.split(/\n+/).map(s => s.trim()).filter(Boolean);
+        // If multiple lines start with bullet markers, treat as list
+        const bulletLines = lines.filter(l => /^•\s+|^-\s+|^\*\s+/.test(l));
+        if (bulletLines.length >= 2) {
+          return bulletLines.map(l => l.replace(/^([•\-*])\s+/, '').trim()).filter(Boolean);
+        }
+        return null;
       };
+
+      const bulletItems = getBulletItems(card.description);
 
       return (
         <div
@@ -51,21 +61,35 @@ import React from 'react';
           )}
         >
             <Card 
-              className="bg-gray-700/70 border-gray-600 shadow-md hover:shadow-lg hover:border-primary/50 transition-all duration-300 cursor-grab"
+              className="bg-gray-800/70 border-gray-700 shadow-sm hover:shadow-md hover:border-primary/50 transition-all duration-300 cursor-grab rounded-lg"
               {...listeners}
             >
-                <CardHeader className="p-3">
-                    <CardTitle className="text-base font-semibold text-gray-100">{card.title}</CardTitle>
+                <CardHeader className="p-3 pb-2">
+                    <CardTitle className="text-base font-semibold text-gray-100 leading-snug line-clamp-2">{card.title}</CardTitle>
+                    {card.formation_name && (
+                      <p className="text-xs text-gray-400/80 mt-1 leading-tight">{card.formation_name}</p>
+                    )}
                 </CardHeader>
                 {card.description && (
                   <CardContent className="p-3 pt-0">
-                      <p className="text-sm text-gray-400 leading-relaxed">
-                        {truncateText(card.description, 100)}
+                    {bulletItems ? (
+                      <ul className="list-disc pl-5 text-xs text-gray-300/80 space-y-0.5 marker:text-gray-500">
+                        {bulletItems.slice(0, 5).map((it, idx) => (
+                          <li key={idx} className="leading-4">{it}</li>
+                        ))}
+                        {bulletItems.length > 5 && (
+                          <li className="text-gray-400">…</li>
+                        )}
+                      </ul>
+                    ) : (
+                      <p className="text-xs text-gray-300/80 leading-5 line-clamp-3 whitespace-pre-line">
+                        {String(card.description).replace(/\s*•\s*/g, '\n• ')}
                       </p>
+                    )}
                   </CardContent>
                 )}
                 <CardFooter className="p-3 pt-0 flex justify-between items-center text-xs text-gray-400">
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-2 min-w-0">
                         {card.family_name && <Badge variant="secondary">{card.family_name}</Badge>}
                         {card.subfamily_name && <Badge variant="outline">{card.subfamily_name}</Badge>}
                     </div>

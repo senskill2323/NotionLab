@@ -16,12 +16,27 @@ const RegisterPage = () => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [emailError, setEmailError] = useState('');
   const { signUp } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  // Helper to detect the specific Supabase error when an email is already used
+  const isDuplicateEmailError = (err) => {
+    if (!err) return false;
+    const msg = (err.message || '').toLowerCase();
+    // Common messages from Supabase/Auth: "User already registered", variations containing "email" and "already"
+    return (
+      msg.includes('already registered') ||
+      (msg.includes('email') && msg.includes('already')) ||
+      msg.includes('already exists') ||
+      msg.includes('user already')
+    );
+  };
+
   const handleRegister = async (e) => {
     e.preventDefault();
+    setEmailError('');
     setLoading(true);
     const { error } = await signUp(email, password, firstName, lastName);
     if (!error) {
@@ -31,11 +46,29 @@ const RegisterPage = () => {
       });
       navigate('/');
     } else {
-       toast({
-        title: "Erreur d'inscription",
-        description: error.message,
-        variant: "destructive",
-      });
+      if (error?.code === 'email_already_used') {
+        const friendly = "Votre e-mail est déjà utilisé";
+        setEmailError(friendly);
+        toast({
+          title: "Erreur d'inscription",
+          description: friendly,
+          variant: "destructive",
+        });
+      } else if (isDuplicateEmailError(error)) {
+        const friendly = "Votre e-mail est déjà utilisé";
+        setEmailError(friendly);
+        toast({
+          title: "Erreur d'inscription",
+          description: friendly,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Erreur d'inscription",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
     }
     setLoading(false);
   };
@@ -77,9 +110,15 @@ const RegisterPage = () => {
                     type="email"
                     placeholder="Votre adresse e-mail"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      if (emailError) setEmailError('');
+                    }}
                     required
                   />
+                  {emailError && (
+                    <p className="text-sm text-destructive mt-1">{emailError}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                    <Label htmlFor="password">Mot de passe</Label>
