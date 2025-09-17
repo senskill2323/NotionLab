@@ -19,7 +19,7 @@ const SubmissionFilters = ({ filters, setFilters, users }) => {
         value={filters.userId || 'all'}
         onValueChange={(value) => setFilters(prev => ({ ...prev, userId: value === 'all' ? '' : value }))}
       >
-        <SelectTrigger className="w-[240px]">
+        <SelectTrigger className="w-[240px]" aria-label="Filtrer par utilisateur">
           <SelectValue placeholder="Filtrer par utilisateur" />
         </SelectTrigger>
         <SelectContent>

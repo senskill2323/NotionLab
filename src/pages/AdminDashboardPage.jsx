@@ -96,6 +96,7 @@ const AdminDashboardPage = () => {
   const { toast } = useToast();
   const userName = user?.profile?.first_name || 'Admin';
   const missingComponentsRef = useRef(new Set());
+  const hasLoadedOnceRef = useRef(false);
 
   const [kpis, setKpis] = useState({ open_tickets: 0, pending_messages: 0, created_parcours: 0 });
   const [kpiLoading, setKpiLoading] = useState(true);
@@ -123,8 +124,11 @@ const AdminDashboardPage = () => {
   }, [toast]);
 
   const fetchAdminConfig = useCallback(async () => {
-    setTabsLoading(true);
-    setModulesLoading(true);
+    const isInitial = !hasLoadedOnceRef.current;
+    if (isInitial) {
+      setTabsLoading(true);
+      setModulesLoading(true);
+    }
     const tabsPromise = supabase.from('admin_dashboard_tabs').select('*').order('row_order').order('col_order');
     const modulesPromise = supabase.from('admin_modules_registry').select('*').eq('is_active', true);
 
@@ -144,6 +148,7 @@ const AdminDashboardPage = () => {
     
     setTabsLoading(false);
     setModulesLoading(false);
+    hasLoadedOnceRef.current = true;
   }, [toast]);
 
   useEffect(() => {

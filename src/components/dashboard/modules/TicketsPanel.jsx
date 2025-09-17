@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
     import { supabase } from '@/lib/customSupabaseClient';
     import { useAuth } from '@/contexts/SupabaseAuthContext';
     import { useNavigate } from 'react-router-dom';
@@ -26,6 +26,7 @@ import { Checkbox } from '@/components/ui/checkbox';
       const navigate = useNavigate();
       const { toast } = useToast();
       const { permissions, loading: permissionsLoading } = usePermissions();
+      const hasLoadedOnceRef = useRef(false);
 
       const getStatusBadgeConfig = (status) => {
         switch (status) {
@@ -53,7 +54,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 
       const fetchTickets = useCallback(async () => {
         if (!user || editMode) return;
-        setLoading(true);
+        if (!hasLoadedOnceRef.current) setLoading(true);
         setError(null);
 
         try {
@@ -76,6 +77,7 @@ import { Checkbox } from '@/components/ui/checkbox';
             });
         } finally {
             setLoading(false);
+            hasLoadedOnceRef.current = true;
         }
       }, [user, toast, editMode]);
 
@@ -326,7 +328,8 @@ import { Checkbox } from '@/components/ui/checkbox';
       };
 
       const renderContent = () => {
-        if (loading || (!editMode && permissionsLoading)) return <div className="flex justify-center items-center h-40"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+        const effectiveLoading = loading || (!editMode && permissionsLoading && !hasLoadedOnceRef.current);
+        if (effectiveLoading) return <div className="flex justify-center items-center h-40"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
         if (error) return <div className="flex flex-col justify-center items-center h-40 text-destructive"><AlertCircle className="w-8 h-8 mb-2" /><p>{error}</p></div>;
         
         return (

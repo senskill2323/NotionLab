@@ -31,8 +31,9 @@ const SubmissionCard = ({ submission, onStatusChange, onReject, onView }) => {
             <CardTitle className="text-base font-semibold pr-8">{submission.course_title}</CardTitle>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-7 w-7">
-                  <MoreVertical className="w-4 h-4" />
+                <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-7 w-7" aria-label="Ouvrir le menu d'actions" title="Options">
+                  <MoreVertical className="w-4 h-4" aria-hidden="true" />
+                  <span className="sr-only">Ouvrir le menu d'actions</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">

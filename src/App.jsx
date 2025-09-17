@@ -1,6 +1,9 @@
 // Ceci est un petit commentaire 
 import React from 'react';
     import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+    import { QueryClientProvider } from '@tanstack/react-query';
+    import { queryClient } from '@/lib/reactQueryClient';
+
     import { Toaster } from '@/components/ui/toaster';
     import { AuthProvider, useAuth } from '@/contexts/SupabaseAuthContext';
     import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
@@ -135,26 +138,28 @@ import React from 'react';
 
     function App() {
       return (
-        <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-          <AuthProvider>
-            <PermissionsProvider>
-              <ComponentStateProvider>
-                <ThemeProvider>
-                  <ChatProvider>
-                    <ResourceCreationProvider>
-                      <BuilderCatalogProvider>
-                        <TooltipProvider>
-                          <Toaster />
-                          <AppContent />
-                        </TooltipProvider>
-                      </BuilderCatalogProvider>
-                    </ResourceCreationProvider>
-                  </ChatProvider>
-                </ThemeProvider>
-              </ComponentStateProvider>
-            </PermissionsProvider>
-          </AuthProvider>
-        </Router>
+        <QueryClientProvider client={queryClient}>
+          <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+            <AuthProvider>
+              <PermissionsProvider>
+                <ComponentStateProvider>
+                  <ThemeProvider>
+                    <ChatProvider>
+                      <ResourceCreationProvider>
+                        <BuilderCatalogProvider>
+                          <TooltipProvider>
+                            <Toaster />
+                            <AppContent />
+                          </TooltipProvider>
+                        </BuilderCatalogProvider>
+                      </ResourceCreationProvider>
+                    </ChatProvider>
+                  </ThemeProvider>
+                </ComponentStateProvider>
+              </PermissionsProvider>
+            </AuthProvider>
+          </Router>
+        </QueryClientProvider>
       );
     }
 

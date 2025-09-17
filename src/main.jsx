@@ -4,11 +4,14 @@ import App from './App.jsx'
 import './index.css'
 import { ThemeProvider } from '@/contexts/ThemeContext';
 
-// Import navigation probe for debugging critical tab switch bug
 if (import.meta.env.DEV) {
-  import('./debug/navigationProbe.ts').then(({ navigationProbe }) => {
-    navigationProbe.startProbe();
-    console.log('🔍 Navigation probe started for debugging tab switch issues');
+  // Load focus/visibility stress test helper when developing to reproduce tab issues
+  import('./debug/focusStressTest.ts').then(({ focusStressTest }) => {
+    if (focusStressTest) {
+      // eslint-disable-next-line no-undef
+      window.focusStressTest = focusStressTest;
+    }
+    console.log('🧪 Focus stress helper loaded. Try in console: focusStressTest.run({ cycles: 10, intervalMs: 800, includePageHide: true })');
   });
 }
 

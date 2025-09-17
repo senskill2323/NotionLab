@@ -34,17 +34,29 @@ const ManageUserPage = () => {
         .from('profiles')
         .select('*, user_types(id, type_name, display_name)')
         .eq('id', id)
-        .single();
-      const formationsPromise = supabase.from('courses').select('id, title').eq('course_type', 'standard');
-      const userFormationsPromise = supabase.from('user_formations').select('formation_id').eq('user_id', id);
-      const userTypesPromise = supabase.from('user_types').select('*');
+        .single()
+        .throwOnError();
+      const formationsPromise = supabase
+        .from('courses')
+        .select('id, title')
+        .eq('course_type', 'standard')
+        .throwOnError();
+      const userFormationsPromise = supabase
+        .from('user_formations')
+        .select('formation_id')
+        .eq('user_id', id)
+        .throwOnError();
+      const userTypesPromise = supabase
+        .from('user_types')
+        .select('*')
+        .throwOnError();
 
-      const [{ data: profileData, error: profileError }, { data: formationsData, error: formationsError }, { data: userFormationsData, error: userFormationsError }, { data: userTypesData, error: userTypesError }] = await Promise.all([userPromise, formationsPromise, userFormationsPromise, userTypesPromise]);
-      
-      if (profileError) throw profileError;
-      if (formationsError) throw formationsError;
-      if (userFormationsError) throw userFormationsError;
-      if (userTypesError) throw userTypesError;
+      const [{ data: profileData }, { data: formationsData }, { data: userFormationsData }, { data: userTypesData }] = await Promise.all([
+        userPromise,
+        formationsPromise,
+        userFormationsPromise,
+        userTypesPromise,
+      ]);
 
       setUser(profileData);
       setAllFormations(formationsData);
@@ -66,20 +78,19 @@ const ManageUserPage = () => {
   const onProfileSubmit = async (formData) => {
     setIsSubmitting(true);
     const { user_types, created_at, id: userId, last_sign_in_at, ...profileData } = formData;
-    
-    const { error: profileUpdateError } = await supabase
-      .from('profiles')
-      .update(profileData)
-      .eq('id', userId);
-
-    if (profileUpdateError) {
+    try {
+      await supabase
+        .from('profiles')
+        .update(profileData)
+        .eq('id', userId)
+        .throwOnError();
+      toast({ title: 'Succès', description: 'Profil de l\'utilisateur mis à jour.' });
+      fetchUserData();
+    } catch (profileUpdateError) {
       toast({ variant: 'destructive', title: 'Erreur', description: `Impossible de mettre à jour le profil: ${profileUpdateError.message}` });
-    } else {
-       toast({ title: 'Succès', description: 'Profil de l\'utilisateur mis à jour.' });
-       fetchUserData();
+    } finally {
+      setIsSubmitting(false);
     }
-    
-    setIsSubmitting(false);
   };
   
   const handlePasswordResetRequest = async () => {
@@ -124,33 +135,36 @@ const ManageUserPage = () => {
   const handleAssignFormation = async () => {
     if (!selectedFormation) return;
     setIsSubmitting(true);
-    const { error } = await supabase
-      .from('user_formations')
-      .insert({ user_id: id, formation_id: selectedFormation });
-    if (error) {
-      toast({ variant: 'destructive', title: 'Erreur', description: 'Cette formation est peut-être déjà assignée.' });
-    } else {
+    try {
+      await supabase
+        .from('user_formations')
+        .insert({ user_id: id, formation_id: selectedFormation })
+        .throwOnError();
       toast({ title: 'Succès', description: 'Formation assignée avec succès.' });
       setUserFormations([...userFormations, selectedFormation]);
       setSelectedFormation('');
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Erreur', description: 'Cette formation est peut-être déjà assignée.' });
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsSubmitting(false);
   };
   
   const handleRemoveFormation = async (formationId) => {
     setIsSubmitting(true);
-    const { error } = await supabase
-      .from('user_formations')
-      .delete()
-      .match({ user_id: id, formation_id: formationId });
-      
-    if (error) {
-      toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de retirer la formation.' });
-    } else {
+    try {
+      await supabase
+        .from('user_formations')
+        .delete()
+        .match({ user_id: id, formation_id: formationId })
+        .throwOnError();
       toast({ title: 'Succès', description: 'Formation retirée avec succès.' });
       setUserFormations(userFormations.filter(fId => fId !== formationId));
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de retirer la formation.' });
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsSubmitting(false);
   };
 
   if (loading) {

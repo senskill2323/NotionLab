@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/customSupabaseClient';
+import { useSessionRefresh } from '@/lib/sessionRefreshBus';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -44,7 +45,9 @@ const UserManagementPanel = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const fetchUsers = useCallback(async (abortController) => {
+  const fetchUsers = useCallback(async (controller) => {
+    const abortController = controller ?? new AbortController();
+    const { signal } = abortController;
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('users-search', {
@@ -54,12 +57,12 @@ const UserManagementPanel = () => {
           page: pagination.page,
           perPage: pagination.perPage,
         },
-        signal: abortController.signal
+        signal,
       });
-      
+
       if (error) throw error;
 
-      if (!abortController.signal.aborted) {
+      if (!(signal?.aborted && signal?.reason === 'component-unmount')) {
         setUsers(data.items || []);
         setPagination(prev => ({ ...prev, total: data.total }));
       }
@@ -69,16 +72,20 @@ const UserManagementPanel = () => {
         toast({ title: "Erreur", description: "Impossible de charger les utilisateurs.", variant: "destructive" });
       }
     } finally {
-      if (!abortController.signal.aborted) {
+      if (!(signal?.aborted && signal?.reason === 'component-unmount')) {
         setLoading(false);
       }
     }
   }, [debouncedFilters, sort, pagination.page, pagination.perPage, toast]);
-  
+
   useEffect(() => {
     const abortController = new AbortController();
     fetchUsers(abortController);
-    return () => abortController.abort();
+    return () => abortController.abort('component-unmount');
+  }, [fetchUsers]);
+
+  useSessionRefresh(() => {
+    fetchUsers();
   }, [fetchUsers]);
   
   useEffect(() => {

@@ -74,16 +74,18 @@ const useDashboardData = () => {
   const [layout, setLayout] = React.useState({ rows: [] });
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
+  const hasLoadedOnceRef = React.useRef(false);
 
   const fetchData = React.useCallback(async () => {
     // Do not fetch until permissions are truly ready
     if (permissionsLoading || !permissionsReady) {
-        setLoading(true);
+        // Keep previous UI; only block on the very first load
+        if (!hasLoadedOnceRef.current) setLoading(true);
         return;
     }
     
     setError(null);
-    setLoading(true);
+    if (!hasLoadedOnceRef.current) setLoading(true);
 
     try {
       const { data: modulesData, error: modulesError } = await supabase
@@ -120,6 +122,7 @@ const useDashboardData = () => {
       setError("Impossible de charger la configuration du tableau de bord.");
     } finally {
       setLoading(false);
+      hasLoadedOnceRef.current = true;
     }
   }, [hasPermission, permissionsLoading, permissionsReady]);
 
@@ -137,7 +140,9 @@ const useDashboardData = () => {
   return {
     modules,
     layout,
-    loading: loading || permissionsLoading || !permissionsReady,
+    loading: (!hasLoadedOnceRef.current)
+      ? (loading || permissionsLoading || !permissionsReady)
+      : loading,
     error: error || permissionsError,
     handleRetry,
   };
