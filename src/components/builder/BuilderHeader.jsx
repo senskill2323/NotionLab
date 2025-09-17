@@ -16,7 +16,8 @@ export const BuilderHeader = ({
   handleDelete,
   handleCloseAndReturn,
   moduleCount,
-  totalHours
+  totalHours,
+  handleSubmitForValidation,
 }) => {
   const [localParcoursName, setLocalParcoursName] = useState(parcoursName);
   const [isPulsing, setIsPulsing] = useState(false);
@@ -83,6 +84,10 @@ export const BuilderHeader = ({
                 <DropdownMenuItem onClick={() => handleSave()}>
                   <Save className="w-4 h-4 mr-2" />
                   Sauvegarder
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleSubmitForValidation}>
+                  <Save className="w-4 h-4 mr-2" />
+                  Soumettre pour validation
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleDuplicate}>
                   <Copy className="w-4 h-4 mr-2" />

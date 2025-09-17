@@ -149,6 +149,7 @@ const Builder = () => {
            handleCloseAndReturn={builderState.handleCloseAndReturn}
            moduleCount={builderState.moduleCount}
            totalHours={builderState.totalHours}
+           handleSubmitForValidation={builderState.handleSubmitForValidation}
         />
       )}
 

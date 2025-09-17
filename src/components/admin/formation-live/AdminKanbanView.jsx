@@ -7,6 +7,7 @@ import {
   KeyboardSensor,
   useSensor,
   useSensors,
+  closestCenter,
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { arrayMove } from '@dnd-kit/sortable';
@@ -15,8 +16,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import KanbanColumn from '@/components/kanban/KanbanColumn';
 import KanbanCard from '@/components/kanban/KanbanCard';
-import { Loader2, ArrowLeft } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 const defaultCols = [
@@ -26,9 +26,11 @@ const defaultCols = [
   { id: 'done', title: 'Terminé' },
 ];
 
-// Enrichit les lignes avec les métadonnées des modules (titre, description, durée)
+// Enrichit les lignes avec les métadonnées des modules (titre, description, durée) et le nom de la formation
 const enrichWithModuleMetadata = async (rows) => {
   const moduleIds = [...new Set((rows || []).map(r => r.module_uuid).filter(Boolean))];
+  const submissionIds = [...new Set((rows || []).map(r => r.submission_id).filter(Boolean))];
+  
   if (moduleIds.length === 0) {
     return (rows || []).map(item => ({
       ...item,
@@ -37,17 +39,40 @@ const enrichWithModuleMetadata = async (rows) => {
       title: (item.title && String(item.title).trim()) ? item.title : 'Module',
       description: (item.description && String(item.description).trim()) ? item.description : '',
       duration: item.duration ?? null,
+      formation_name: null,
     }));
   }
 
   let modules = [];
+  let formations = [];
+  
   try {
-    const { data } = await supabase
+    // Récupérer les métadonnées des modules
+    const { data: moduleData } = await supabase
       .from('builder_modules')
       .select('id, title, description, duration')
       .in('id', moduleIds)
       .throwOnError();
-    modules = data || [];
+    modules = moduleData || [];
+
+    // Récupérer les noms des formations via les submissions
+    if (submissionIds.length > 0) {
+      // Approche plus directe : joindre les tables pour récupérer les noms de formation
+      const { data: formationData } = await supabase
+        .from('formation_submissions')
+        .select(`
+          id,
+          course_id,
+          courses!inner(title)
+        `)
+        .in('id', submissionIds)
+        .throwOnError();
+      
+      formations = (formationData || []).map(f => ({
+        id: f.id,
+        course_title: f.courses?.title || 'Formation inconnue'
+      }));
+    }
   } catch (_) {
     // En cas d'erreur, retourner quand même les lignes normalisées
     return (rows || []).map(item => ({
@@ -57,12 +82,17 @@ const enrichWithModuleMetadata = async (rows) => {
       title: (item.title && String(item.title).trim()) ? item.title : 'Module',
       description: (item.description && String(item.description).trim()) ? item.description : '',
       duration: item.duration ?? null,
+      formation_name: null,
     }));
   }
 
   const modMap = new Map((modules || []).map(m => [m.id, m]));
+  const formationMap = new Map((formations || []).map(f => [f.id, f.course_title]));
+  
   return (rows || []).map(item => {
     const m = modMap.get(item.module_uuid);
+    const formationName = formationMap.get(item.submission_id);
+    
     return {
       ...item,
       status_id: item.status_id ?? item.id,
@@ -70,6 +100,7 @@ const enrichWithModuleMetadata = async (rows) => {
       title: (m?.title && String(m.title).trim()) ? m.title : ((item.title && String(item.title).trim()) ? item.title : 'Module'),
       description: (m?.description && String(m.description).trim()) ? m.description : ((item.description && String(item.description).trim()) ? item.description : ''),
       duration: m?.duration ?? item.duration ?? null,
+      formation_name: formationName || null,
     };
   });
 };
@@ -105,6 +136,7 @@ const AdminKanbanView = ({ submission, onBack }) => {
   const [selectedModule, setSelectedModule] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
   const lastFetchRef = useRef({ user_id: null, course_id: null });
+  const [refreshTick, setRefreshTick] = useState(0);
 
   useEffect(() => {
     const fetchKanbanData = async () => {
@@ -114,13 +146,18 @@ const AdminKanbanView = ({ submission, onBack }) => {
         return;
       }
 
-      // Dédoublonner les fetchs sur la même cible (user_id/course_id)
+      // Dédoublonner les fetchs sur la même cible (user_id/course_id) mais autoriser quand refreshTick change
       const uid = submission.user_id;
       const cid = submission.course_id || null;
-      if (lastFetchRef.current.user_id === uid && lastFetchRef.current.course_id === cid) {
+      const tick = refreshTick;
+      if (
+        lastFetchRef.current.user_id === uid &&
+        lastFetchRef.current.course_id === cid &&
+        lastFetchRef.current.tick === tick
+      ) {
         return;
       }
-      lastFetchRef.current = { user_id: uid, course_id: cid };
+      lastFetchRef.current = { user_id: uid, course_id: cid, tick };
 
       setLoading(true);
       setErrorMsg('');
@@ -235,7 +272,36 @@ const AdminKanbanView = ({ submission, onBack }) => {
     return () => {
       cancelled = true;
     };
-  }, [authReady, submission?.user_id, submission?.course_id]);
+  }, [authReady, submission?.user_id, submission?.course_id, refreshTick]);
+
+  // Realtime subscription to reflect client/admin updates live
+  useEffect(() => {
+    if (!submission?.user_id) return;
+
+    const channel = supabase
+      .channel(`admin-kanban-channel-${submission.user_id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'formation_module_statuses',
+          filter: `user_id=eq.${submission.user_id}`,
+        },
+        () => {
+          setRefreshTick((t) => t + 1);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      try {
+        supabase.removeChannel(channel);
+      } catch (_) {
+        // noop
+      }
+    };
+  }, [submission?.user_id]);
 
   const cardsByColumn = useMemo(() => {
     const grouped = {};
@@ -258,6 +324,7 @@ const AdminKanbanView = ({ submission, onBack }) => {
     const { active } = event;
     const card = cards.find(c => c.status_id === active.id);
     setActiveCard(card);
+    try { console.debug('[AdminKanbanView] onDragStart', { activeId: active?.id, card }); } catch (_) {}
   };
 
   const handleDragOver = (event) => {
@@ -294,7 +361,7 @@ const AdminKanbanView = ({ submission, onBack }) => {
   const handleDragEnd = async (event) => {
     setActiveCard(null);
     const { active, over } = event;
-    if (!over || active.id === over.id) return;
+    if (!over) return; // allow persisting even if dropping over the same card id
 
     const originalCards = [...cards];
     let finalCards = [...cards];
@@ -305,6 +372,7 @@ const AdminKanbanView = ({ submission, onBack }) => {
     if (activeIndex === -1) return;
 
     const newStatus = overIndex !== -1 ? finalCards[overIndex].status : over.id;
+    try { console.debug('[AdminKanbanView] onDragEnd', { activeId: active?.id, overId: over?.id, newStatus }); } catch (_) {}
 
     finalCards[activeIndex] = { ...finalCards[activeIndex], status: newStatus };
     if (overIndex !== -1) {
@@ -316,6 +384,7 @@ const AdminKanbanView = ({ submission, onBack }) => {
       ...card,
       position: index,
     }));
+    try { console.debug('[AdminKanbanView] updates payload', updates); } catch (_) {}
 
     const updatedState = finalCards.map(c => updates.find(u => u.status_id === c.status_id) || c);
     setCards(updatedState);
@@ -350,26 +419,21 @@ const AdminKanbanView = ({ submission, onBack }) => {
     );
   }
 
+  const isGlobalView = !submission?.course_id;
   const totalCount = cards.length;
 
   return (
     <div className="p-4 md:p-8">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <Button variant="ghost" onClick={onBack} className="mb-2">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Retour à la galerie
-          </Button>
-          <h2 className="text-2xl font-bold">{submission.course_title}</h2>
-          <p className="text-muted-foreground">Progression de {submission.user_full_name}</p>
+          {!isGlobalView && (<h2 className="text-2xl font-bold">{submission.course_title}</h2>)}
+          {!isGlobalView && (<p className="text-muted-foreground">Progression de {submission.user_full_name}</p>)}
           {errorMsg && (
             <div className="mt-2 text-xs text-destructive">{errorMsg}</div>
           )}
-          <div className="text-xs text-muted-foreground mt-1">
-            Diagnostics: user {String(submission.user_id)} {submission.course_id ? `· course ${String(submission.course_id)}` : '· global'}
-          </div>
           <DndContext
             sensors={sensors}
+            collisionDetection={closestCenter}
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
             onDragOver={handleDragOver}
@@ -408,3 +472,5 @@ const AdminKanbanView = ({ submission, onBack }) => {
 };
 
 export default AdminKanbanView;
+
+

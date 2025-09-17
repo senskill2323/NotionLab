@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
-import { Loader2, User } from 'lucide-react';
+import { User } from 'lucide-react';
 import AdminKanbanView from '@/components/admin/formation-live/AdminKanbanView';
 
 const KpiTile = ({ label, value }) => (
@@ -85,10 +85,12 @@ export default function UserKanbanDashboard({ submissions = [], users = [] }) {
 
   // Si rien n'est ouvert au montage, ouvrir le premier utilisateur et déclencher l'auto-sélection de formation
   useEffect(() => {
-    if (!openUserId && firstUserId) {
-      setOpenUserId(firstUserId);
+    if (!firstUserId) {
+      setOpenUserId('');
+      return;
     }
-  }, [firstUserId, openUserId]);
+    setOpenUserId((prev) => (prev ? prev : firstUserId));
+  }, [firstUserId]);
 
   // Récupère toutes les cartes de toutes les formations LIVE pour un utilisateur
   const fetchUserCards = async (userId) => {
@@ -142,7 +144,7 @@ export default function UserKanbanDashboard({ submissions = [], users = [] }) {
             const stats = statsByUser[u.id];
             return (
               <AccordionItem key={String(u.id)} value={String(u.id)}>
-                <AccordionTrigger className="gap-3">
+                <AccordionTrigger className="gap-3 py-1.5 data-[state=open]:py-3">
                   <div className="flex items-center gap-3">
                     <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center">
                       <User className="h-4 w-4 text-primary" />
@@ -155,22 +157,7 @@ export default function UserKanbanDashboard({ submissions = [], users = [] }) {
                 </AccordionTrigger>
                 <AccordionContent>
                   <div className="flex flex-col gap-4">
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                      <KpiTile label="À faire" value={stats?.todo ?? '-'} />
-                      <KpiTile label="En cours" value={stats?.in_progress ?? '-'} />
-                      <KpiTile label="Bloqué" value={stats?.blocked ?? '-'} />
-                      <KpiTile label="Terminé" value={stats?.done ?? '-'} />
-                      <KpiTile label="Avancement" value={`${stats?.completion_rate ?? 0}%`} />
-                    </div>
-                    <div className="mt-2">
-                      {fetchingStats && (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Chargement des statistiques...
-                        </div>
-                      )}
-                    </div>
-                    <div className="mt-4">
+                    <div className="mt-1">
                       <AdminKanbanView
                         key={`${u.id}__global`}
                         submission={{
@@ -191,3 +178,7 @@ export default function UserKanbanDashboard({ submissions = [], users = [] }) {
     </div>
   );
 }
+
+
+
+
