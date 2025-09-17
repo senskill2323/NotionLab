@@ -1,6 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 
@@ -26,16 +25,15 @@ const UserFormationSubmissionsPanel = () => {
   const [viewMode, setViewMode] = useState('gallery'); // 'gallery' or 'kanban'
   const [selectedSubmission, setSelectedSubmission] = useState(null);
 
-  const [activeTab, setActiveTab] = useState('approved');
-  
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [rejectionNotes, setRejectionNotes] = useState('');
   const [submissionToReject, setSubmissionToReject] = useState(null);
 
-  const filteredSubmissions = useMemo(() => {
-    if (activeTab === 'all') return submissions;
-    return submissions.filter(s => s.submission_status === activeTab);
-  }, [submissions, activeTab]);
+  // N'afficher que les formations LIVE dans ce panneau
+  const filteredSubmissions = (submissions || []).filter(s => {
+    const st = (s.submission_status || '').toLowerCase();
+    return st === 'approved' || st === 'live';
+  });
 
   const handleRejectClick = (submission) => {
     setSubmissionToReject(submission);
@@ -88,20 +86,11 @@ const UserFormationSubmissionsPanel = () => {
             Formation Live
           </div>
         </CardTitle>
-        <CardDescription>Gérez le cycle de vie des parcours personnalisés soumis par les clients.</CardDescription>
+        <CardDescription>Affichage exclusif des formations LIVE. Les soumissions en attente/rejetées ne sont pas visibles ici.</CardDescription>
       </CardHeader>
       <CardContent>
-        <SubmissionFilters filters={filters} setFilters={setFilters} users={users} />
+        <SubmissionFilters filters={filters} setFilters={setFilters} />
         
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-4">
-          <TabsList>
-            <TabsTrigger value="approved">Live</TabsTrigger>
-            <TabsTrigger value="pending">À Valider</TabsTrigger>
-            <TabsTrigger value="rejected">Rejetés</TabsTrigger>
-            <TabsTrigger value="all">Tous</TabsTrigger>
-          </TabsList>
-        </Tabs>
-
         {loading ? (
           <div className="flex justify-center items-center h-96">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -155,3 +144,8 @@ const UserFormationSubmissionsPanel = () => {
 };
 
 export default UserFormationSubmissionsPanel;
+
+
+
+
+

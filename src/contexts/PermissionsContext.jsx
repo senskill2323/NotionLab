@@ -80,19 +80,29 @@ export const PermissionsProvider = ({ children }) => {
     setError(null);
     setUsingFallback(false);
 
-    // Fast path: valid cache for this user
+    // Fast path with cache: ensure role matches to avoid stale permissions after role changes
     const cached = readCache(user);
-    const hasValidCache = !!cached;
+    const expectedType = user?.profile?.user_type || 'guest';
+    const hasValidCache = !!cached && (cached.userType === expectedType);
+    if (cached && !hasValidCache) {
+      // Invalidate cache if the cached role mismatches the current role
+      try {
+        localStorage.removeItem(getCacheKey(user));
+      } catch (_) {
+        // ignore cache remove errors
+      }
+    }
+
     if (hasValidCache) {
       setPermissions(cached.permissions);
-      setUserType(cached.userType || (user?.profile?.user_type ?? 'guest'));
+      setUserType(cached.userType || expectedType);
       setReady(true);
       setLoading(false);
       // Skip immediate network fetch; rely on TTL, visibility/online events, or explicit refresh
       return;
     } else {
       // No valid cache: set minimal fallback, but mark as not ready
-      const fallbackType = user?.profile?.user_type || 'guest';
+      const fallbackType = expectedType;
       setUserType(fallbackType);
       // If we were already ready once, keep UI ready and fetch in background without forcing fallback UI
       if (!ready) {

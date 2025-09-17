@@ -38,7 +38,7 @@ const FormationGalleryView = ({ formations, onStatusChange, onTypeChange, onDeli
       animate="visible"
     >
       {formations.map((formation) => (
-        <motion.div key={formation.id} variants={itemVariants}>
+        <motion.div key={formation.displayId || formation.id} variants={itemVariants}>
           <FormationCard 
             formation={formation} 
             onStatusChange={onStatusChange}

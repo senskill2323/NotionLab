@@ -241,18 +241,61 @@ export const AuthProvider = ({ children }) => {
 
   const signUp = async (email, password, firstName, lastName) => {
     setAuthLoading(true);
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          first_name: firstName,
-          last_name: lastName,
+    try {
+      const normalizedEmail = String(email || '').trim();
+      // 1) Check availability via RPC to avoid obfuscated responses and ensure UX
+      const { data: available, error: rpcError } = await supabase.rpc('check_email_available', { p_email: normalizedEmail });
+      if (rpcError) {
+        console.error('RPC check_email_available error:', rpcError);
+        setAuthLoading(false);
+        const err = new Error("Impossible de vérifier la disponibilité de l'e-mail. Veuillez réessayer.");
+        err.code = 'email_check_failed';
+        return { data: null, error: err };
+      }
+
+      if (!available) {
+        // Email already used
+        const err = new Error('Votre e-mail est déjà utilisé');
+        err.code = 'email_already_used';
+        setAuthLoading(false);
+        return { data: null, error: err };
+      }
+
+      // 2) Proceed with actual sign-up
+      const { data, error } = await supabase.auth.signUp({
+        email: normalizedEmail,
+        password,
+        options: {
+          data: {
+            first_name: firstName,
+            last_name: lastName,
+          },
         },
-      },
-    });
-    setAuthLoading(false);
-    return { data, error };
+      });
+      // Fallback mapping if Supabase returns a duplicate email error despite pre-check
+      if (error) {
+        const msg = (error.message || '').toLowerCase();
+        if (
+          msg.includes('already registered') ||
+          (msg.includes('email') && msg.includes('already')) ||
+          msg.includes('already exists') ||
+          msg.includes('user already')
+        ) {
+          const err = new Error('Votre e-mail est déjà utilisé');
+          err.code = 'email_already_used';
+          setAuthLoading(false);
+          return { data: null, error: err };
+        }
+      }
+      setAuthLoading(false);
+      return { data, error };
+    } catch (e) {
+      console.error('Unexpected error during signUp:', e);
+      setAuthLoading(false);
+      const err = new Error("Une erreur est survenue pendant l'inscription. Veuillez réessayer.");
+      err.code = 'signup_failed';
+      return { data: null, error: err };
+    }
   };
 
   const signOut = async () => {
