@@ -40,11 +40,15 @@ const enrichWithModuleMetadata = async (rows) => {
     }));
   }
 
-  const { data: modules, error: modErr } = await supabase
-    .from('builder_modules')
-    .select('id, title, description, duration')
-    .in('id', moduleIds);
-  if (modErr) {
+  let modules = [];
+  try {
+    const { data } = await supabase
+      .from('builder_modules')
+      .select('id, title, description, duration')
+      .in('id', moduleIds)
+      .throwOnError();
+    modules = data || [];
+  } catch (_) {
     // En cas d'erreur, retourner quand même les lignes normalisées
     return (rows || []).map(item => ({
       ...item,
@@ -55,6 +59,7 @@ const enrichWithModuleMetadata = async (rows) => {
       duration: item.duration ?? null,
     }));
   }
+
   const modMap = new Map((modules || []).map(m => [m.id, m]));
   return (rows || []).map(item => {
     const m = modMap.get(item.module_uuid);
@@ -124,24 +129,27 @@ const AdminKanbanView = ({ submission, onBack }) => {
 
         if (!isGlobal) {
           // Mode formation spécifique: utiliser la RPC admin
-          let res = await supabase
-            .schema('admin')
-            .rpc('get_admin_kanban_module_statuses', {
-              p_user_id: submission.user_id,
-              p_course_id: submission.course_id,
-            });
-
-          if (res.error) {
+          let res;
+          try {
+            res = await supabase
+              .schema('admin')
+              .rpc('get_admin_kanban_module_statuses', {
+                p_user_id: submission.user_id,
+                p_course_id: submission.course_id,
+              })
+              .throwOnError();
+          } catch (_) {
             // Fallback: schéma par défaut
-            res = await supabase.rpc('get_admin_kanban_module_statuses', {
-              p_user_id: submission.user_id,
-              p_course_id: submission.course_id,
-            });
+            res = await supabase
+              .rpc('get_admin_kanban_module_statuses', {
+                p_user_id: submission.user_id,
+                p_course_id: submission.course_id,
+              })
+              .throwOnError();
           }
 
-          if (res.error) throw res.error;
-
           const rows = Array.isArray(res.data) ? res.data : [];
+
           console.debug('[AdminKanbanView] Loaded', {
             user_id: submission.user_id,
             course_id: submission.course_id,
@@ -152,22 +160,23 @@ const AdminKanbanView = ({ submission, onBack }) => {
           setCards(enriched || []);
         } else {
           // Mode global: récupérer toutes les submissions LIVE de l'utilisateur puis interroger la vue
-          const { data: subs, error: subsErr } = await supabase
+          const { data: subs } = await supabase
             .from('formation_submissions')
             .select('id')
             .eq('user_id', submission.user_id)
-            .eq('submission_status', 'approved');
-          if (subsErr) throw subsErr;
+            .eq('submission_status', 'approved')
+            .throwOnError();
           const subIds = (subs || []).map(s => s.id);
           let rows = [];
           if (subIds.length > 0) {
-            const { data: viewRows, error: viewErr } = await supabase
+            const { data: viewRows } = await supabase
               .from('kanban_user_modules_v1')
               .select('*')
-              .in('submission_id', subIds);
-            if (viewErr) throw viewErr;
+              .in('submission_id', subIds)
+              .throwOnError();
             rows = viewRows || [];
           }
+
           console.debug('[AdminKanbanView] Loaded (global)', {
             user_id: submission.user_id,
             count: rows.length,
@@ -188,26 +197,23 @@ const AdminKanbanView = ({ submission, onBack }) => {
 
         // Fallback: récupérer d'abord les submissions approuvées puis interroger la vue par submission_id
         try {
-          const { data: subs, error: subsErr } = await supabase
+          const { data: subs } = await supabase
             .from('formation_submissions')
             .select('id')
             .eq('user_id', submission.user_id)
             .eq('course_id', submission.course_id)
-            .eq('submission_status', 'approved');
-
-          if (subsErr) throw subsErr;
+            .eq('submission_status', 'approved')
+            .throwOnError();
 
           const subIds = (subs || []).map(s => s.id);
           if (subIds.length === 0) {
             setCards([]);
           } else {
-            const { data: viewRows, error: viewErr } = await supabase
+            const { data: viewRows } = await supabase
               .from('kanban_user_modules_v1')
               .select('*')
-              .in('submission_id', subIds);
-
-            if (viewErr) throw viewErr;
-
+              .in('submission_id', subIds)
+              .throwOnError();
             const enriched = await enrichWithModuleMetadata(viewRows || []);
             setCards(enriched);
             setErrorMsg(prev => (prev ? `${prev} · Fallback OK` : ''));
@@ -261,7 +267,7 @@ const AdminKanbanView = ({ submission, onBack }) => {
     setCards((prevCards) => {
       const activeIndex = prevCards.findIndex((c) => c.status_id === active.id);
       let overIndex = prevCards.findIndex((c) => c.status_id === over.id);
-      
+
       if (activeIndex === -1) return prevCards;
 
       const activeCard = prevCards[activeIndex];
@@ -292,19 +298,19 @@ const AdminKanbanView = ({ submission, onBack }) => {
 
     const originalCards = [...cards];
     let finalCards = [...cards];
-    
+
     const activeIndex = finalCards.findIndex(c => c.status_id === active.id);
     const overIndex = finalCards.findIndex(c => c.status_id === over.id);
-    
+
     if (activeIndex === -1) return;
 
     const newStatus = overIndex !== -1 ? finalCards[overIndex].status : over.id;
-    
+
     finalCards[activeIndex] = { ...finalCards[activeIndex], status: newStatus };
     if (overIndex !== -1) {
       finalCards = arrayMove(finalCards, activeIndex, overIndex);
     }
-    
+
     const cardsInNewCol = finalCards.filter(c => c.status === newStatus);
     const updates = cardsInNewCol.map((card, index) => ({
       ...card,
@@ -314,21 +320,21 @@ const AdminKanbanView = ({ submission, onBack }) => {
     const updatedState = finalCards.map(c => updates.find(u => u.status_id === c.status_id) || c);
     setCards(updatedState);
 
-    const dbUpdates = updates.map(card => 
+    const dbUpdates = updates.map(card =>
       supabase
         .from('formation_module_statuses')
         .update({ status: card.status, position: card.position })
         .eq('id', card.status_id)
+        .throwOnError()
     );
 
-    const results = await Promise.all(dbUpdates);
-    const hasError = results.some(res => res.error);
-
-    if (hasError) {
+    try {
+      await Promise.all(dbUpdates);
+      toast({ title: 'Succès', description: 'Le statut du module a été mis à jour.' });
+    } catch (error) {
+      console.error('Error updating module status:', error);
       setCards(originalCards);
       toast({ title: 'Erreur', description: 'La carte n\'a pas pu être déplacée.', variant: 'destructive' });
-    } else {
-      toast({ title: 'Succès', description: 'Le statut du module a été mis à jour.' });
     }
   };
 

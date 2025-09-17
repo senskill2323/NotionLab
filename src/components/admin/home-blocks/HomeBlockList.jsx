@@ -15,6 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { supabase } from '@/lib/customSupabaseClient';
+import { useSessionRefresh } from '@/lib/sessionRefreshBus';
 import { useToast } from '@/components/ui/use-toast';
 import EditHomeBlockPage from '@/pages/admin/EditHomeBlockPage';
 import BlockPreview from '@/components/admin/home-blocks/BlockPreview';
@@ -223,6 +224,12 @@ const HomeBlockList = ({ mode = 'list', refreshKey = 0, activeSubTab = 'list' })
       setLoading(false);
     }
   }, [debouncedQuery, status, isFeatured, sortField, sortDir, page, perPage, toast, mode]);
+
+  useSessionRefresh(() => {
+    if (view === 'list' && activeSubTab === 'list') {
+      fetchContentBlocks();
+    }
+  }, [fetchContentBlocks, view, activeSubTab]);
 
   useEffect(() => {
     if (view === 'list') {

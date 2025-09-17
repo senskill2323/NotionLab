@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
+import { useSessionRefresh } from '@/lib/sessionRefreshBus';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 
 const ComponentStateContext = createContext();
@@ -48,6 +49,10 @@ export const ComponentStateProvider = ({ children }) => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       supabase.removeChannel(channel);
     };
+  }, [fetchRules]);
+
+  useSessionRefresh(() => {
+    fetchRules();
   }, [fetchRules]);
 
   const getComponentState = useCallback((componentKey) => {

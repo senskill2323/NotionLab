@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { supabase } from '@/lib/customSupabaseClient';
+import { useSessionRefresh } from '@/lib/sessionRefreshBus';
 import { useAuth } from './SupabaseAuthContext';
 
 const PermissionsContext = createContext();
@@ -166,6 +167,10 @@ export const PermissionsProvider = ({ children }) => {
       setLoading(false);
     }
   }, [user, authReady, ready]);
+
+  useSessionRefresh(() => {
+    fetchPermissions();
+  }, [fetchPermissions]);
 
   // Prefetch permissions only on protected routes, once auth is ready
   useEffect(() => {

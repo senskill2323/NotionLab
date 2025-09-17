@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Helmet } from 'react-helmet';
 import DOMPurify from 'dompurify';
-import { supabasePublic } from '@/lib/customSupabaseClient';
+import { supabase } from '@/lib/customSupabaseClient';
 import homeBlockRegistry from '@/components/home/homeBlockRegistry';
 import Footer from '@/components/Footer';
 
@@ -20,7 +20,7 @@ const HomePage = () => {
         const timeoutMs = 10000; // 10s
         const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), timeoutMs));
         const query = (async () => {
-          const { data, error } = await supabasePublic
+          const { data, error } = await supabase
             .from('content_blocks')
             .select('*')
             .eq('status', 'published')
