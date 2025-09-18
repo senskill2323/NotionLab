@@ -167,14 +167,19 @@ const UserManagementPanel = () => {
   
   const handleDeleteUser = async (userId) => {
     setIsProcessing(true);
-    const { error } = await supabase.from('profiles').delete().eq('id', userId);
-    if (error) {
-      toast({ title: "Erreur", description: `Impossible de supprimer le profil: ${error.message}`, variant: "destructive"});
-    } else {
-      toast({ title: "Profil Supprimé", description: "Le profil a été supprimé."});
+    try {
+      // Use SQL RPC that performs full cleanup and deletes the auth user
+      const { data: rpcData, error: rpcError } = await supabase.rpc('admin_delete_user_full', { p_user_id: userId });
+      if (rpcError || rpcData?.error) {
+        throw new Error(rpcError?.message || rpcData?.error || 'Échec de la suppression');
+      }
+      toast({ title: "Utilisateur supprimé", description: "Compte d'authentification, profil et données liées ont été supprimés."});
       fetchUsers(new AbortController()); // Refetch
+    } catch (err) {
+      toast({ title: "Erreur", description: `Impossible de supprimer l'utilisateur: ${err.message}`, variant: "destructive"});
+    } finally {
+      setIsProcessing(false);
     }
-    setIsProcessing(false);
   };
 
   const getBadgeVariant = (type) => ({ owner: 'default', prof: 'destructive', admin: 'secondary' }[type] || 'outline');
@@ -305,11 +310,13 @@ const UserManagementPanel = () => {
                           <AlertDialogContent>
                             <AlertDialogHeader>
                               <AlertDialogTitle>Êtes-vous sûr ?</AlertDialogTitle>
-                              <AlertDialogDescription>Cette action supprimera le profil de "{user.email}" mais pas son compte d'authentification.</AlertDialogDescription>
+                              <AlertDialogDescription>
+                                Cette action supprimera entièrement le compte de "{user.email}" (authentification et profil). Cette opération est irréversible.
+                              </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Annuler</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDeleteUser(user.id)} className="bg-destructive hover:bg-destructive/90">Supprimer le profil</AlertDialogAction>
+                              <AlertDialogAction onClick={() => handleDeleteUser(user.id)} className="bg-destructive hover:bg-destructive/90">Supprimer l'utilisateur</AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>

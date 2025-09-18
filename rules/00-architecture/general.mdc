@@ -8,6 +8,9 @@
 •	Storage: keep DB/storage in sync (avatars, resources, chat/forum attachments) following bucket conventions.
 •	Naming: DB objects snake_case, Edge Functions kebab-case; use Vite alias @ for imports.
 •	UI: use Radix + Tailwind, react-hook-form, Zustand for shared state, framer-motion for subtle animations, @dnd-kit for drag/drop, React Flow for builders; keep interactions accessible.
+•	Theme system: couleurs pilotées par variables CSS `--colors-*` injectées par `ThemeContext` (RPC `get_active_theme_tokens`) et consommées via `hsl(var(--colors-…))` dans `tailwind.config.js`. Fallbacks `:root` dans `src/index.css` évitent tout flash au premier rendu.
+•	CSS compat: toujours fournir la paire standard + préfixée pour `backdrop-filter` et `text-size-adjust` dans `src/index.css` (standard et `-webkit-…`).
+•	ThemeProvider: présent uniquement dans `src/main.jsx` (supprimé de `src/App.jsx`) pour éviter les doubles injections et effets de bord.
 •	Kanban/admin flows: reuse AdminKanbanView, UserKanbanDashboard, and related hooks; avoid duplicating logic—extend via composition.
 •	On cache-sensitive updates call emitSessionRefresh or invalidate relevant queries; log structured errors and show user-friendly toasts (no sensitive details).
 •	Database/RLS: assume operations must respect row-level security; escalate to Edge Functions when privileged access is required; use explicit upsert conflicts and enum defaults.

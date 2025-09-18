@@ -12,18 +12,21 @@ const ProtectedRoute = ({ children, allowedUserTypes, requiredPermission }) => {
   // Avoid blocking on permissions loading for routes that can self-guard safely
   const isNonBlockingPermRoute = (perm) => {
     if (!perm) return false;
+    // Allow UI to render for admin routes; RLS will still enforce data-level security
+    if (perm.startsWith('admin:')) return true;
     return perm === 'tickets:view_own' || perm.startsWith('builder:');
   };
 
   // Consider permissions 'loading' until they are ready for blocking routes
   const userType = user?.profile?.user_type;
+  const nonBlocking = isNonBlockingPermRoute(requiredPermission);
   const effectivePermsLoading =
     userType === 'owner'
       ? false
       : (
-          permsLoading ||
-          (!permsReady && !isNonBlockingPermRoute(requiredPermission)) ||
-          (usingFallback && !isNonBlockingPermRoute(requiredPermission))
+          (!nonBlocking && permsLoading) ||
+          (!permsReady && !nonBlocking) ||
+          (usingFallback && !nonBlocking)
         );
   // Only gate by authReady (true means auth is settled). Avoid using transient 'loading' state
   // which can flip during tab visibility changes, causing infinite spinners.
@@ -39,6 +42,11 @@ const ProtectedRoute = ({ children, allowedUserTypes, requiredPermission }) => {
 
   if (!user) {
     return <Navigate to="/connexion" state={{ from: location }} replace />;
+  }
+  
+  // New rule: block access for users who are not yet activated
+  if (user?.profile?.status && user.profile.status !== 'active') {
+    return <Navigate to="/connexion" state={{ from: location, reason: 'pending_validation' }} replace />;
   }
   
   if (allowedUserTypes && !allowedUserTypes.includes(user.profile.user_type)) {

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,6 +17,21 @@ const LoginPage = () => {
   const { signInWithPassword, authLoading } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  React.useEffect(() => {
+    const reason = location.state?.reason || new URLSearchParams(window.location.search).get('reason');
+    if (reason === 'pending_validation') {
+      toast({
+        title: "Compte en attente de validation",
+        description: "Merci pour votre inscription, je vais valider votre compte rapidement et vous recevrez une notification par e-mail.",
+      });
+      // Clean the reason to avoid repeated toasts on back/forward
+      if (location.state?.reason) {
+        navigate(location.pathname, { replace: true, state: {} });
+      }
+    }
+  }, [location, navigate, toast]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

@@ -1,20 +1,37 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { usePermissions } from '@/contexts/PermissionsContext';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { User, Mail, MapPin, Trash2 } from 'lucide-react';
+import { User, Mail, MapPin, Trash2, ArrowLeft, Key } from 'lucide-react';
 import ProfileSection from '@/components/account/ProfileSection';
 import AvatarUpload from '@/components/account/AvatarUpload';
 import AddressSection from '@/components/account/AddressSection';
 import DeleteAccountSection from '@/components/account/DeleteAccountSection';
+import PasswordChangeSection from '@/components/account/PasswordChangeSection';
 
 const ClientAccountPage = () => {
   const { user } = useAuth();
+  const { hasPermission, ready: permissionsReady } = usePermissions();
+  const navigate = useNavigate();
 
   if (!user) {
     return null;
   }
+
+  const isAdmin = user && ['admin', 'prof', 'owner'].includes(user.profile?.user_type);
+
+  // Determine safest dashboard path to avoid redirect loops for admins without access
+  const dashboardPath = isAdmin
+    ? ((permissionsReady && hasPermission('admin:access_dashboard')) ? '/admin/dashboard' : '/')
+    : '/dashboard';
+
+  const handleBackToDashboard = () => {
+    navigate(dashboardPath);
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -26,6 +43,18 @@ const ClientAccountPage = () => {
           transition={{ duration: 0.5 }}
           className="mb-8"
         >
+          {/* Bouton Retour au dashboard */}
+          <div className="mb-6">
+            <Button
+              variant="outline"
+              onClick={handleBackToDashboard}
+              className="flex items-center gap-2 hover:bg-accent transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Retour au dashboard
+            </Button>
+          </div>
+          
           <h1 className="text-3xl font-bold text-foreground mb-2">
             Mes données personnelles
           </h1>
@@ -82,6 +111,15 @@ const ClientAccountPage = () => {
                 </CardContent>
               </Card>
             </motion.div>
+
+            {/* Section Changement de mot de passe */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+            >
+              <PasswordChangeSection />
+            </motion.div>
           </div>
 
           {/* Sidebar */}
@@ -90,7 +128,7 @@ const ClientAccountPage = () => {
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5, delay: 0.3 }}
+              transition={{ duration: 0.5, delay: 0.4 }}
             >
               <Card>
                 <CardHeader>
@@ -116,7 +154,7 @@ const ClientAccountPage = () => {
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5, delay: 0.4 }}
+              transition={{ duration: 0.5, delay: 0.5 }}
             >
               <Card className="border-destructive/50">
                 <CardHeader>
