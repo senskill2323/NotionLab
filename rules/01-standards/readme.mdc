@@ -1,0 +1,37 @@
+---
+title: "NotionLab Guide IA - Module Formations"
+version: "2"
+date: "2025-01-18"
+owner: "NEEDS-VERIFY Provide owner or primary contact."
+description: Guides de style, conventions commits, branches, PR, commentaires, README, licences, RFC internes, dépréciation.
+---
+
+<!-- AUTO:BEGIN -->
+<!-- ANCHOR:OVERVIEW -->
+Les regles extraites de readmeIA encadrent les interventions IA, les conventions de nommage et l'usage de Supabase dans le module Formations.
+
+<!-- ANCHOR:STANDARDS -->
+- Reutiliser le client Supabase fourni par src/lib/customSupabaseClient pour beneficier du timeout et du singleton GoTrue.
+- Respecter authReady et authLoading avant redirection afin d'eviter un spinner permanent ou des redirections prematures.
+- Verifier les droits via usePermissions().hasPermission et mettre a jour role_permissions ou modules_registry.required_permission si besoin.
+- Conserver le nommage snake_case et les prefixes get_/set_/search_ pour toute nouvelle fonction SQL ou migration dans Supabase/migrations/.
+- Ne jamais exposer SUPABASE_SERVICE_ROLE dans le code client et limiter la diffusion du fichier .env.local.
+
+<!-- ANCHOR:WORKFLOWS -->
+- Invalider les caches critiques avec emitSessionRefresh ou queryClient.invalidateQueries() apres toute mise a jour de profil, permissions ou layout.
+- Routage : ProtectedRoute, ClientOnlyRoute et PublicOnlyRoute se basent sur allowedUserTypes, requiredPermission et le bypass owner.
+- Cycle parcours : draft client -> soumission -> validation -> init_kanban_statuses_for_submission.
+- Modifications autorisees : UI/UX formation, logique client du builder, styles, permissions (cf. src/components et src/hooks dedies).
+- Modifications interdites sans validation : schema des tables courses et formation_module_statuses, RPC submit_*/approve_*/init_kanban_*, logiques de snapshot et policies RLS.
+
+<!-- ANCHOR:EXAMPLES -->
+```javascript
+const { data, error } = await supabase.rpc('get_user_courses_and_parcours', {
+  p_user_id: user.id,
+});
+```
+
+<!-- ANCHOR:LIMITS -->
+- NEEDS-VERIFY : confirmer la presence d'automatisation de tests pour les formations.
+- NEEDS-VERIFY : valider l'encodage des fichiers contenant des caracteres etendus avant edition.
+<!-- AUTO:END -->

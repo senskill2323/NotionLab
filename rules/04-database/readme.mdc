@@ -1,0 +1,61 @@
+---
+title: "NotionLab Guide IA - Module Formations"
+version: "2"
+date: "2025-01-18"
+owner: "NEEDS-VERIFY Provide owner or primary contact."
+description: Schéma Postgres/Supabase structuré, RLS sécurisé, migrations et seeds, triggers/RPC, sauvegardes et PITR, anonymisation, audit logs avec horodatage et soft-delete.
+---
+
+<!-- AUTO:BEGIN -->
+<!-- ANCHOR:OVERVIEW -->
+Supabase pilote la couche donnees du module Formations : tables courses et formation_module_statuses, RPC dedies, fonctions edge et migrations versionnees.
+
+<!-- ANCHOR:STANDARDS -->
+- Tables clefs : courses, user_courses, builder_families/subfamilies/modules, modules_registry, admin_dashboard_tabs, resources, formation_module_statuses.
+- role_permissions et user_types alimentent PermissionsContext pour appliquer les gardes de routes.
+- Les policies RLS sur formation_module_statuses isolent les utilisateurs au niveau Kanban.
+- Migrations stockees dans Supabase/migrations/ (formation_module_statuses, vue kanban, init_fms, policies, enable_realtime_fms).
+
+<!-- ANCHOR:WORKFLOWS -->
+- RPC client : get_user_courses_and_parcours(p_user_id uuid) retourne les formations inscrites et parcours custom.
+- RPC admin : get_admin_formations_and_submissions() rassemble formations et soumissions avec displayId unique.
+- RPC soumission : submit_user_parcours_for_validation(p_course_id uuid) (NEEDS-VERIFY) cree la soumission et fige le snapshot.
+- RPC validation : approve_user_parcours_submission(p_submission_id uuid) (NEEDS-VERIFY) initialise Kanban et user_formations.
+- RPC Kanban : init_kanban_statuses_for_submission(p_submission_id uuid) derive formation_module_statuses a partir du snapshot.
+- Edge functions : get-dashboard-layout, update-dashboard-layout, users-search, create-user-with-role, create-admin-user, set-user-password, content-blocks-search, manage-content-block.
+
+<!-- ANCHOR:EXAMPLES -->
+```sql
+CREATE TABLE formation_module_statuses (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  submission_id uuid NOT NULL,
+  module_uuid uuid NOT NULL,
+  status text CHECK (status IN ('todo','in_progress','blocked','done')) DEFAULT 'todo',
+  position integer DEFAULT 0,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now(),
+  UNIQUE(submission_id, module_uuid)
+);
+
+CREATE VIEW kanban_user_modules_v1 AS
+SELECT
+  fms.id as status_id,
+  fms.user_id,
+  fms.submission_id,
+  fms.module_uuid,
+  fms.status,
+  fms.position,
+  null::text as title,
+  null::text as description,
+  null::integer as duration
+FROM formation_module_statuses fms;
+```
+
+<!-- ANCHOR:LIMITS -->
+- Snapshot timing : un parcours modifie entre soumission et validation peut rendre le snapshot obsolet.
+- Kanban orphelin : supprimer la formation apres creation du Kanban laisse des modules orphelins.
+- Supabase/functions/set-user-password/index.ts force Password123! avant email de reset : durcir avant production.
+- Supabase/functions/update-dashboard-layout/index.ts supprime puis reinserre pour contourner un trigger on update defectueux.
+- .env.local contient SUPABASE_SERVICE_ROLE committe : verifier qu'il n'est pas embarque dans le build.
+<!-- AUTO:END -->

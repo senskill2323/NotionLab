@@ -1,0 +1,24 @@
+---
+title: "NotionLab Guide IA - Module Formations"
+version: "2"
+date: "2025-01-18"
+owner: "NEEDS-VERIFY Provide owner or primary contact."
+description: Stratégie tests en pyramide : unit, intégration, e2e, API contracts, mocks Supabase, accessibilité, performance, visuels, fixtures, seeds, test-IDs, coverage.
+---
+
+<!-- AUTO:BEGIN -->
+<!-- ANCHOR:OVERVIEW -->
+readmeIA ne documente pas de strategie de tests automatisee pour le module Formations.
+
+<!-- ANCHOR:STANDARDS -->
+- Aucun standard de tests n'est mentionne.
+
+<!-- ANCHOR:WORKFLOWS -->
+- NEEDS-VERIFY : clarifier s'il existe des tests automatises dedies aux formations.
+
+<!-- ANCHOR:EXAMPLES -->
+Aucun exemple fourni par readmeIA.
+
+<!-- ANCHOR:LIMITS -->
+- L'absence de documentation sur les tests laisse un risque de couverture inconnue.
+<!-- AUTO:END -->

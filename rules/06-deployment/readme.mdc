@@ -1,0 +1,37 @@
+---
+title: "NotionLab Guide IA - Module Formations"
+version: "2"
+date: "2025-01-18"
+owner: "NEEDS-VERIFY Provide owner or primary contact."
+description: Environnements versionnés, CI/CD GitHub Actions avec build/tests/déploiement, gestion secrets, healthchecks, monitoring Sentry/Uptime, logs, alerting, DNS, cache, CDN.
+---
+
+<!-- AUTO:BEGIN -->
+<!-- ANCHOR:OVERVIEW -->
+Le deploiement du module Formations s'appuie sur les scripts npm, les scripts deploy.* et un workflow GitHub Actions en mode FTPS.
+
+<!-- ANCHOR:STANDARDS -->
+- Scripts npm :
+  - npm run dev (serveur Vite pour formations et builder).
+  - npm run build (build production Vite).
+  - npm run preview (serveur de preview).
+  - npm run db:query "<SQL>" et npm run db:file <path> pour executer des requetes Postgres via scripts/run-sql.js.
+- Scripts shell : deploy.sh et deploy.bat reconstruisent dist/ et listent les assets avant transfert.
+- Secrets requis : FTP_* et VITE_SUPABASE_* doivent etre disponibles pour les pipelines.
+
+<!-- ANCHOR:WORKFLOWS -->
+- Workflow GitHub Actions (.github/workflows/deploy.yml) :
+  - Declenchement sur push de tags v*.
+  - Etapes : checkout, verification des secrets, installation Node 20, npm ci, npm run build, verification dist/index.html, deploiement via SamKirkland/FTP-Deploy-Action en mode dangerous-clean-slate.
+- Execution SQL : npm run db:query ou npm run db:file utilisent scripts/run-sql.js avec les credentiels .env.local ou DATABASE_URL.
+
+<!-- ANCHOR:EXAMPLES -->
+```bash
+npm run build
+./deploy.sh
+```
+
+<!-- ANCHOR:LIMITS -->
+- Surveiller le mode dangerous-clean-slate de l'action FTPS (nettoyage complet avant upload).
+- Verifier que le secret SUPABASE_SERVICE_ROLE ne fuite pas dans les artefacts de build.
+<!-- AUTO:END -->

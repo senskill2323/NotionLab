@@ -1,0 +1,48 @@
+---
+title: "NotionLab Guide IA - Module Formations"
+version: "2"
+date: "2025-01-18"
+owner: "NEEDS-VERIFY Provide owner or primary contact."
+contenu: Objectifs, SLA, contraintes, architecture, découpage, auth, état, logs, config, flags, i18n, accessibilité, ADR, glossaire.
+---
+
+<!-- AUTO:BEGIN -->
+<!-- ANCHOR:OVERVIEW -->
+Le module Formations gere des parcours standard publies et des parcours custom construits par les clients. L'architecture assemble React 18 et Vite 7 pour le frontend avec Supabase pour l'authentification, les donnees et le temps reel.
+
+<!-- ANCHOR:STANDARDS -->
+- React 18 + Vite 7 pilotent le catalogue, le builder et les interfaces admin.
+- Supabase centralise RPC, fonctions edge, stockage et canal realtime pour les formations.
+- Les parcours valides sont figes via des snapshots avant publication.
+- Le Kanban formation_module_statuses suit l'avancement par utilisateur et soumission.
+
+<!-- ANCHOR:WORKFLOWS -->
+- Cycle parcours : brouillon client -> soumission -> validation admin -> Kanban live synchronise.
+- Gardes de routes : ProtectedRoute, ClientOnlyRoute et PublicOnlyRoute utilisent authReady, allowedUserTypes et requiredPermission.
+- Permissions observees : owner (bypass), admin (formations:manage_all, admin:access_dashboard), client/vip/guest (builder:view, builder:edit_own_parcours).
+
+<!-- ANCHOR:EXAMPLES -->
+```
+src/
+|-- pages/
+|   |-- FormationsPage.jsx
+|   |-- FormationDetailPage.jsx
+|   |-- FormationBuilderPage.jsx
+|   `-- admin/
+|       |-- CreateFormationPage.jsx  (NEEDS-VERIFY existe ?)
+|       `-- ManageFormationPage.jsx  (NEEDS-VERIFY existe ?)
+|-- components/
+|   |-- formation/
+|   |-- builder/
+|   |-- kanban/
+|   |-- dashboard/modules/
+|   `-- admin/
+|-- hooks/
+|-- lib/builder/
+`-- contexts/BuilderCatalogContext.jsx
+```
+
+<!-- ANCHOR:LIMITS -->
+- NEEDS-VERIFY : confirmer l'existence de CreateFormationPage.jsx et ManageFormationPage.jsx dans src/pages/admin/.
+- Encodage : certains fichiers (ex. src/contexts/SupabaseAuthContext.jsx) montrent des caracteres etendus signe d'encodage degrade.
+<!-- AUTO:END -->

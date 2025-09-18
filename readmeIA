@@ -1,39 +1,315 @@
-﻿---
-title: "NotionLab Guide IA"
-version: "1"
-date: "2025-09-17"
-commit: "8e212cc9a62c4696634eb9d79729f91743c23b48"
+---
+title: "NotionLab Guide IA - Module Formations"
+version: "2"
+date: "2025-01-18"
+commit: "15da4f0"
 owner: "NEEDS-VERIFY Provide owner or primary contact."
 ---
 
-<!-- ANCHOR:OVERVIEW -->
-## Vue d'ensemble
-- Application React 18 servie par Vite 7 (SPA) avec routing declare dans src/App.jsx couvrant site public, dashboard client, outils admin et builder de parcours.
-- Supabase (Postgres, Auth, Storage, Realtime) est la source de donnees; un client unique est instancie via src/lib/customSupabaseClient.js et reexporte par src/lib/supabasClient.js.
-- Les contexts globaux (SupabaseAuthContext, PermissionsContext, ComponentStateContext, ChatContext, ResourceCreationContext, BuilderCatalogContext, ThemeContext) enveloppent le router et centralisent session, droits, etats UI et caches.
-- Les modules metiers principaux: formations (custom et standard), ressources partagees, support (tickets, chat), forum et mise en page dashboard configurable.
+<!-- ANCHOR:FORMATIONS_OVERVIEW -->
+## Vue d'ensemble - Module Formations
+Le module Formations de NotionLab gère deux types de parcours d'apprentissage :
+- **Formations standard** : Créées par les administrateurs, disponibles dans le catalogue public, avec workflow de soumission/validation pour inscription
+- **Formations custom** : Créées par les clients via le builder, stockées comme brouillons, soumises pour validation avant mise en ligne
 
-<!-- ANCHOR:STACK -->
-## Stack et versions
-| Element | Version active | Reference |
+Architecture : React 18 + Vite 7 (frontend) + Supabase (backend) avec système de snapshot pour figer les parcours au moment de la validation, Kanban temps réel pour le suivi des modules, et gestion des permissions granulaires par rôle.
+
+<!-- ANCHOR:FORMATIONS_STACK -->
+## Stack et versions - Module Formations
+| Element | Version | Usage dans Formations |
 | --- | --- | --- |
-| Node.js | 20.19.1 (min >=18) | .nvmrc ; package.json (engines.node) |
-| Vite | 7.1.5 | package.json |
-| React | 18.2.0 | package.json |
-| @supabase/supabase-js | 2.57.4 (declared ^2.30.0) | package-lock.json |
-| @tanstack/react-query | 5.89.0 | package.json |
-| Tailwind CSS | 3.3.3 + typography 0.5.13 | package.json ; tailwind.config.js |
-| dnd-kit (core/sortable/modifiers) | 6.1.0 / 8.0.0 / 7.0.0 | package.json |
-| Radix UI | 1.x composants React | package.json ; src/components/ui/ |
+| React Flow | 11.x | Builder visuel de parcours (src/pages/FormationBuilderPage.jsx) |
+| @dnd-kit | 6.1.0/8.0.0/7.0.0 | Kanban drag & drop (src/components/kanban/) |
+| ReactFlow | 11.x | Éditeur graphique de parcours (nodes/edges) |
+| Framer Motion | 6.x | Animations UI (formation cards, transitions) |
+| TipTap | 2.4.0 | Éditeur riche pour descriptions de modules |
+| date-fns | 2.x | Formatage dates (created_at, enrolled_at) |
+| Dagre | 0.8.x | Auto-layout des graphes de parcours |
 
-Variables d'environnement observees:
-| cle | Usage |
+Variables d'environnement spécifiques :
+| Clé | Usage |
 | --- | --- |
-| VITE_SUPABASE_URL | URL du projet Supabase (frontend) |
-| VITE_SUPABASE_ANON_KEY | Cle anon (frontend) |
-| SUPABASE_SERVICE_ROLE | Cle service role pour scripts locaux (.env.local) |
-| PGHOST, PGPORT, PGDATABASE, PGUSER, PGPASSWORD | Connexion Postgres pour scripts/run-sql.js |
-| DATABASE_URL | Alternative unique pour run-sql (optionnelle) |
+| VITE_SUPABASE_URL | Connexion Supabase pour RPCs formations |
+| VITE_SUPABASE_ANON_KEY | Authentification client pour formations |
+
+<!-- ANCHOR:FORMATIONS_STRUCTURE -->
+## Structure des dossiers - Module Formations
+```
+src/
+├── pages/
+│   ├── FormationsPage.jsx              # Catalogue public des formations
+│   ├── FormationDetailPage.jsx         # Détail formation + CTA soumission
+│   ├── FormationBuilderPage.jsx        # Builder graphique (ReactFlow)
+│   └── admin/
+│       ├── CreateFormationPage.jsx     # NEEDS-VERIFY Exists?
+│       └── ManageFormationPage.jsx     # NEEDS-VERIFY Exists?
+├── components/
+│   ├── formation/                      # Composants détail formation
+│   │   ├── FormationHeader.jsx
+│   │   ├── FormationProgram.jsx
+│   │   ├── FormationSidebar.jsx
+│   │   └── FormationStats.jsx
+│   ├── builder/                        # Builder de parcours
+│   │   ├── BuilderHeader.jsx           # Actions : sauver, dupliquer, soumettre
+│   │   ├── ModuleCatalog.jsx           # Catalogue modules drag & drop
+│   │   ├── CustomNode.jsx              # Nœuds ReactFlow personnalisés
+│   │   └── StartNode.jsx               # Nœud de départ
+│   ├── kanban/                         # Suivi progression modules
+│   │   ├── KanbanPanel.jsx             # Interface principale Kanban
+│   │   ├── KanbanColumn.jsx            # Colonnes (À faire, En cours, etc.)
+│   │   └── KanbanCard.jsx              # Cartes modules
+│   ├── dashboard/modules/
+│   │   ├── FormationsPanel.jsx         # Liste formations client
+│   │   └── UserFormationStatusSelect.jsx # Sélecteur statut formation
+│   └── admin/
+│       ├── FormationManagementPanel.jsx # Gestion formations + soumissions
+│       ├── formation-management/        # Composants gestion admin
+│       │   ├── FormationCard.jsx        # Carte formation (gallery view)
+│       │   ├── FormationListView.jsx    # Vue liste formations
+│       │   ├── AdminFormationStatusSelect.jsx
+│       │   ├── AdminFormationTypeSelect.jsx
+│       │   └── AdminFormationDeliveryModeSelect.jsx
+│       └── formation-live/              # Gestion soumissions live
+│           ├── SubmissionCard.jsx       # Carte soumission
+│           ├── AdminKanbanView.jsx      # Vue Kanban admin
+│           └── UserKanbanDashboard.jsx  # Dashboard Kanban utilisateur
+├── hooks/
+│   ├── useFormationBuilder.js          # Logique builder (save, undo/redo, submit)
+│   └── useSubmissions.js               # Gestion soumissions
+├── lib/builder/
+│   ├── parcoursApi.js                  # API parcours (CRUD, catalog)
+│   └── parcoursUtils.js                # Utilitaires parcours
+└── contexts/
+    └── BuilderCatalogContext.jsx       # Cache catalogue modules
+```
+
+<!-- ANCHOR:FORMATIONS_AUTH -->
+## Authentification et permissions - Module Formations
+### Rôles et permissions
+| Rôle | Permissions formations | Accès |
+| --- | --- | --- |
+| client, vip, guest | `builder:view`, `builder:edit_own_parcours` | Créer/éditer ses parcours custom, soumettre pour validation |
+| admin | `admin:access_dashboard`, `formations:manage_all` | Gérer toutes formations, valider soumissions |
+| owner | Bypass toutes permissions | Accès complet |
+
+### Guards de routes
+```javascript
+// Routes formations dans src/App.jsx
+/formations                    # Public (catalogue)
+/formation/:id                 # Public (détail + soumission si connecté)
+/formation-builder             # ProtectedRoute (builder:view)
+/formation-builder/:id         # ProtectedRoute (builder:edit_own_parcours)
+/dashboard                     # ClientOnlyRoute (FormationsPanel)
+/admin/dashboard               # ProtectedRoute (admin:access_dashboard)
+```
+
+### Contrôles d'accès spécifiques
+- **Builder** : Utilisateurs peuvent uniquement éditer leurs propres parcours (`author_id = auth.uid()`)
+- **Soumissions** : RLS sur `formation_module_statuses` limite l'accès aux modules de l'utilisateur
+- **Catalogue** : Seuls les modules des formations `standard` + `live` sont exposés dans le builder client
+
+<!-- ANCHOR:FORMATIONS_DATA -->
+## Modèle de données - Module Formations
+### Tables principales
+```sql
+-- Table courses : formations standard et custom
+CREATE TABLE courses (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  title text NOT NULL,
+  course_type text CHECK (course_type IN ('standard', 'custom')) DEFAULT 'standard',
+  status text CHECK (status IN ('draft', 'a_valider', 'live', 'archived')) DEFAULT 'draft',
+  nodes jsonb DEFAULT '[]'::jsonb,  -- Graphe ReactFlow (modules)
+  edges jsonb DEFAULT '[]'::jsonb,  -- Connexions entre modules
+  author_id uuid REFERENCES auth.users(id),
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Table formation_module_statuses : suivi Kanban par utilisateur
+CREATE TABLE formation_module_statuses (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  submission_id uuid NOT NULL,  -- Lien vers soumission approuvée
+  module_uuid uuid NOT NULL,    -- ID du module dans le graphe
+  status text CHECK (status IN ('todo','in_progress','blocked','done')) DEFAULT 'todo',
+  position integer DEFAULT 0,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now(),
+  UNIQUE(submission_id, module_uuid)
+);
+
+-- Vue kanban_user_modules_v1 : lecture unifiée Kanban
+CREATE VIEW kanban_user_modules_v1 AS
+SELECT 
+  fms.id as status_id,
+  fms.user_id,
+  fms.submission_id,
+  fms.module_uuid,
+  fms.status,
+  fms.position,
+  null::text as title,        -- Enrichi côté client via builder_modules
+  null::text as description,
+  null::integer as duration
+FROM formation_module_statuses fms;
+```
+
+### Tables de support
+```sql
+-- NEEDS-VERIFY Tables soumissions (formation_submissions ou user_formation_submissions ?)
+-- NEEDS-VERIFY Table user_formations pour statuts utilisateur ?
+-- NEEDS-VERIFY Table user_formation_snapshots pour snapshots figés ?
+
+-- Tables catalogue builder (existantes)
+builder_families, builder_subfamilies, builder_modules  -- Hiérarchie modules
+```
+
+### Index et contraintes
+```sql
+-- Index formation_module_statuses
+CREATE UNIQUE INDEX idx_fms_submission_module ON formation_module_statuses (submission_id, module_uuid);
+CREATE INDEX idx_fms_user_submission ON formation_module_statuses (user_id, submission_id);
+CREATE INDEX idx_fms_submission_position ON formation_module_statuses (submission_id, position);
+```
+
+<!-- ANCHOR:FORMATIONS_SERVICES -->
+## Services et endpoints - Module Formations
+### RPCs Supabase principales
+```sql
+-- RPC client : récupérer formations utilisateur
+get_user_courses_and_parcours(p_user_id uuid)
+-- Retour : formations inscrites + parcours custom de l'utilisateur
+
+-- RPC admin : récupérer formations + soumissions
+get_admin_formations_and_submissions()
+-- Retour : toutes formations + soumissions clients (avec displayId unique)
+
+-- RPC soumission : soumettre parcours pour validation
+submit_user_parcours_for_validation(p_course_id uuid)
+-- NEEDS-VERIFY Existe ? Crée formation_submissions avec snapshot
+
+-- RPC validation : approuver soumission
+approve_user_parcours_submission(p_submission_id uuid)
+-- NEEDS-VERIFY Existe ? Initialise Kanban + user_formations
+
+-- RPC Kanban : initialiser statuts modules
+init_kanban_statuses_for_submission(p_submission_id uuid)
+-- Crée formation_module_statuses depuis snapshot figé
+```
+
+### API REST utilisées
+```javascript
+// Formations catalogue (public)
+supabase.from('courses')
+  .select('*')
+  .eq('course_type', 'standard')
+  .eq('status', 'live')
+
+// Parcours utilisateur (authentifié)
+supabase.from('courses')
+  .select('*')
+  .eq('author_id', user.id)
+  .eq('course_type', 'custom')
+
+// Kanban modules (RLS user_id)
+supabase.from('kanban_user_modules_v1')
+  .select('*')
+  .eq('user_id', user.id)
+
+// Mise à jour statut module Kanban
+supabase.from('formation_module_statuses')
+  .update({ status: 'done', position: 2 })
+  .eq('id', statusId)
+```
+
+### Realtime subscriptions
+```javascript
+// Synchronisation Kanban temps réel
+supabase.channel(`user-kanban-channel-${user.id}`)
+  .on('postgres_changes', {
+    event: '*',
+    schema: 'public', 
+    table: 'formation_module_statuses',
+    filter: `user_id=eq.${user.id}`
+  }, () => refetchKanban())
+```
+
+<!-- ANCHOR:FORMATIONS_SCRIPTS -->
+## Scripts et workflows - Module Formations
+### Scripts npm
+```bash
+npm run dev          # Serveur développement (builder + formations)
+npm run build        # Build production (inclut assets formations)
+npm run preview      # Preview build (test formations)
+npm run db:query     # Exécution SQL (migrations formations)
+npm run db:file      # Exécution fichier SQL
+```
+
+### Migrations Supabase
+```
+Supabase/migrations/
+├── 2025-09-08_formation_module_statuses.sql    # Table Kanban
+├── 2025-09-08_kanban_user_modules_v1.sql       # Vue unifiée Kanban  
+├── 2025-09-08_init_fms.sql                     # RPC init Kanban
+├── 2025-09-08_fms_policies.sql                 # Politiques RLS
+└── 2025-09-17_enable_realtime_fms.sql          # Realtime Kanban
+```
+
+### CI/CD spécifique formations
+- Build inclut assets builder (ReactFlow, modules catalog)
+- Variables d'environnement : `VITE_SUPABASE_*` pour connexion formations
+- Tests : NEEDS-VERIFY Tests automatisés formations ?
+
+<!-- ANCHOR:FORMATIONS_AI_RULES -->
+## Règles d'intervention IA - Module Formations
+### Modifications autorisées
+- **UI/UX** : Composants formation, builder, Kanban (src/components/formation/, src/components/builder/, src/components/kanban/)
+- **Logique client** : Hooks formations (src/hooks/useFormationBuilder.js), API calls (src/lib/builder/)
+- **Styles** : CSS formations, animations, responsive design
+- **Permissions** : Ajout permissions formations dans role_permissions
+
+### Modifications interdites sans validation
+- **Schéma DB** : Tables courses, formation_module_statuses (risque corruption données)
+- **RPCs critiques** : submit_*, approve_*, init_kanban_* (logique métier sensible)
+- **Snapshots** : Logique figement parcours (intégrité données)
+- **RLS policies** : Sécurité accès formations
+
+### Bonnes pratiques
+- Utiliser `supabase` de `@/lib/customSupabaseClient` (singleton configuré)
+- Respecter cycle de vie : draft → soumission → validation → Kanban live
+- Préserver `displayId` unique pour éviter collisions courses/submissions
+- Invalider caches après mutations critiques (`queryClient.invalidateQueries`)
+
+<!-- ANCHOR:FORMATIONS_LIMITS -->
+## Limites et points d'attention - Module Formations
+### Edge cases identifiés
+- **Snapshot timing** : Parcours modifié entre soumission et validation → snapshot obsolète
+- **Kanban orphelin** : Suppression formation après création Kanban → modules orphelins
+- **Permissions drift** : Changement rôle utilisateur → accès builder incohérent
+- **Realtime lag** : Kanban multi-onglets → états désynchronisés temporairement
+
+### Performance
+- **Catalogue builder** : Filtrage côté client des modules autorisés (peut être lent si >1000 modules)
+- **Kanban queries** : Index sur (user_id, submission_id) critique pour performance
+- **ReactFlow** : Graphes >100 nœuds peuvent ralentir le builder
+
+### Cohérence données
+- **Statuts formations** : Vérifier cohérence course.status vs user_formation.status
+- **Module IDs** : UUIDs modules doivent être stables entre snapshot et live
+- **RLS enforcement** : Politiques formation_module_statuses critiques pour isolation utilisateurs
+
+### Points techniques
+- **Encoding** : Certains fichiers contiennent caractères étendus (risque corruption UTF-8)
+- **Error handling** : Gestion erreurs RPCs formations à améliorer (fallbacks)
+- **Type safety** : NEEDS-VERIFY TypeScript pour interfaces formations ?
+
+<!-- ANCHOR:FORMATIONS_CHANGELOG -->
+## Changelog - Module Formations
+### 2025-01-18
+- **Documentation** : Création documentation complète module Formations après analyse dépôt
+- **Architecture** : Identification workflow soumission/validation avec système snapshot
+- **Kanban** : Documentation système temps réel avec formation_module_statuses + vue unifiée
+- **Builder** : Documentation builder ReactFlow avec catalogue modules filtré
+- **Admin** : Documentation interface gestion formations/soumissions avec displayId unique
 
 <!-- ANCHOR:STRUCTURE -->
 ## Structure des dossiers

@@ -1,0 +1,41 @@
+---
+title: "NotionLab Guide IA - Module Formations"
+version: "2"
+date: "2025-01-18"
+owner: "NEEDS-VERIFY Provide owner or primary contact."
+description: Le dossier regroupe des guides pratiques pour FastAPI et Next.js. Côté FastAPI : arborescence claire (routers, schemas, services), Pydantic pour validation, gestion d’erreurs normalisée, sécurité (OAuth/JWT, RLS, rôles/permissions), Postgres async avec patterns repo/service, tâches de fond, audit log, documentation OpenAPI et tests pytest/httpx. Côté Next.js : conventions (Server vs Client Components, UI stateless/smart), data-fetching optimisé (ISR/SSR/SSG, React Query, Supabase sécurisé), formulaires avec Server Actions et validation Zod, structure /app (layouts, routes dynamiques, erreurs/loading), gestion d’état, revalidation, sécurité. Ajout des Radix Themes avec tokens, accessibilité, intégration Tailwind/CVA, icônes Lucide, animations Framer et cohérence design.
+---
+
+<!-- AUTO:BEGIN -->
+<!-- ANCHOR:OVERVIEW -->
+readmeIA decrit les librairies clefs du module Formations : React 18, Vite 7 et l'ecosysteme Supabase, ainsi que les outils specialises du builder et du Kanban.
+
+<!-- ANCHOR:STANDARDS -->
+- ReactFlow 11.x pilote l'editeur graphique des parcours (nodes et edges) dans le builder.
+- @dnd-kit 6.x/7.x/8.x gere le drag and drop du Kanban (src/components/kanban/).
+- Framer Motion 6.x anime les cartes de formation et les transitions UI.
+- TipTap 2.4.0 fournit l'editeur riche pour les descriptions de modules.
+- date-fns 2.x formate les dates (created_at, enrolled_at) dans les interfaces.
+- Dagre 0.8.x calcule les layouts automatiques des graphes de parcours.
+
+<!-- ANCHOR:WORKFLOWS -->
+- Le builder ReactFlow exploite CustomNode.jsx et StartNode.jsx pour modeliser le parcours et utiliser ModuleCatalog.jsx pour le drag and drop.
+- Le Kanban temps reel combine formation_module_statuses et supabase.channel pour synchroniser l'avancement utilisateur.
+- FormationsPanel.jsx consomme supabase.rpc('get_user_courses_and_parcours') pour lister les formations et parcours custom.
+
+<!-- ANCHOR:EXAMPLES -->
+| Element | Version | Usage |
+| --- | --- | --- |
+| React Flow | 11.x | Builder visuel de parcours (src/pages/FormationBuilderPage.jsx) |
+| @dnd-kit | 6.1.0 / 8.0.0 / 7.0.0 | Kanban drag and drop (src/components/kanban/) |
+| ReactFlow | 11.x | Editeur graphique des parcours |
+| Framer Motion | 6.x | Animations UI (cards et transitions) |
+| TipTap | 2.4.0 | Editeur riche des descriptions |
+| date-fns | 2.x | Formatage de dates |
+| Dagre | 0.8.x | Auto-layout des graphes |
+
+<!-- ANCHOR:LIMITS -->
+- Performance : ReactFlow peut ralentir au dela de 100 noeuds; filtrer le catalogue module pour limiter la charge.
+- Realtime : les sessions multi-onglets peuvent presenter un leger decalage avant synchronisation.
+- Catalogue builder : filtrage cote client potentielment lent si plus de 1000 modules.
+<!-- AUTO:END -->
