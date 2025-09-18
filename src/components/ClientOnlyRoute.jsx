@@ -22,8 +22,13 @@ const ClientOnlyRoute = ({ children }) => {
     return <Navigate to="/connexion" state={{ from: location }} replace />;
   }
 
-  const isClient = user.profile?.user_type === 'client' || user.profile?.user_type === 'vip' || user.profile?.user_type === 'guest';
+  const isClient = user.profile?.user_type === 'client' || user.profile?.user_type === 'vip';
   const isAdmin = user.profile?.user_type === 'admin' || user.profile?.user_type === 'owner' || user.profile?.user_type === 'prof';
+
+  // New rule: block access for users who are not yet activated
+  if (user?.profile?.status && user.profile.status !== 'active') {
+    return <Navigate to="/connexion" state={{ from: location, reason: 'pending_validation' }} replace />;
+  }
   
   if (isAdmin) {
     // Wait for permissions readiness to avoid incorrect redirects on tab focus events

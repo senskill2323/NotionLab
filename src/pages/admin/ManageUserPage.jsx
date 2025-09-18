@@ -79,12 +79,29 @@ const ManageUserPage = () => {
     setIsSubmitting(true);
     const { user_types, created_at, id: userId, last_sign_in_at, ...profileData } = formData;
     try {
+      const previousStatus = (user?.status || 'guest');
+      const nextStatus = (profileData?.status || 'guest');
       await supabase
         .from('profiles')
         .update(profileData)
         .eq('id', userId)
         .throwOnError();
       toast({ title: 'Succès', description: 'Profil de l\'utilisateur mis à jour.' });
+      // If the account has just been activated, notify the user by email (best-effort)
+      if (previousStatus !== 'active' && nextStatus === 'active') {
+        try {
+          const displayName = [user?.first_name, user?.last_name].filter(Boolean).join(' ').trim();
+          await supabase.functions.invoke('notify-user-account-activated', {
+            body: {
+              email: user?.email,
+              displayName,
+              activatedAt: new Date().toISOString(),
+            },
+          });
+        } catch (notifyErr) {
+          console.warn('notify-user-account-activated failed:', notifyErr?.message || notifyErr);
+        }
+      }
       fetchUserData();
     } catch (profileUpdateError) {
       toast({ variant: 'destructive', title: 'Erreur', description: `Impossible de mettre à jour le profil: ${profileUpdateError.message}` });
@@ -122,13 +139,17 @@ const ManageUserPage = () => {
 
   const handleDeleteUser = async () => {
     setIsSubmitting(true);
-    const { error } = await supabase.auth.admin.deleteUser(user.id);
-    if (error) {
-      toast({ variant: 'destructive', title: 'Erreur', description: `Impossible de supprimer l'utilisateur: ${error.message}` });
-      setIsSubmitting(false);
-    } else {
+    try {
+      // Use RPC that performs full cleanup (snapshots, formations, submissions) and deletes auth user
+      const { data: rpcData, error: rpcError } = await supabase.rpc('admin_delete_user_full', { p_user_id: user.id });
+      if (rpcError || rpcData?.error) {
+        throw new Error(rpcError?.message || rpcData?.error || "Échec de la suppression de l'utilisateur");
+      }
       toast({ title: 'Succès', description: 'Utilisateur supprimé avec succès.' });
       navigate('/admin/dashboard?tab=users');
+    } catch (err) {
+      toast({ variant: 'destructive', title: 'Erreur', description: `Impossible de supprimer l'utilisateur: ${err.message}` });
+      setIsSubmitting(false);
     }
   };
 

@@ -114,6 +114,24 @@ const UserProfileForm = ({ user, control, register, setValue, isSubmitting, isDi
               )}
             />
           </div>
+          <div className="space-y-2 sm:col-span-2 lg:col-span-1">
+            <Label htmlFor="status">Statut du compte</Label>
+            <Controller
+              name="status"
+              control={control}
+              render={({ field }) => (
+                <Select onValueChange={field.onChange} value={field.value || 'guest'}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner un statut..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="guest">Invité (en attente)</SelectItem>
+                    <SelectItem value="active">Actif</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          </div>
           <div className="space-y-2 sm:col-span-2">
             <Label htmlFor="country_code">Pays</Label>
             <Controller

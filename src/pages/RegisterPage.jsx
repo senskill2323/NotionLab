@@ -41,8 +41,8 @@ const RegisterPage = () => {
     const { error } = await signUp(email, password, firstName, lastName);
     if (!error) {
       toast({
-        title: "Inscription réussie !",
-        description: "Bienvenue ! Veuillez vérifier vos e-mails pour confirmer votre compte.",
+        title: "Inscription reçue",
+        description: "Merci pour votre inscription, je vais valider votre compte rapidement et vous recevrez une notification par e-mail.",
       });
       navigate('/');
     } else {

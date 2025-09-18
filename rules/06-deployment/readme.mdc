@@ -18,12 +18,34 @@ Le deploiement du module Formations s'appuie sur les scripts npm, les scripts de
   - npm run db:query "<SQL>" et npm run db:file <path> pour executer des requetes Postgres via scripts/run-sql.js.
 - Scripts shell : deploy.sh et deploy.bat reconstruisent dist/ et listent les assets avant transfert.
 - Secrets requis : FTP_* et VITE_SUPABASE_* doivent etre disponibles pour les pipelines.
+- Migrations thèmes: `Supabase/migrations/2025-09-18_themes_and_rpcs.sql` versionne `public.themes` + RPCs (`get_active_theme_tokens`, `set_active_theme`).
 
 <!-- ANCHOR:WORKFLOWS -->
 - Workflow GitHub Actions (.github/workflows/deploy.yml) :
   - Declenchement sur push de tags v*.
   - Etapes : checkout, verification des secrets, installation Node 20, npm ci, npm run build, verification dist/index.html, deploiement via SamKirkland/FTP-Deploy-Action en mode dangerous-clean-slate.
 - Execution SQL : npm run db:query ou npm run db:file utilisent scripts/run-sql.js avec les credentiels .env.local ou DATABASE_URL.
+- Application migration thèmes (local/dev/prod):
+  1. Vérifier .env.local/.env (DATABASE_URL ou PG*).
+  2. `npm run db:file "Supabase/migrations/2025-09-18_themes_and_rpcs.sql"` ou coller le SQL dans l'éditeur Supabase.
+  3. Confirmer via `select get_active_theme_tokens();` et un test `select set_active_theme('<uuid>');` (admin/owner requis).
+
+<!-- ANCHOR:ACCOUNT_DELETION_DEPLOYMENT -->
+- Suppression totale de compte (Auth + identités + données liées)
+  - RPC à déployer: `public.admin_delete_user_full(p_user_id uuid)` [SECURITY DEFINER].
+  - Déploiement (local/dev/prod):
+    1. Ouvrir l'éditeur SQL Supabase du projet actif (même project‑ref que l'app).
+    2. Coller la définition de la fonction et exécuter:
+       - `create or replace function public.admin_delete_user_full(p_user_id uuid) returns json language plpgsql security definer ...` (voir doc DB).
+       - `grant execute on function public.admin_delete_user_full(uuid) to authenticated;`
+    3. Redémarrer l'app si nécessaire (les appels `supabase.rpc(...)` sont côté client).
+    4. Vérifier via un test rapide: `select public.admin_delete_user_full('<USER_UUID>');`
+  - Intégration UI (déjà appliquée):
+    - `src/components/admin/UserManagementPanel.jsx` → corbeille → `supabase.rpc('admin_delete_user_full', { p_user_id })`
+    - `src/pages/admin/ManageUserPage.jsx` → bouton supprimer → même RPC
+    - `src/components/account/DeleteAccountSection.jsx` → auto‑suppression → même RPC
+  - Post‑checks SQL (attendus = 0 ligne): `auth.users`, `auth.identities`, `public.profiles`, `public.user_formation_snapshots`, `public.user_formations`, `public.formation_submissions`, `public.formation_module_statuses`, `public.ticket_replies`, `public.tickets` (user_id | assigned_to), `public.action_logs` (actor_id), `public.chat_conversations` (guest_id), `public.chat_messages` (via join sur conversations).
+  - Rollback: re‑créer l’utilisateur si nécessaire; la fonction étant idempotente, une ré‑exécution ne recrée rien.
 
 <!-- ANCHOR:EXAMPLES -->
 ```bash
@@ -34,4 +56,5 @@ npm run build
 <!-- ANCHOR:LIMITS -->
 - Surveiller le mode dangerous-clean-slate de l'action FTPS (nettoyage complet avant upload).
 - Verifier que le secret SUPABASE_SERVICE_ROLE ne fuite pas dans les artefacts de build.
+- Checklist UI post-deploy: (1) la page Admin « Thèmes » charge et peut activer un thème; (2) DevTools > Issues/Compatibility ne signale pas d'absence de `backdrop-filter`/`-webkit-backdrop-filter` ni `text-size-adjust`/`-webkit-text-size-adjust`.
 <!-- AUTO:END -->

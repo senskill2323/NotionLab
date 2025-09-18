@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Trash2, AlertTriangle, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/lib/supabasClient';
+import { supabase } from '@/lib/customSupabaseClient';
 
 const DeleteAccountSection = () => {
   const { user, signOut } = useAuth();
@@ -46,20 +46,10 @@ const DeleteAccountSection = () => {
           .remove([avatarPath]);
       }
 
-      // Supprimer le profil (cascade delete configuré en base)
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', user.id);
-
-      if (profileError) throw profileError;
-
-      // Supprimer l'utilisateur auth
-      const { error: authError } = await supabase.auth.admin.deleteUser(user.id);
-      
-      if (authError) {
-        console.warn('Erreur suppression auth user:', authError);
-        // Continue même si erreur auth (profil déjà supprimé)
+      // Supprimer complètement le compte via RPC SQL (service definer côté DB)
+      const { data: rpcData, error: rpcError } = await supabase.rpc('admin_delete_user_full', { p_user_id: user.id });
+      if (rpcError || rpcData?.error) {
+        throw new Error(rpcError?.message || rpcData?.error || 'Échec de la suppression du compte');
       }
 
       // Déconnexion et redirection

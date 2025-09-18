@@ -1,0 +1,25 @@
+# --- Vite/React SPA on Apache ---
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  # Laisse passer les fichiers/dossiers existants (CSS/JS/images)
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+  # Tout le reste -> index.html (routing SPA)
+  RewriteRule ^ index.html [L]
+</IfModule>
+
+# Types explicites (certains mutualisés en ont besoin)
+AddType application/javascript .js .mjs
+AddType text/css .css
+
+# Cache policy: no-cache for HTML, long cache for static assets (hashed filenames)
+<IfModule mod_headers.c>
+  <FilesMatch "\.(html)$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate, max-age=0"
+  </FilesMatch>
+
+  <FilesMatch "\.(js|css|png|jpg|jpeg|gif|svg|webp|ico|woff2|woff|ttf|eot)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+</IfModule>
