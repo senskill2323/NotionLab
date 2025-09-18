@@ -16,6 +16,14 @@ Les regles extraites de readmeIA encadrent les interventions IA, les conventions
 - Verifier les droits via usePermissions().hasPermission et mettre a jour role_permissions ou modules_registry.required_permission si besoin.
 - Conserver le nommage snake_case et les prefixes get_/set_/search_ pour toute nouvelle fonction SQL ou migration dans Supabase/migrations/.
 - Ne jamais exposer SUPABASE_SERVICE_ROLE dans le code client et limiter la diffusion du fichier .env.local.
+- Thèmes UI: versionner les changements dans `Supabase/migrations/<date>_themes_and_rpcs.sql` en conservant les noms RPC `get_active_theme_tokens` et `set_active_theme`. Restreindre `set_active_theme` aux admins/owners via RLS/policies et/ou gardes dans la fonction.
+
+<!-- ANCHOR:ACCOUNT_DELETION_STANDARDS -->
+- Utiliser exclusivement l'appel `supabase.rpc('admin_delete_user_full', { p_user_id })` pour supprimer un compte depuis l'UI (Admin et auto‑suppression).
+- Ne plus appeler `auth.admin.deleteUser` directement depuis le client: nécessite la service_role et peut échouer ou laisser des identités orphelines.
+- Les dialogues de confirmation doivent refléter une suppression TOTALE (auth + identités + profil + données liées) et être irréversibles.
+- Permissions: seul un `owner` peut supprimer un `owner`; `owner`/`admin` peuvent supprimer d'autres comptes; un utilisateur peut se supprimer lui‑même.
+- Pré‑vérification d'email d'inscription: privilégier `public.check_email_available(p_email text)` (security definer) ou désactiver via `VITE_SIGNUP_EMAIL_PRECHECK=false` si la RPC n'est pas en place.
 
 <!-- ANCHOR:WORKFLOWS -->
 - Invalider les caches critiques avec emitSessionRefresh ou queryClient.invalidateQueries() apres toute mise a jour de profil, permissions ou layout.
@@ -23,12 +31,25 @@ Les regles extraites de readmeIA encadrent les interventions IA, les conventions
 - Cycle parcours : draft client -> soumission -> validation -> init_kanban_statuses_for_submission.
 - Modifications autorisees : UI/UX formation, logique client du builder, styles, permissions (cf. src/components et src/hooks dedies).
 - Modifications interdites sans validation : schema des tables courses et formation_module_statuses, RPC submit_*/approve_*/init_kanban_*, logiques de snapshot et policies RLS.
+- Thèmes: utiliser `ThemePanel` (Admin) pour CRUD/activation; côté client, récupérer les tokens via `supabase.rpc('get_active_theme_tokens')` et appliquer via `ThemeContext.applyTheme()`.
+
+<!-- ANCHOR:ACCOUNT_DELETION_WORKFLOWS -->
+- Admin Users list (`src/components/admin/UserManagementPanel.jsx`) → corbeille → RPC `admin_delete_user_full`.
+- Admin User page (`src/pages/admin/ManageUserPage.jsx`) → bouton supprimer → RPC `admin_delete_user_full`.
+- Compte utilisateur (`src/components/account/DeleteAccountSection.jsx`) → bouton supprimer → RPC `admin_delete_user_full`.
+
 
 <!-- ANCHOR:EXAMPLES -->
 ```javascript
 const { data, error } = await supabase.rpc('get_user_courses_and_parcours', {
   p_user_id: user.id,
 });
+```
+
+```javascript
+// Lecture tokens de thème et application
+const { data: tokens } = await supabase.rpc('get_active_theme_tokens');
+if (tokens) applyTheme(tokens);
 ```
 
 <!-- ANCHOR:LIMITS -->

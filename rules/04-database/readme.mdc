@@ -14,7 +14,10 @@ Supabase pilote la couche donnees du module Formations : tables courses et forma
 - Tables clefs : courses, user_courses, builder_families/subfamilies/modules, modules_registry, admin_dashboard_tabs, resources, formation_module_statuses.
 - role_permissions et user_types alimentent PermissionsContext pour appliquer les gardes de routes.
 - Les policies RLS sur formation_module_statuses isolent les utilisateurs au niveau Kanban.
-- Migrations stockees dans Supabase/migrations/ (formation_module_statuses, vue kanban, init_fms, policies, enable_realtime_fms).
+- Thèmes UI : table `public.themes` (id uuid, name, tokens jsonb, is_default bool, timestamps) versionnee via `Supabase/migrations/2025-09-18_themes_and_rpcs.sql`.
+- RPCs thèmes: `get_active_theme_tokens()` (lecture tokens jsonb) et `set_active_theme(p_theme_id uuid)` (active un thème). `set_active_theme` est restreint aux admins/owners.
+- Fonction helper: `public.is_admin_or_owner(uid)` recommandee pour policies/RPC (cf. RLS ci-dessous).
+- RLS `public.themes`: lecture/écriture réservées aux admins/owners; les clients non-admin lisent via le RPC `get_active_theme_tokens()` (security definer + GRANT EXECUTE à anon/authenticated).
 
 <!-- ANCHOR:WORKFLOWS -->
 - RPC client : get_user_courses_and_parcours(p_user_id uuid) retourne les formations inscrites et parcours custom.
@@ -22,7 +25,31 @@ Supabase pilote la couche donnees du module Formations : tables courses et forma
 - RPC soumission : submit_user_parcours_for_validation(p_course_id uuid) (NEEDS-VERIFY) cree la soumission et fige le snapshot.
 - RPC validation : approve_user_parcours_submission(p_submission_id uuid) (NEEDS-VERIFY) initialise Kanban et user_formations.
 - RPC Kanban : init_kanban_statuses_for_submission(p_submission_id uuid) derive formation_module_statuses a partir du snapshot.
-- Edge functions : get-dashboard-layout, update-dashboard-layout, users-search, create-user-with-role, create-admin-user, set-user-password, content-blocks-search, manage-content-block.
+- Thèmes: la page Admin « Thèmes » met à jour `public.themes.tokens` (CRUD restreint RLS) et active un thème via `select set_active_theme(<uuid>)`. Lecture côté client via `select get_active_theme_tokens()`.
+
+<!-- ANCHOR:ACCOUNT_DELETION_DB -->
+- RPC serveur de suppression totale: `public.admin_delete_user_full(p_user_id uuid)` [SECURITY DEFINER]
+  - Autorisations (via `request.jwt.claims` + `public.profiles → user_types`):
+    - un utilisateur peut se supprimer lui‑même;
+    - `owner`/`admin` peuvent supprimer d’autres comptes;
+    - seul un `owner` peut supprimer un `owner`.
+  - Ordre de nettoyage (best‑effort, avec gestion d’erreurs non bloquantes):
+    - `public.formation_module_statuses` (user_id)
+    - `public.user_formation_snapshots` (user_id)
+    - `public.formation_submissions` (user_id)
+    - `public.user_formations` (user_id)
+    - Parcours personnalisés créés par l’utilisateur (`public.courses` avec `author_id = p_user_id` et `course_type = 'custom'`) et leurs dépendances: `user_formation_snapshots`, `user_formations`, `formation_submissions`, puis `courses`
+    - Tickets et dérivés: `public.ticket_replies` (user_id), `public.tickets` (user_id, assigned_to)
+    - Journaux: `public.action_logs` (actor_id)
+    - Chat: `public.chat_messages` des conversations de l’utilisateur puis `public.chat_conversations` (guest_id)
+    - Profil: `public.profiles` (id)
+    - Auth: `auth.admin.delete_user(p_user_id)` (supprime aussi `auth.identities`)
+  - Droits d’exécution: `GRANT EXECUTE ON FUNCTION public.admin_delete_user_full(uuid) TO authenticated;`
+
+- RPC de pré‑vérification d’email (inscription): `public.check_email_available(p_email text)` [SECURITY DEFINER]
+  - Retourne `true` si l’email est libre, `false` sinon.
+  - Vérifie `auth.users.email` et `auth.identities (provider='email', identity_data->>'email')` en minuscules.
+  - Droits d’exécution: `GRANT EXECUTE ... TO anon, authenticated;`
 
 <!-- ANCHOR:EXAMPLES -->
 ```sql
@@ -50,6 +77,19 @@ SELECT
   null::text as description,
   null::integer as duration
 FROM formation_module_statuses fms;
+
+-- RPCs thèmes
+create or replace function public.get_active_theme_tokens()
+returns jsonb language sql stable as $$
+  select t.tokens from public.themes t where t.is_default is true order by t.updated_at desc limit 1
+$$;
+
+create or replace function public.set_active_theme(p_theme_id uuid)
+returns void language plpgsql security definer as $$
+begin
+  update public.themes set is_default = false where is_default is true;
+  update public.themes set is_default = true where id = p_theme_id;
+end;$$;
 ```
 
 <!-- ANCHOR:LIMITS -->
@@ -58,4 +98,5 @@ FROM formation_module_statuses fms;
 - Supabase/functions/set-user-password/index.ts force Password123! avant email de reset : durcir avant production.
 - Supabase/functions/update-dashboard-layout/index.ts supprime puis reinserre pour contourner un trigger on update defectueux.
 - .env.local contient SUPABASE_SERVICE_ROLE committe : verifier qu'il n'est pas embarque dans le build.
+- Themes: si `set_active_theme` est expose sans RLS/policies adequates, risque d'activation par utilisateurs non autorises. Restreindre via RLS (admins/owners) et GRANT EXECUTE controle.
 <!-- AUTO:END -->

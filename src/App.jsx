@@ -6,7 +6,7 @@ import React from 'react';
 
     import { Toaster } from '@/components/ui/toaster';
     import { AuthProvider, useAuth } from '@/contexts/SupabaseAuthContext';
-    import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
+    import { useTheme } from '@/contexts/ThemeContext';
     import { ChatProvider } from '@/contexts/ChatContext';
     import { PermissionsProvider } from '@/contexts/PermissionsContext';
     import { ComponentStateProvider } from '@/contexts/ComponentStateContext';
@@ -143,7 +143,6 @@ import React from 'react';
             <AuthProvider>
               <PermissionsProvider>
                 <ComponentStateProvider>
-                  <ThemeProvider>
                     <ChatProvider>
                       <ResourceCreationProvider>
                         <BuilderCatalogProvider>
@@ -154,7 +153,6 @@ import React from 'react';
                         </BuilderCatalogProvider>
                       </ResourceCreationProvider>
                     </ChatProvider>
-                  </ThemeProvider>
                 </ComponentStateProvider>
               </PermissionsProvider>
             </AuthProvider>

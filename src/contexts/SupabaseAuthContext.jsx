@@ -242,23 +242,28 @@ export const AuthProvider = ({ children }) => {
   const signUp = async (email, password, firstName, lastName) => {
     setAuthLoading(true);
     try {
-      const normalizedEmail = String(email || '').trim();
-      // 1) Check availability via RPC to avoid obfuscated responses and ensure UX
-      const { data: available, error: rpcError } = await supabase.rpc('check_email_available', { p_email: normalizedEmail });
-      if (rpcError) {
-        console.error('RPC check_email_available error:', rpcError);
-        setAuthLoading(false);
-        const err = new Error("Impossible de vérifier la disponibilité de l'e-mail. Veuillez réessayer.");
-        err.code = 'email_check_failed';
-        return { data: null, error: err };
-      }
-
-      if (!available) {
-        // Email already used
-        const err = new Error('Votre e-mail est déjà utilisé');
-        err.code = 'email_already_used';
-        setAuthLoading(false);
-        return { data: null, error: err };
+      const normalizedEmail = String(email || '').trim().toLowerCase();
+      // 1) Optional pre-check via RPC to avoid obfuscated responses and ensure UX
+      const precheckEnabled = !(typeof import.meta !== 'undefined' && import.meta?.env?.VITE_SIGNUP_EMAIL_PRECHECK === 'false');
+      if (precheckEnabled) {
+        const { data: available, error: rpcError } = await supabase.rpc('check_email_available', { p_email: normalizedEmail });
+        if (rpcError) {
+          console.error('RPC check_email_available error:', rpcError);
+          setAuthLoading(false);
+          const err = new Error("Impossible de vérifier la disponibilité de l'e-mail. Veuillez réessayer.");
+          err.code = 'email_check_failed';
+          return { data: null, error: err };
+        }
+        if (typeof available !== 'boolean') {
+          console.warn('RPC check_email_available returned non-boolean value:', available);
+        }
+        if (available === false) {
+          // Email already used according to RPC
+          const err = new Error('Votre e-mail est déjà utilisé');
+          err.code = 'email_already_used';
+          setAuthLoading(false);
+          return { data: null, error: err };
+        }
       }
 
       // 2) Proceed with actual sign-up
@@ -286,6 +291,54 @@ export const AuthProvider = ({ children }) => {
           setAuthLoading(false);
           return { data: null, error: err };
         }
+      }
+
+      // Ensure a default profile exists with 'guest' role and status 'guest'
+      try {
+        const userId = data?.user?.id;
+        if (userId) {
+          const { data: guestType, error: typeErr } = await supabase
+            .from('user_types')
+            .select('id')
+            .eq('type_name', 'guest')
+            .single();
+          if (typeErr) {
+            console.warn('Could not fetch guest user type:', typeErr?.message || typeErr);
+          }
+          const user_type_id = guestType?.id ?? null;
+          const profilePayload = {
+            id: userId,
+            email: normalizedEmail,
+            first_name: firstName || null,
+            last_name: lastName || null,
+            user_type_id,
+            status: 'guest',
+          };
+          // Upsert to avoid duplicates if a trigger already created it
+          const { error: upsertErr } = await supabase
+            .from('profiles')
+            .upsert(profilePayload, { onConflict: 'id' });
+          if (upsertErr) {
+            console.warn('profiles upsert failed (may be handled by trigger):', upsertErr?.message || upsertErr);
+          }
+        }
+      } catch (profileErr) {
+        console.warn('ensure default profile failed:', profileErr?.message || profileErr);
+      }
+
+      // Notify owner asynchronously about new account to validate
+      try {
+        const displayName = [firstName, lastName].filter(Boolean).join(' ').trim();
+        await supabase.functions.invoke('notify-owner-user-created', {
+          body: {
+            id: data?.user?.id || null,
+            email: normalizedEmail,
+            displayName,
+            createdAt: new Date().toISOString(),
+          },
+        });
+      } catch (notifyErr) {
+        console.warn('notify-owner-user-created failed:', notifyErr?.message || notifyErr);
       }
       setAuthLoading(false);
       return { data, error };
@@ -315,6 +368,18 @@ export const AuthProvider = ({ children }) => {
     return await fetchProfileAndSetUser(sessionUser);
   }, [fetchProfileAndSetUser]);
 
+  const updatePassword = async (newPassword) => {
+    const { data, error } = await supabase.auth.updateUser({
+      password: newPassword
+    });
+    
+    if (error) {
+      throw error;
+    }
+    
+    return data;
+  };
+
   const value = {
     user,
     loading,
@@ -324,6 +389,7 @@ export const AuthProvider = ({ children }) => {
     signUp,
     signOut,
     refreshUser,
+    updatePassword,
   };
 
   return (

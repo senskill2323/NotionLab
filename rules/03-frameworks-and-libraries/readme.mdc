@@ -17,11 +17,16 @@ readmeIA decrit les librairies clefs du module Formations : React 18, Vite 7 et 
 - TipTap 2.4.0 fournit l'editeur riche pour les descriptions de modules.
 - date-fns 2.x formate les dates (created_at, enrolled_at) dans les interfaces.
 - Dagre 0.8.x calcule les layouts automatiques des graphes de parcours.
+- Tailwind + Autoprefixer: les couleurs/UI utilisent des tokens `hsl(var(--colors-...))` definis dans `tailwind.config.js` et resolus par des variables CSS injectees dynamiquement via `ThemeContext`.
+- Fallbacks CSS: `src/index.css` fournit un mapping de secours `:root` (`--colors-*` ← `--background`/`--foreground`/etc.) pour eviter tout flash avant l'injection du theme.
+- Compatibilite CSS: `src/index.css` force les variantes standard + prefixees pour `text-size-adjust` (standard et `-webkit-…`) et pour `backdrop-filter` (standard et `-webkit-…`).
+- ThemeProvider unique: conserver `ThemeProvider` uniquement dans `src/main.jsx` (plus de doublon dans `src/App.jsx`).
 
 <!-- ANCHOR:WORKFLOWS -->
 - Le builder ReactFlow exploite CustomNode.jsx et StartNode.jsx pour modeliser le parcours et utiliser ModuleCatalog.jsx pour le drag and drop.
 - Le Kanban temps reel combine formation_module_statuses et supabase.channel pour synchroniser l'avancement utilisateur.
 - FormationsPanel.jsx consomme supabase.rpc('get_user_courses_and_parcours') pour lister les formations et parcours custom.
+- Page Admin « Thèmes » (`src/components/admin/ThemePanel.jsx`) pilote les tokens via la table `public.themes` et 2 RPCs: `get_active_theme_tokens()` (lecture) et `set_active_theme(uuid)` (activation). L'aperçu applique `ThemeContext.applyTheme()`.
 
 <!-- ANCHOR:EXAMPLES -->
 | Element | Version | Usage |
@@ -37,5 +42,6 @@ readmeIA decrit les librairies clefs du module Formations : React 18, Vite 7 et 
 <!-- ANCHOR:LIMITS -->
 - Performance : ReactFlow peut ralentir au dela de 100 noeuds; filtrer le catalogue module pour limiter la charge.
 - Realtime : les sessions multi-onglets peuvent presenter un leger decalage avant synchronisation.
-- Catalogue builder : filtrage cote client potentielment lent si plus de 1000 modules.
+- Catalogue builder : filtrage cote client potentiellement lent si plus de 1000 modules.
+- Thèmes: en absence temporaire de tokens (latence reseau), les fallbacks `:root` evitent un flash; `ThemeContext` applique ensuite les valeurs dynamiques.
 <!-- AUTO:END -->

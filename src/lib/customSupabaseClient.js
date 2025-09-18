@@ -38,7 +38,7 @@ const appendApiKeyIfMissing = (input) => {
 };
 
 const NETWORK_ERROR_CODE = 'NETWORK_ERROR';
-const SUPABASE_FETCH_TIMEOUT_MS = 8000; // fallback timeout to unfreeze sleeping Edge tabs
+const SUPABASE_FETCH_TIMEOUT_MS = 30000; // increase to avoid spurious timeouts during heavy admin loads
 
 const createNetworkErrorResponse = (error, clientLabel) => {
   const message = error?.message || 'Network request failed';

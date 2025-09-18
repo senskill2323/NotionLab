@@ -21,6 +21,18 @@ Le module Formations gere des parcours standard publies et des parcours custom c
 - Gardes de routes : ProtectedRoute, ClientOnlyRoute et PublicOnlyRoute utilisent authReady, allowedUserTypes et requiredPermission.
 - Permissions observees : owner (bypass), admin (formations:manage_all, admin:access_dashboard), client/vip/guest (builder:view, builder:edit_own_parcours).
 
+<!-- ANCHOR:ACCOUNT_DELETION -->
+- Objectif: la suppression d'un utilisateur doit effacer l'ensemble du compte (Auth + identités) et les données liées côté domaine.
+- Déclencheurs UI:
+  - `src/components/admin/UserManagementPanel.jsx` (corbeille) → appelle `supabase.rpc('admin_delete_user_full', { p_user_id })`.
+  - `src/pages/admin/ManageUserPage.jsx` (bouton supprimer) → même RPC.
+  - `src/components/account/DeleteAccountSection.jsx` (auto‑suppression) → même RPC.
+- Orchestration serveur: RPC `public.admin_delete_user_full(uuid)` (SECURITY DEFINER) qui:
+  - Nettoie d'abord les tables domaine: `formation_module_statuses`, `user_formation_snapshots`, `user_formations`, `formation_submissions`, `tickets`, `ticket_replies`, `action_logs`, `chat_messages`, `chat_conversations`, ainsi que les `courses` personnalisés (`author_id` = user, `course_type='custom'`).
+  - Supprime ensuite `public.profiles` puis appelle `auth.admin.delete_user(p_user_id)` (supprime aussi `auth.identities`).
+- Autorisations: un utilisateur peut se supprimer lui‑même; `owner`/`admin` peuvent supprimer d'autres comptes; seul un `owner` peut supprimer un `owner`.
+- Remplacement: l'ancien flux supprimant uniquement `public.profiles` a été remplacé par cette suppression totale; les dialogues de confirmation ont été mis à jour pour le refléter.
+
 <!-- ANCHOR:EXAMPLES -->
 ```
 src/
