@@ -20,13 +20,24 @@ Le code du module Formations utilise majoritairement JavaScript/TypeScript côt�
 
 <!-- ANCHOR:STANDARDS_EDGE_FUNCS -->
 - Fonctions Edge en TypeScript (Deno) avec import explicite du runtime: `import "jsr:@supabase/functions-js/edge-runtime.d.ts";`.
-- CORS: inclure `Access-Control-Allow-Methods: POST, OPTIONS` et gérer la préflight `OPTIONS`.
+- CORS: inclure `Access-Control-Allow-Methods: POST, OPTIONS` et gérer la préflight `OPTIONS`. Autoriser les en‑têtes: `authorization, content-type, apikey, x-client-info, x-supabase-authorization`.
 - Notifications Onboarding: `notify-training-onboarding` utilise `Resend` côté serveur (Deno), avec `RESEND_API_KEY`, expéditeur et destinataire injectés via `Deno.env.get()`.
+- Assistant (Edge Functions):
+  - `realtime-offer`: proxy WebRTC → OpenAI Realtime
+    - Requête HTTP SDP: `Content-Type: application/sdp`, `Accept: application/sdp`, `OpenAI-Beta: realtime=v1`.
+    - Modèle par défaut: `gpt-realtime` (peut être forcé via secret `OPENAI_REALTIME_MODEL`).
+    - Secrets optionnels: `OPENAI_REALTIME_VOICE` (défaut `verse`), `OPENAI_REALTIME_INSTRUCTIONS` (texte FR pour guider la réponse vocale).
+    - Vérification de rôle: `profiles.user_type ∈ {owner, admin, client}`. Bypass diagnostic possible via secret `ASSISTANT_BYPASS_ROLE=1` (à retirer ensuite).
+  - `rag-search`: proxy vers `N8N_RAG_WEBHOOK_URL` avec `{ query, includeSources, image?, file? }`, injecte le prompt système « L’assistant de Yann » (FR, tutoiement, sources sur demande).
+  - `memory`: CRUD parcimonieux de la mémoire longue (`assistant_memories.data`) via n8n — lecture (`N8N_MEMORY_SEARCH_URL`) vs écriture (`N8N_MEMORY_WEBHOOK_URL`), fusion côté serveur; proscrire toute donnée sensible.
+  - Sécurité n8n: si `N8N_*_TOKEN` est posé, les Edge Functions ajoutent automatiquement `?token=...` aux webhooks.
+  - Secrets requis: `OPENAI_API_KEY`, `N8N_RAG_WEBHOOK_URL`, `N8N_MEMORY_WEBHOOK_URL`, `N8N_MEMORY_SEARCH_URL`, `SUPABASE_URL`, `SUPABASE_ANON_KEY` (infrastructure Supabase).
 
 <!-- ANCHOR:STANDARDS_SQL -->
 - Nommage snake_case, colonnes `*_at` timestamptz, `uuid` par défaut via `gen_random_uuid()`.
 - Upsert avec `on conflict (...) do update set ...` et contraintes explicites (unique + checks).
 - RLS obligatoire; séparer policies lecture/écriture; `security definer` pour RPC admin sensibles.
+- Assistant (SQL): table `public.assistant_memories(user_id uuid PK, data jsonb, updated_at timestamptz)` avec RLS « own only ».
 
 <!-- ANCHOR:EXAMPLES -->
 ```ts
@@ -39,12 +50,27 @@ const resend = new Resend(Deno.env.get('RESEND_API_KEY')!);
 serve(async (req) => new Response(JSON.stringify({ ok: true }), { headers: { 'Content-Type': 'application/json' } }));
 ```
 
+```ts
+// Appel du proxy Realtime depuis le client (extrait)
+const { data, error } = await supabase.functions.invoke('realtime-offer', {
+  body: { sdp: offer.sdp },
+});
+if (error) throw error;
+await pc.setRemoteDescription({ type: 'answer', sdp: data.sdp });
+```
+
 ```js
 // React Query: config Onboarding (wizard)
 const configQuery = useQuery({
   queryKey: ['trainingOnboardingConfig'],
   queryFn: () => fetchTrainingOnboardingConfig({ includeInactive: false }),
 });
+```
+
+```js
+// Assistant (client): état partagé et transcription
+// - Zustand (useAssistantStore) pour état UI/média/connexion
+// - Web Speech API (fallback) en 'fr-FR' si disponible
 ```
 
 ```sql

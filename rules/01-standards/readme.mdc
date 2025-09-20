@@ -25,6 +25,21 @@ Les regles extraites de readmeIA encadrent les interventions IA, les conventions
    - Visibilité client actif uniquement (`ClientOnlyRoute`), non-bloquant, CTA « Remplir les préférences » si vide.
  - Notifications: conserver Resend via Edge Function `notify-training-onboarding` avec secrets `RESEND_API_KEY`, `ONBOARDING_NOTIFICATION_EMAIL` (fallback `OWNER_EMAIL`), `ONBOARDING_EMAIL_FROM` (fallback `SENDER_EMAIL`).
 
+- Assistant (standards UI & rôles):
+  - Bouton « Assistant » ajouté au Header à côté de « Forum ». Ouvre un panneau latéral (drawer) indépendant, sans déplacer le contenu principal.
+  - Mode réduit: mini‑widget flottant pour ouvrir/fermer le panneau, couper/rétablir le micro, et restaurer l’interface complète.
+  - FR exclusivement, tutoiement. Les sources ne sont affichées que sur demande (« montre les sources ») — afficher un hint discret.
+  - Accès réservé aux rôles `owner`/`admin`/`client` (front: masquage + garde; edge: validation JWT + profil).
+  - Aucune analytics ni évènements externes.
+
+- Assistant (standards techniques):
+  - WebRTC: l’UI crée une SDP offer et appelle l’Edge Function `realtime-offer` (clé OpenAI gardée côté serveur) qui renvoie la SDP answer; audio remote joué via `<audio>`.
+  - Reconnexion automatique: afficher « Connexion instable, je tente de me reconnecter… »; retenter en arrière‑plan.
+  - RAG: appel `supabase.functions.invoke('rag-search', { body: { query, includeSources, image?, file? } })` qui proxy vers n8n (`N8N_RAG_WEBHOOK_URL`).
+  - Mémoire longue: Edge Function `memory` (actions `get`/`update`) stocke `assistant_memories.data` (JSON). Mise à jour parcimonieuse, jamais d’informations sensibles.
+  - Permissions: vérifier `profiles.user_type ∈ {owner, admin, client}` côté Edge Functions; refuser sinon (401/403).
+  - Séparation des projets & des comptes Supabase: le Supabase NotionLab (Cloud) et le Supabase VPS (Docker avec n8n) sont sur des COMPTES DISTINCTS. Ne jamais mélanger secrets, migrations ou accès entre les deux. Le client n’appelle jamais n8n ni PostgREST du VPS directement; tout passe par les Edge Functions (realtime-offer, rag-search, memory) côté Cloud, qui contactent n8n côté VPS.
+
 <!-- ANCHOR:ACCOUNT_DELETION_STANDARDS -->
 - Utiliser exclusivement l'appel `supabase.rpc('admin_delete_user_full', { p_user_id })` pour supprimer un compte depuis l'UI (Admin et auto‑suppression).
 - Ne plus appeler `auth.admin.deleteUser` directement depuis le client: nécessite la service_role et peut échouer ou laisser des identités orphelines.

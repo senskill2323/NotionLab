@@ -17,6 +17,15 @@ readmeIA ne documente pas de strategie de tests automatisee pour le module Forma
   - Accessibilité: focus visible sur cartes/boutons, `aria-live="polite"` pour l'état d'enregistrement, `fieldset/legend` et labels.
   - Résumé client/admin: cohérence des valeurs formatées (y compris « Autre » + texte libre), pictogrammes présents.
   - RLS: le client ne peut lire/écrire que ses propres réponses; l'admin a lecture seule.
+- Assistant (tests standards):
+  - Rôles: visible et utilisable uniquement par `owner`/`admin`/`client` (front + Edge Functions).
+  - UI: le clic « Assistant » ouvre un drawer fixé à droite; le contenu principal de la page ne se déplace pas. Le mini‑widget permet d’ouvrir/fermer et de couper/rétablir le micro.
+  - Media: micro on/off et caméra on/off fonctionnels; prévisualisation locale vidéo correcte; snapshot « Montre‑lui » disponible; upload image/PDF autorisé.
+  - Realtime: en cas de déconnexion, afficher « Connexion instable, je tente de me reconnecter… » et retenter automatiquement.
+  - RAG: sources affichées uniquement si l’utilisateur le demande; défaut = masqué. Message explicite si documents inaccessibles.
+  - Confidentialité: bandeau de consentement affiché; page « Mentions & confidentialité » accessible.
+  - Sécurité Cloud/VPS: vérifier qu’aucun appel direct aux webhooks n8n n’est effectué côté navigateur (DevTools → Network). Les appels passent uniquement par `supabase.functions.invoke(...)`.
+  - Secrets: vérifier qu’aucun token n8n (`N8N_RAG_TOKEN`, `N8N_MEMORY_*_TOKEN`) n’apparaît dans le bundle client (inspecter `dist/` et DevTools → Sources). 
 
 <!-- ANCHOR:WORKFLOWS -->
 - Scénario E2E (manuel):
@@ -25,11 +34,24 @@ readmeIA ne documente pas de strategie de tests automatisee pour le module Forma
   3) Cliquer « Valider mes réponses »; vérifier le toast de succès puis l'ouverture du NPS (première soumission).
   4) Répondre au NPS (Oui/Non + commentaire optionnel); fermer → redirection vers le résumé.
   5) Contrôler la réception de l'email à `ONBOARDING_NOTIFICATION_EMAIL` (ou fallback `OWNER_EMAIL`) et les logs Edge Function.
-  6) Rééditer et re‑valider → vérifier l'email « Brief d’onboarding mis à jour – … ».
+  6) Rééditer et re‑valider → vérifier l'email « Brief d’onboarding mis à jour… ».
+- Scénario E2E (manuel) Assistant:
+  1) Se connecter en `client` (ou `admin`/`owner`).
+  2) Depuis le Header, cliquer « Assistant » → le drawer s’ouvre; tester le mini‑widget (ouvrir/fermer, micro on/off).
+  3) Activer la caméra → vérifier la prévisualisation locale, puis utiliser « Montre‑lui » (snapshot) et constater l’ajout du visuel dans la conversation.
+  4) Charger un fichier image ou PDF via « Upload » → vérifier l’aperçu/message d’envoi.
+  5) Poser une question texte. Par défaut, ne pas afficher les sources; cocher ensuite « Montrer les sources » et reposer une question.
+  6) Forcer une déconnexion réseau quelques secondes → observer le message de reconnexion et la reprise automatique.
+  7) Vérifier que les Edge Functions refusent l’accès si l’utilisateur n’a pas le rôle requis (401/403).
+  8) Vérifier l’absence d’appels directs n8n côté front (Network) et l’absence de tokens n8n dans le bundle (Sources).
 
 - Journaux/Observabilité:
   - Supabase Dashboard → Logs → Edge Functions: observer la fenêtre d’1 minute après soumission.
   - En fallback (absence de `RESEND_API_KEY`), la fonction loggue `delivered: false`.
+- Assistant:
+  - Realtime: vérifier les réponses HTTP de `realtime-offer` (200, payload `{ sdp }`).
+  - RAG: vérifier les réponses de `rag-search` (payload `{ answer, sources? }`), et le cas `unavailable`.
+  - Mémoire: `memory` (`{ action: 'get' }` puis `{ action: 'update', patch }`) retourne `{ ok, data }`.
 
 <!-- ANCHOR:EXAMPLES -->
 ```txt
@@ -42,8 +64,19 @@ Checklist rapide E2E Onboarding
 - Résumé admin: affiche les mêmes valeurs (lecture seule)
 ```
 
+```txt
+Checklist rapide E2E Assistant
+- Bouton « Assistant » visible pour owner/admin/client, masqué sinon
+- Drawer s’ouvre sans déplacer le contenu principal; mini‑widget OK
+- Micro on/off, caméra on/off, prévisualisation locale
+- Snapshot et upload fonctionnels; message visible dans la conversation
+- RAG: sources masquées par défaut; visibles si « Montrer les sources » coché
+- Reconnexion automatique WebRTC après coupure
+- Edge Functions: accès refusé hors rôles (401/403)
+- Consentement et page Mentions accessibles
+```
+
 <!-- ANCHOR:LIMITS -->
 - L'absence de documentation sur les tests laisse un risque de couverture inconnue.
  - A11y non instrumentée en tests automatisés; prévoir une passe d’audit manuel (axe DevTools) avant mise en prod.
  - Les logs Edge sont fugaces (~1 min); réaliser les vérifications immédiatement après soumission.
-<!-- AUTO:END -->
