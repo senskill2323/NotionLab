@@ -219,7 +219,8 @@ export default defineConfig({
       'Cross-Origin-Resource-Policy': 'cross-origin',
       // Reasonable defaults; adjust as needed in production infra
       'Referrer-Policy': 'strict-origin-when-cross-origin',
-      'Permissions-Policy': 'camera=(), microphone=(), geolocation=()'
+      // Allow mic/camera locally; production policy should be set by the hosting infra
+      'Permissions-Policy': 'microphone=(self), camera=(self), geolocation=()'
     },
     allowedHosts: true,
   },

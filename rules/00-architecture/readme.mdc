@@ -40,11 +40,33 @@ Le module Formations gere des parcours standard publies et des parcours custom c
  - Notifications onboarding: fonction Edge `notify-training-onboarding` (Deno) conserve le mécanisme actuel (Resend). Secrets requis: `RESEND_API_KEY`, `ONBOARDING_NOTIFICATION_EMAIL` (fallback `OWNER_EMAIL`), `ONBOARDING_EMAIL_FROM` (fallback `SENDER_EMAIL`). CORS: `POST, OPTIONS`.
  - Visibilité: routes protégées par `ClientOnlyRoute`; accès réservé aux utilisateurs `client`/`vip` avec `profile.status === 'active'`. Les admins sont redirigés vers `/admin/dashboard`.
  - Français uniquement, tutoiement, disclaimer minimal sous le bouton « Valider » interdisant les données sensibles.
+ - Assistant (UI & Realtime):
+   - Bouton « Assistant » dans le Header (à côté de « Forum ») qui ouvre un drawer latéral collé au bord droit; mini‑widget flottant (mode réduit) pour ouvrir/fermer, couper/rétablir le micro.
+   - Bandeau de consentement micro/caméra et page « Mentions & confidentialité » (`/mentions-confidentialite`).
+   - Accès réservé aux rôles `owner`/`admin`/`client`; aucune analytics ni évènement externe.
+   - FR exclusivement; tutoiement; sources affichées uniquement sur demande (hint « montre les sources »).
+
+ - Assistant (Architecture):
+  - WebRTC via Edge Function proxy `realtime-offer` (OpenAI Realtime, clé côté serveur uniquement), reconnexion automatique avec état (« Connexion instable, je tente de me reconnecter… »).
+  - RAG via Edge Function `rag-search` qui appelle le webhook n8n défini par `N8N_RAG_WEBHOOK_URL`.
+  - Mémoire longue par client et corpus RAG: par défaut hébergés dans un Supabase séparé (VPS Hostinger dédié à n8n), distinct du Supabase NotionLab Cloud. Le client n’accède jamais directement à ce datastore: l’orchestration passe par n8n (webhook). Ne pas mélanger les schémas/ressources entre les deux projets Supabase.
+  - Séparation forte des comptes: le Supabase NotionLab (Cloud) et le Supabase VPS (Docker avec n8n) appartiennent à des COMPTES différents. Aucune clé/secrète, migration, ni accès PostgREST ne doit être partagé entre les deux.
+  - Mémoire (webhooks dédiés):
+    - Lecture: `N8N_MEMORY_SEARCH_URL` (ex: `https://senskill.duckdns.org/webhook/memory-search`).
+    - Écriture: `N8N_MEMORY_WEBHOOK_URL` (ex: `https://senskill.duckdns.org/webhook/memory-write`).
+   - Datastore RAG (VPS n8n): extensions `vector` et `pg_trgm` activées; tables `resources` (titre, contenu, url?, tags, embedding 1536), `assistant_memory` (mémoire longue par utilisateur, JSON), `conversations` (optionnelle). Fonction SQL `match_resources(query_emb, top_k, in_tags, in_collection)` exposée via PostgREST et utilisée par n8n pour renvoyer `{ passages, sources }` au webhook.
+
+ - Assistant (Fichiers principaux):
+  - UI: `src/components/assistant/AssistantRoot.jsx`, `AssistantDrawer.jsx`, `AssistantWidget.jsx`, `ConsentBanner.jsx`.
+  - Hooks: `src/hooks/useAssistantStore.js`, `useWebRTCClient.js`, `useLiveTranscription.js`.
+  - API client: `src/lib/assistantApi.js`.
+  - Intégration: `src/components/Navigation.jsx`, `src/App.jsx`, `src/pages/MentionsConfidentialitePage.jsx`.
+  - Edge Functions: `Supabase/functions/realtime-offer/index.ts`, `Supabase/functions/rag-search/index.ts`, `Supabase/functions/memory/index.ts`.
+   - Migration DB (optionnel – Cloud NotionLab seulement): `Supabase/migrations/2025-09-20_assistant_memory.sql`. Par défaut, préférer le datastore VPS (n8n) pour la mémoire/RAG et ne pas appliquer cette migration sur le Cloud.
 
 <!-- ANCHOR:WORKFLOWS -->
 - Cycle parcours : brouillon client -> soumission -> validation admin -> Kanban live synchronise.
 - Gardes de routes : ProtectedRoute, ClientOnlyRoute et PublicOnlyRoute utilisent authReady, allowedUserTypes et requiredPermission.
-- Permissions observees : owner (bypass), admin (formations:manage_all, admin:access_dashboard), client/vip/guest (builder:view, builder:edit_own_parcours).
  - Flux Onboarding: (1) chargement des sections/questions actives; (2) autosauvegarde du brouillon (toast à l'échec); (3) soumission = upsert de `training_onboarding_responses`, mise à jour éventuelle de `profiles.profession` (depuis `metier_activite`); (4) envoi de notification via `notify-training-onboarding`; (5) premier envoi: mini NPS (Oui/Non + commentaire);
  - Restitution: page client « Mes préférences de formation » avec bouton « Mettre à jour », panneau admin « Brief & Profil » en lecture seule dans le Kanban Formation Live.
 

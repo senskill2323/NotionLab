@@ -24,6 +24,16 @@ readmeIA met en avant les risques, limites et points a surveiller pour garantir 
    - Notifications: email à `ONBOARDING_NOTIFICATION_EMAIL` (ou `OWNER_EMAIL`) à la première soumission et à chaque modification.
    - NPS après première soumission: Oui/Non + commentaire; affiche un merci succinct.
    - Accès & confidentialité: RLS stricte; disclaimer minimal interdisant les données sensibles.
+ - Assistant (critères d'acceptation):
+   - Rôles: visible et utilisable uniquement par `owner`/`admin`/`client` (front: masquage + garde; edge: vérification JWT + profil).
+   - UI: le bouton « Assistant » (Header) ouvre un drawer fixé à droite, sans déplacer le contenu principal; un mini‑widget flottant permet l’ouverture/fermeture et le micro on/off.
+   - Média: micro on/off et caméra on/off fonctionnent; prévisualisation locale visible si caméra activée; bouton « Montre‑lui » capture un snapshot; upload image/PDF accepté.
+   - Voix & transcription: lecteur audio pour la voix de l’assistante; transcription en direct (FR) si supportée (fallback Web Speech API).
+   - RAG: appel externe via Edge Function `rag-search`; sources affichées uniquement si l’utilisateur coche l’option; sinon, masquées par défaut.
+   - Realtime: en cas de déconnexion, afficher « Connexion instable, je tente de me reconnecter… » et retenter automatiquement.
+   - Mémoire: lecture/mise à jour parcimonieuse via Edge Function `memory`; ne pas stocker d’infos sensibles.
+   - Confidentialité: bandeau de consentement micro/caméra visible; page « Mentions & confidentialité » accessible.
+   - Séparation de comptes Cloud/VPS: vérifier qu’aucun appel direct aux webhooks n8n n’est effectué depuis le client (Network), que les Edge Functions sont bien appelées (Cloud), et que les secrets n8n ne se trouvent pas dans le bundle client (Sources). Vérifier qu’aucune migration/extension RAG/mémoire du VPS n’est appliquée sur le projet Supabase Cloud.
 
 <!-- ANCHOR:WORKFLOWS -->
 - Verifier apres validation qu'init_kanban_statuses_for_submission cree bien les enregistrements formation_module_statuses attendus.
@@ -33,10 +43,17 @@ readmeIA met en avant les risques, limites et points a surveiller pour garantir 
    1) Connexion client actif → accès `/mes-preferences-formation` et `/editer`.
    2) Wizard: autosauvegarde visible; navigation étapes OK; 0 champ requis; FR/tutoiement OK.
    3) Soumission (1ère): toast succès; NPS s’ouvre; après réponse → redirection vers le résumé.
-   4) Emails: « Nouveau brief d’onboarding… » puis « Brief d’onboarding mis à jour… » après resoumission.
+   4) Emails: « Nouveau brief d’onboarding… » puis « Brief d’onboarding mis à jour… » après resoumission.
    5) Résumé client/admin cohérent (format valeurs, “Autre” + texte, pictos, dates de soumission).
    6) RLS: impossible de lire/écrire les réponses d’un autre utilisateur; admin lecture seule.
    7) Logs Edge: visibles dans la minute; vérifier immédiatement après soumission.
+ - QA Assistant (checklist courte):
+   1) Compte `client`/`admin`/`owner` → bouton « Assistant » visible; drawer s’ouvre; mini‑widget OK.
+   2) Mic/cam: bascule ON/OFF; preview locale si cam ON; snapshot « Montre‑lui » OK; upload image/PDF OK.
+   3) Poser une question: par défaut, sources masquées; cocher « Montrer les sources » → sources visibles.
+   4) Realtime: couper la connexion ~5s → message de reconnexion s’affiche; reprise automatique.
+   5) Edge Functions: hors rôles autorisés → 401/403.
+   6) Consentement: bandeau visible; page « Mentions & confidentialité » accessible.
 
 <!-- ANCHOR:EXAMPLES -->
 - FormationsPanel.jsx (ligne 78) utilise enrolled_at comme proxy pour la date "go live" et laisse un TODO pour ajuster des que la colonne cible sera disponible.
@@ -44,7 +61,7 @@ readmeIA met en avant les risques, limites et points a surveiller pour garantir 
 - Supabase/functions/update-dashboard-layout/index.ts supprime puis reinserre afin de contourner un trigger ON UPDATE defectueux.
  - Onboarding (exemples de vérifications):
    - `src/components/onboarding/TrainingOnboardingWizard.jsx`: autosave, filtres questions actives, disclaimer visible.
-   - `src/components/onboarding/TrainingPreferencesSummary.jsx`: pictos par section, formatage « Autre ».
+   - `src/components/onboarding/TrainingPreferencesSummary.jsx`: pictos par section, formatage « Autre ».
    - `src/lib/trainingOnboardingApi.js`: notification via `supabase.functions.invoke('notify-training-onboarding', {...})`.
    - `Supabase/functions/notify-training-onboarding/index.ts`: envoi Resend; CORS `POST, OPTIONS`.
 
@@ -55,4 +72,9 @@ readmeIA met en avant les risques, limites et points a surveiller pour garantir 
  - Étapes: si 10 sections actives, le wizard aura >6 étapes; désactiver certaines sections/questions dans l’admin pour tenir l’objectif 4–6.
  - Encodage FR: prévoir une migration de correction d’accents (titres/libellés seedés) sans modifier `slug`/`value`.
  - Lint IDE sur Deno/npm import pour Edge Functions (std@0.168.0, npm:resend@3.4.0) non bloquant en prod; runtime Supabase gère l’exécution.
+ - Assistant (limites):
+   - Le support de la Web Speech API varie selon navigateurs/appareils; prévoir un fallback silencieux si non supporté.
+   - La permission micro/caméra peut être refusée par l’utilisateur; UI doit rester fonctionnelle (texte + RAG).
+   - Les sessions Realtime peuvent subir des délais ICE/temp réseau; le mécanisme de reconnexion doit être robuste.
+   - Le webhook n8n peut être indisponible; prévoir le message « Je n’ai pas accès à ces documents, je tente une réponse générique. ».
 <!-- AUTO:END -->
