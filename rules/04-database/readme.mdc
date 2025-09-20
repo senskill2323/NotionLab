@@ -18,11 +18,36 @@ Supabase pilote la couche donnees du module Formations : tables courses et forma
 - RPCs thèmes: `get_active_theme_tokens()` (lecture tokens jsonb) et `set_active_theme(p_theme_id uuid)` (active un thème). `set_active_theme` est restreint aux admins/owners.
 - Fonction helper: `public.is_admin_or_owner(uid)` recommandee pour policies/RPC (cf. RLS ci-dessous).
 - RLS `public.themes`: lecture/écriture réservées aux admins/owners; les clients non-admin lisent via le RPC `get_active_theme_tokens()` (security definer + GRANT EXECUTE à anon/authenticated).
- - Onboarding formation (schéma & RLS):
-   - Tables: `training_onboarding_sections`, `training_onboarding_questions`, `training_onboarding_question_options`, `training_onboarding_responses`, `training_onboarding_nps`.
-   - Index d'ordre: `training_onboarding_questions_section_order_idx`, `training_onboarding_question_options_question_order_idx`.
-   - RLS: lecture pour tous (auth), écriture limitée (propre utilisateur) sur `training_onboarding_responses` et `training_onboarding_nps`; gestion admin (owner/admin/prof) sur sections/questions/options via policies dédiées.
-   - Seeds: sections (10), questions/options conformes au brief, modules/permissions client (`modules_registry`, `role_permissions`) et entrée admin (`admin_modules_registry`).
+- Assistant (mémoire & RLS):
+  - Table `public.assistant_memories` (user_id uuid PK → auth.users(id) on delete cascade, data jsonb not null default '{}', updated_at timestamptz default now()).
+  - RLS: policies « own only » (select/insert/update si `auth.uid() = user_id`). Index sur `updated_at` utile.
+  - Edge Function `memory`: `action = 'get'|'update'`; fusion côté serveur pour éviter l’écrasement, ne jamais stocker d’informations sensibles.
+ - Assistant (Realtime & RAG):
+  - Edge Function `realtime-offer`: proxy WebRTC vers OpenAI Realtime. Vérifie l’utilisateur et `profiles.user_type ∈ {owner, admin, client}`; retourne SDP answer. La clé OPENAI n’est jamais exposée.
+  - Edge Function `rag-search`: proxy vers `N8N_RAG_WEBHOOK_URL` avec `{ query, includeSources, image?, file? }`; renvoie `{ answer, sources? }`. En cas d’indisponibilité, `unavailable=true`.
+
+- Datastore Assistant (Supabase sur docker sur VPS ) — séparé du du projet Supabase NotionLab qui est sur Supabase Cloud:
+  - Extensions activées: `vector` (embeddings) et `pg_trgm` (recherches texte). À activer sur le projet Supabase du VPS n8n, pas sur le Cloud NotionLab.
+  - Tables principales:
+    - `resources`: bibliothèque RAG (titres, contenu, url?, tags, embedding dimension 1536). Index vectoriel (ex: ivfflat) sur `embedding` et index(s) sur `title`/`tags`.
+    - `assistant_memory`: mémoire longue par utilisateur (clé/valeur JSON). RLS: `auth.uid() = user_id` pour SELECT/INSERT/UPDATE.
+    - `conversations` (optionnelle): journal des messages (qui/quoi/quand). RLS: « own only ».
+  - Fonction SQL `match_resources(query_emb, top_k, in_tags, in_collection)`: prend un embedding de requête et retourne les meilleurs passages/sources. Exposée via PostgREST; appelée par n8n pour construire `{ passages, sources }`.
+  - Orchestration: le webhook n8n reçoit `{ query, userId, top_k }`, génère l’embedding (OpenAI), appelle `match_resources`, formate `{ passages, sources }` et répond. L’Edge Function `rag-search` consomme cette réponse.
+  - IMPORTANT: Ne pas appliquer ces tables/policies/extensions au Supabase NotionLab Cloud. Ce sont des ressources du projet Supabase VPS (stack n8n) uniquement.
+  - Séparation de COMPTES: le Supabase NotionLab (Cloud) et le Supabase VPS (Docker avec n8n) appartiennent à des comptes Supabase différents. Ne jamais mélanger migrations, secrets, ni accès PostgREST entre ces comptes.
+  - RLS supplémentaires (recommandation):
+    - `resources`: lecture autorisée aux utilisateurs authentifiés (rôles owner/admin/client) — SELECT si `auth.role() in ('authenticated')` et éventuellement filtrage par tags/collection.
+    - `conversations`: SELECT/INSERT/UPDATE autorisés uniquement pour `auth.uid() = user_id`.
+  - Indexation recommandée:
+    - `create index if not exists resources_title_trgm_idx on resources using gin (title gin_trgm_ops);`
+    - `create index if not exists resources_tags_gin_idx on resources using gin (tags);`
+    - `create index if not exists resources_embedding_idx on resources using ivfflat (embedding vector_cosine_ops);`
+- Onboarding formation (schéma & RLS):
+  - Tables: `training_onboarding_sections`, `training_onboarding_questions`, `training_onboarding_question_options`, `training_onboarding_responses`, `training_onboarding_nps`.
+  - Index d'ordre: `training_onboarding_questions_section_order_idx`, `training_onboarding_question_options_question_order_idx`.
+  - RLS: lecture pour tous (auth), écriture limitée (propre utilisateur) sur `training_onboarding_responses` et `training_onboarding_nps`; gestion admin (owner/admin/prof) sur sections/questions/options via policies dédiées.
+  - Seeds: sections (10), questions/options conformes au brief, modules/permissions client (`modules_registry`, `role_permissions`) et entrée admin (`admin_modules_registry`).
 
 <!-- ANCHOR:WORKFLOWS -->
 - RPC client : get_user_courses_and_parcours(p_user_id uuid) retourne les formations inscrites et parcours custom.
@@ -99,9 +124,44 @@ begin
   update public.themes set is_default = false where is_default is true;
   update public.themes set is_default = true where id = p_theme_id;
 end;$$;
-```
 
-```sql
+-- VPS n8n uniquement — Datastore Assistant (extraits)
+-- Extensions
+create extension if not exists vector;
+create extension if not exists pg_trgm;
+
+-- Table resources (structure indicative)
+create table if not exists public.resources (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  content text not null,
+  url text,
+  tags text[],
+  embedding vector(1536),
+  created_at timestamptz default now()
+);
+create index if not exists resources_embedding_idx on public.resources using ivfflat (embedding vector_cosine_ops);
+create index if not exists resources_title_trgm_idx on public.resources using gin (title gin_trgm_ops);
+create index if not exists resources_tags_gin_idx on public.resources using gin (tags);
+
+-- Fonction de matching (signature indicative)
+create or replace function public.match_resources(
+  query_emb vector(1536),
+  top_k int default 5,
+  in_tags text[] default null,
+  in_collection text default null
+) returns table(id uuid, title text, content text, url text, score float)
+language sql stable as $$
+  select r.id, r.title, r.content, r.url,
+         1 - (r.embedding <=> query_emb) as score
+  from public.resources r
+  where (in_tags is null or r.tags && in_tags)
+  order by r.embedding <=> query_emb
+  limit top_k
+$$;
+
+-- PostgREST: GET /rest/v1/rpc/match_resources?query_emb=...  (appels effectués par n8n)
+
 -- Extrait Onboarding: réponses + NPS (simplifié)
 create table if not exists public.training_onboarding_responses (
   id uuid primary key default gen_random_uuid(),
