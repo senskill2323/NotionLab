@@ -40,6 +40,8 @@ import React from 'react';
     import ClientAccountPage from '@/pages/ClientAccountPage';
     import ParcoursDetailPage from '@/pages/ParcoursDetailPage';
     import ForumPage from '@/pages/ForumPage';
+    import TrainingPreferencesPage from '@/pages/TrainingPreferencesPage';
+    import TrainingPreferencesWizardPage from '@/pages/TrainingPreferencesWizardPage';
     import ForumTopicPage from '@/pages/ForumTopicPage';
     import CreateForumTopicPage from '@/pages/CreateForumTopicPage';
     import ChatPage from '@/pages/ChatPage';
@@ -98,6 +100,8 @@ import React from 'react';
         <Route path="/connexion" element={<PublicOnlyRoute><LoginPage /></PublicOnlyRoute>} />
         <Route path="/inscription" element={<PublicOnlyRoute><RegisterPage /></PublicOnlyRoute>} />
         
+        <Route path="/mes-preferences-formation" element={<ClientOnlyRoute><TrainingPreferencesPage /></ClientOnlyRoute>} />
+        <Route path="/mes-preferences-formation/editer" element={<ClientOnlyRoute><TrainingPreferencesWizardPage /></ClientOnlyRoute>} />
         <Route path="/dashboard" element={<ClientOnlyRoute><DashboardPage /></ClientOnlyRoute>} />
         <Route path="/compte-client" element={<ClientOnlyRoute><ClientAccountPage /></ClientOnlyRoute>} />
         <Route path="/chat" element={<ProtectedRoute requiredPermission="chat:view"><ChatPage /></ProtectedRoute>} />

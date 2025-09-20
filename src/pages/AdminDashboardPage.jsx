@@ -24,6 +24,7 @@ import ThemePanel from '@/components/admin/ThemePanel';
 import TabsEditorPage from '@/pages/admin/TabsEditorPage';
 import FormationManagementPanel from '@/components/admin/FormationManagementPanel';
 import UserFormationSubmissionsPanel from '@/components/admin/UserFormationSubmissionsPanel';
+import OnboardingQuestionsAdminPanel from '@/components/admin/formation-live/OnboardingQuestionsAdminPanel';
 
 const LiveChatPlaceholder = () => {
   const navigate = useNavigate();
@@ -57,6 +58,7 @@ const adminComponentMap = {
   FormationManagementPanel,
   CourseManagementPanel: FormationManagementPanel, // Rétrocompatibilité
   UserFormationSubmissionsPanel,
+  OnboardingQuestionsAdminPanel,
   AdminLiveChatPage: LiveChatPlaceholder,
 };
 

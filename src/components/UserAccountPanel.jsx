@@ -95,6 +95,12 @@ const UserAccountPanel = () => {
       action: () => handleNavigation('/compte-client')
     },
     {
+      id: 'training_preferences',
+      title: 'Preferences de formation',
+      icon: GraduationCap,
+      action: () => handleNavigation('/mes-preferences-formation')
+    },
+    {
       id: 'tickets',
       title: 'Mes tickets',
       icon: Ticket,
