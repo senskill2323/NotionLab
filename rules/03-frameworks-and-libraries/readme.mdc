@@ -21,12 +21,22 @@ readmeIA decrit les librairies clefs du module Formations : React 18, Vite 7 et 
 - Fallbacks CSS: `src/index.css` fournit un mapping de secours `:root` (`--colors-*` ← `--background`/`--foreground`/etc.) pour eviter tout flash avant l'injection du theme.
 - Compatibilite CSS: `src/index.css` force les variantes standard + prefixees pour `text-size-adjust` (standard et `-webkit-…`) et pour `backdrop-filter` (standard et `-webkit-…`).
 - ThemeProvider unique: conserver `ThemeProvider` uniquement dans `src/main.jsx` (plus de doublon dans `src/App.jsx`).
+ - Onboarding formation (UI & libs):
+   - Radix UI + composants `@/components/ui/*` pour inputs, cartes et alertes; sliders via `@radix-ui/react-slider`.
+   - Icônes Lucide dans le résumé: `src/components/onboarding/TrainingPreferencesSummary.jsx` (pictos par section).
+   - React Query pour le data‑fetching (config, réponses, NPS) et mutations (draft, submit, NPS).
+   - `react-helmet` pour titres/meta des pages onboarding.
+   - Navigation protégée via `ClientOnlyRoute`.
 
 <!-- ANCHOR:WORKFLOWS -->
 - Le builder ReactFlow exploite CustomNode.jsx et StartNode.jsx pour modeliser le parcours et utiliser ModuleCatalog.jsx pour le drag and drop.
 - Le Kanban temps reel combine formation_module_statuses et supabase.channel pour synchroniser l'avancement utilisateur.
 - FormationsPanel.jsx consomme supabase.rpc('get_user_courses_and_parcours') pour lister les formations et parcours custom.
 - Page Admin « Thèmes » (`src/components/admin/ThemePanel.jsx`) pilote les tokens via la table `public.themes` et 2 RPCs: `get_active_theme_tokens()` (lecture) et `set_active_theme(uuid)` (activation). L'aperçu applique `ThemeContext.applyTheme()`.
+ - Onboarding formation:
+   - Wizard: `TrainingOnboardingWizard.jsx` affiche uniquement les questions actives et masque les sections vides; autosauvegarde débouncée; toasts d'erreur.
+   - Résumé: `TrainingPreferencesSummary.jsx` côté client et admin (lecture seule) avec pictos; CTA « Mettre à jour ».
+   - Notifications: `supabase.functions.invoke('notify-training-onboarding', {...})`.
 
 <!-- ANCHOR:EXAMPLES -->
 | Element | Version | Usage |

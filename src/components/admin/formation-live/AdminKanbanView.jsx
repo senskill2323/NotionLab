@@ -17,6 +17,7 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import KanbanColumn from '@/components/kanban/KanbanColumn';
 import KanbanCard from '@/components/kanban/KanbanCard';
 import { Loader2 } from 'lucide-react';
+import OnboardingBriefPanel from '@/components/admin/formation-live/OnboardingBriefPanel';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 const defaultCols = [
@@ -430,6 +431,11 @@ const AdminKanbanView = ({ submission, onBack }) => {
           {!isGlobalView && (<p className="text-muted-foreground">Progression de {submission.user_full_name}</p>)}
           {errorMsg && (
             <div className="mt-2 text-xs text-destructive">{errorMsg}</div>
+          )}
+          {!isGlobalView && submission?.user_id && (
+            <div className="mt-4">
+              <OnboardingBriefPanel userId={submission.user_id} />
+            </div>
           )}
           <DndContext
             sensors={sensors}

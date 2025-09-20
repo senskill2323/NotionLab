@@ -14,6 +14,7 @@ import BuilderPanel from '@/components/dashboard/modules/BuilderPanel';
 import KanbanPanel from '@/components/kanban/KanbanPanel';
 import KPIPanel from '@/components/dashboard/modules/KPIPanel';
 import HomepagePanel from '@/components/dashboard/modules/HomepagePanel';
+import TrainingPreferencesPanel from '@/components/dashboard/modules/TrainingPreferencesPanel';
 
 const componentMap = {
   client_formations: FormationsPanel,
@@ -23,6 +24,7 @@ const componentMap = {
   client_kanban_formations: KanbanPanel,
   client_kpi: KPIPanel,
   client_homepage: HomepagePanel,
+  client_training_preferences: TrainingPreferencesPanel,
 };
 
 const normalizeRow = (row) => {

@@ -4,6 +4,27 @@ version: "2"
 date: "2025-01-18"
 owner: "NEEDS-VERIFY Provide owner or primary contact."
 contenu: Objectifs, SLA, contraintes, architecture, découpage, auth, état, logs, config, flags, i18n, accessibilité, ADR, glossaire.
+
+•	Workspace lives in C:\Users\yvallott\.codex\notionlab_010925; operate only inside this Vite/React (18) project via Windsurf, keeping readmeIA (file in the root of the project) as the canonical reference.
+•	Favor functional, declarative React; stay modular (component → subcomponents → hooks/helpers → static data); centralize Supabase access and keep helpers pure.
+•	Always source env values (e.g., VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY) through @/lib/customSupabaseClient; warn if missing; never hard-code keys or expose service-role secrets client-side.
+•	Manage auth exclusively via SupabaseAuthContext/useAuth(); respect authReady/authLoading; on critical auth failures sign out and redirect /connexion.
+•	Route protection uses <ProtectedRoute requiredPermission="…"> with PermissionsContext/hasPermission(); keep Admin vs Client content separated.
+•	For data operations favor Supabase RPCs or Edge Functions (standard response { data, error }); keep client queries minimal/paginated; add DB indexes as needed before shipping.
+•	Realtime: subscribe with supabase.channel(...).on('postgres_changes', …) only where required; name channels explicitly and clean them up on unmount.
+•	Storage: keep DB/storage in sync (avatars, resources, chat/forum attachments) following bucket conventions.
+•	Naming: DB objects snake_case, Edge Functions kebab-case; use Vite alias @ for imports.
+•	UI: use Radix + Tailwind, react-hook-form, Zustand for shared state, framer-motion for subtle animations, @dnd-kit for drag/drop, React Flow for builders; keep interactions accessible.
+•	Theme system: couleurs pilotées par variables CSS `--colors-*` injectées par `ThemeContext` (RPC `get_active_theme_tokens`) et consommées via `hsl(var(--colors-…))` dans `tailwind.config.js`. Fallbacks `:root` dans `src/index.css` évitent tout flash au premier rendu.
+•	CSS compat: toujours fournir la paire standard + préfixée pour `backdrop-filter` et `text-size-adjust` dans `src/index.css` (standard et `-webkit-…`).
+•	ThemeProvider: présent uniquement dans `src/main.jsx` (supprimé de `src/App.jsx`) pour éviter les doubles injections et effets de bord.
+•	Kanban/admin flows: reuse AdminKanbanView, UserKanbanDashboard, and related hooks; avoid duplicating logic—extend via composition.
+•	On cache-sensitive updates call emitSessionRefresh or invalidate relevant queries; log structured errors and show user-friendly toasts (no sensitive details).
+•	Database/RLS: assume operations must respect row-level security; escalate to Edge Functions when privileged access is required; use explicit upsert conflicts and enum defaults.
+•	Component registries & dashboards: interact via component_rules, modules_registry, and dashboard RPCs/Edge Functions (get-dashboard-layout, update-dashboard-layout) instead of hard-coded toggles.
+•	CI/dev: Node 20 pipeline runs npm ci, npm run build, deploys via FTPS; run local checks with npm run dev or npm run preview; SQL via npm run db:query/db:file.
+•	Treat these rules plus readmeIA as the single source of truth; update them when new tables/RPCs/Edge Functions land.
+
 ---
 
 <!-- AUTO:BEGIN -->
@@ -15,11 +36,17 @@ Le module Formations gere des parcours standard publies et des parcours custom c
 - Supabase centralise RPC, fonctions edge, stockage et canal realtime pour les formations.
 - Les parcours valides sont figes via des snapshots avant publication.
 - Le Kanban formation_module_statuses suit l'avancement par utilisateur et soumission.
+ - Onboarding formation: l'UI charge uniquement les questions actives (admin peut activer/désactiver), wizard non bloquant, autosauvegarde, et résumé consultable côté client et admin.
+ - Notifications onboarding: fonction Edge `notify-training-onboarding` (Deno) conserve le mécanisme actuel (Resend). Secrets requis: `RESEND_API_KEY`, `ONBOARDING_NOTIFICATION_EMAIL` (fallback `OWNER_EMAIL`), `ONBOARDING_EMAIL_FROM` (fallback `SENDER_EMAIL`). CORS: `POST, OPTIONS`.
+ - Visibilité: routes protégées par `ClientOnlyRoute`; accès réservé aux utilisateurs `client`/`vip` avec `profile.status === 'active'`. Les admins sont redirigés vers `/admin/dashboard`.
+ - Français uniquement, tutoiement, disclaimer minimal sous le bouton « Valider » interdisant les données sensibles.
 
 <!-- ANCHOR:WORKFLOWS -->
 - Cycle parcours : brouillon client -> soumission -> validation admin -> Kanban live synchronise.
 - Gardes de routes : ProtectedRoute, ClientOnlyRoute et PublicOnlyRoute utilisent authReady, allowedUserTypes et requiredPermission.
 - Permissions observees : owner (bypass), admin (formations:manage_all, admin:access_dashboard), client/vip/guest (builder:view, builder:edit_own_parcours).
+ - Flux Onboarding: (1) chargement des sections/questions actives; (2) autosauvegarde du brouillon (toast à l'échec); (3) soumission = upsert de `training_onboarding_responses`, mise à jour éventuelle de `profiles.profession` (depuis `metier_activite`); (4) envoi de notification via `notify-training-onboarding`; (5) premier envoi: mini NPS (Oui/Non + commentaire);
+ - Restitution: page client « Mes préférences de formation » avec bouton « Mettre à jour », panneau admin « Brief & Profil » en lecture seule dans le Kanban Formation Live.
 
 <!-- ANCHOR:ACCOUNT_DELETION -->
 - Objectif: la suppression d'un utilisateur doit effacer l'ensemble du compte (Auth + identités) et les données liées côté domaine.
@@ -54,7 +81,24 @@ src/
 `-- contexts/BuilderCatalogContext.jsx
 ```
 
+<!-- ANCHOR:ONBOARDING_TRAINING_FORM -->
+- Fichiers Onboarding formation (principaux):
+  - `src/pages/TrainingPreferencesPage.jsx`
+  - `src/pages/TrainingPreferencesWizardPage.jsx`
+  - `src/components/onboarding/TrainingOnboardingWizard.jsx`
+  - `src/components/onboarding/TrainingPreferencesSummary.jsx`
+  - `src/components/admin/formation-live/OnboardingBriefPanel.jsx`
+  - `src/components/admin/formation-live/OnboardingQuestionsAdminPanel.jsx`
+  - `src/components/dashboard/modules/TrainingPreferencesPanel.jsx`
+  - `src/lib/trainingOnboardingApi.js`
+  - `Supabase/functions/notify-training-onboarding/index.ts` (+ `cors.ts`)
+  - `Supabase/migrations/2025-09-20_training_onboarding_form.sql`
+
 <!-- ANCHOR:LIMITS -->
 - NEEDS-VERIFY : confirmer l'existence de CreateFormationPage.jsx et ManageFormationPage.jsx dans src/pages/admin/.
 - Encodage : certains fichiers (ex. src/contexts/SupabaseAuthContext.jsx) montrent des caracteres etendus signe d'encodage degrade.
+ - Étapes: le brief cible 4–6 étapes; le seed comporte 10 sections. Réduire à 4–6 en désactivant des sections/questions via l'admin (le wizard masque les sections vides) ou prévoir un regroupement UI.
+ - Encodage FR: certains titres/libellés seedés affichent des « ? ». Prévoir une migration corrective d'accents (UPDATE des champs textuels, sans toucher aux slug/values).
+ - Accessibilité AA: structure déjà en place (fieldset/legend, aria-live); prévoir un mini audit (focus visibles, ordre tab, toasts accessibles) avant production.
+ - Observabilité: logs Edge Functions visibles ~1 minute (Supabase dashboard). Tester la réception e-mail juste après soumission.
 <!-- AUTO:END -->
