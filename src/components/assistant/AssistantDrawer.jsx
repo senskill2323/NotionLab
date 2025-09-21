@@ -40,15 +40,13 @@ const AssistantDrawer = ({ open, onClose }) => {
   const videoRef = useRef(null);
   // Phone-like call state & resources
   const [callActive, setCallActive] = useState(false);
-  const [pttHeld, setPttHeld] = useState(false);
   const [remainingMs, setRemainingMs] = useState(0);
   const ringCtxRef = useRef(null);
   const ringIntervalRef = useRef(null);
   const wakeLockRef = useRef(null);
-  const keyPHeldRef = useRef(false);
 
-  // WebRTC setup
-  const { startConnection, stopConnection, snapshotFromVideo, reconnect, beginPtt, endPtt, requestResponse } = useWebRTCClient();
+  // WebRTC setup (live: mic always on during call)
+  const { startConnection, stopConnection, snapshotFromVideo, reconnect, requestResponse } = useWebRTCClient();
 
   // Local transcription (FR) via Web Speech API (fallback only)
   const { listening, startListening, stopListening, supported: sttSupported } = useLiveTranscription({
@@ -57,6 +55,11 @@ const AssistantDrawer = ({ open, onClose }) => {
       if (isFinal) {
         appendTranscript(chunk.endsWith('\n') ? chunk : chunk + '\n');
         setInterim('');
+        // Trigger assistant to respond on final user speech
+        const txt = (chunk || '').trim();
+        if (txt.length > 0) {
+          try { requestResponse(); } catch {}
+        }
       } else {
         setInterim(chunk);
       }
@@ -108,19 +111,19 @@ const AssistantDrawer = ({ open, onClose }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // Update tracks only when a call is active; keep mic off (PTT controls mic)
+  // Update tracks when a call is active based on mic/cam toggles
   useEffect(() => {
     if (!open || !callActive) return;
-    startConnection({ mic: false, cam: camOn, replaceTracks: true }).catch(() => {});
+    startConnection({ mic: micOn, cam: camOn, replaceTracks: true }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [camOn, callActive]);
+  }, [micOn, camOn, callActive]);
 
-  // Ringback tone control based on connection state
+  // Ringback tone control based on connection state (only on initial connecting)
   useEffect(() => {
     if (!callActive) { stopRingback(); return; }
     if (connectionState === 'connected') {
       stopRingback();
-    } else if (connectionState === 'connecting' || connectionState === 'reconnecting') {
+    } else if (connectionState === 'connecting') {
       startRingback();
     } else {
       // failed, disconnected, idle → stop
@@ -128,31 +131,6 @@ const AssistantDrawer = ({ open, onClose }) => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [connectionState, callActive]);
-
-  // Global keyboard PTT (hold "P")
-  useEffect(() => {
-    const onKeyDown = (e) => {
-      const isP = e.code === 'KeyP' || e.key === 'p' || e.key === 'P';
-      if (!isP) return;
-      if (!callActive || keyPHeldRef.current) return;
-      keyPHeldRef.current = true;
-      onBeginPTT();
-    };
-    const onKeyUp = (e) => {
-      const isP = e.code === 'KeyP' || e.key === 'p' || e.key === 'P';
-      if (!isP) return;
-      if (!keyPHeldRef.current) return;
-      keyPHeldRef.current = false;
-      onEndPTT();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    window.addEventListener('keyup', onKeyUp);
-    return () => {
-      window.removeEventListener('keydown', onKeyDown);
-      window.removeEventListener('keyup', onKeyUp);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [callActive]);
 
   // Visibility/Wake lock continuity
   useEffect(() => {
@@ -218,7 +196,7 @@ const AssistantDrawer = ({ open, onClose }) => {
   const handleCall = async () => {
     if (callActive) return;
     setCallActive(true);
-    // Ask mic permission (without streaming) to prepare PTT
+    // Ask mic permission (without streaming)
     try {
       const tmp = await navigator.mediaDevices.getUserMedia({ audio: true });
       try { tmp.getTracks().forEach(t => t.stop()); } catch {}
@@ -227,7 +205,7 @@ const AssistantDrawer = ({ open, onClose }) => {
     try { if ('wakeLock' in navigator) wakeLockRef.current = await navigator.wakeLock.request('screen'); } catch {}
     startRingback();
     try {
-      await startConnection({ mic: false, cam: camOn, stunOnly: true });
+      await startConnection({ mic: true, cam: camOn, stunOnly: true });
       try { await audioRef.current?.play?.(); } catch {}
     } catch (_) {
       // On échec, raccrocher proprement
@@ -246,7 +224,6 @@ const AssistantDrawer = ({ open, onClose }) => {
   };
 
   const handleHangup = () => {
-    try { onEndPTT(); } catch {}
     stopRingback();
     try { stopConnection(); } catch {}
     try { if (window.__callTimer) clearInterval(window.__callTimer); } catch {}
@@ -256,25 +233,17 @@ const AssistantDrawer = ({ open, onClose }) => {
     wakeLockRef.current = null;
   };
 
-  const onBeginPTT = async () => {
-    if (!callActive) return;
-    setPttHeld(true);
-    try { await beginPtt(); } catch {}
-    if (sttSupported && !listening) {
+  // Live mode: start/stop local transcription based on micOn
+  useEffect(() => {
+    if (!sttSupported) return;
+    if (callActive && micOn && !listening) {
       try { startListening(); } catch {}
     }
-  };
-
-  const onEndPTT = () => {
-    if (!callActive) return;
-    setPttHeld(false);
-    try { endPtt(); } catch {}
-    // Ask the assistant to respond now that we've finished speaking
-    try { requestResponse(); } catch {}
-    if (sttSupported && listening) {
+    if ((!callActive || !micOn) && listening) {
       try { stopListening(); } catch {}
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [callActive, micOn, sttSupported]);
 
   const fmtRemaining = (ms) => {
     const m = Math.floor((ms || 0) / 60000);
@@ -385,18 +354,6 @@ const AssistantDrawer = ({ open, onClose }) => {
           </Button>
           <Button variant="destructive" onClick={handleHangup} disabled={!open || !callActive}>
             Raccrocher
-          </Button>
-          <Button
-            variant={pttHeld ? 'default' : 'secondary'}
-            disabled={!callActive}
-            onMouseDown={onBeginPTT}
-            onMouseUp={onEndPTT}
-            onMouseLeave={() => { if (pttHeld) onEndPTT(); }}
-            onTouchStart={onBeginPTT}
-            onTouchEnd={onEndPTT}
-            title="Maintiens pour parler (touche P)"
-          >
-            Appuyer‑pour‑parler (P)
           </Button>
           {callActive && (
             <span className="text-xs text-foreground/70 ml-1">{fmtRemaining(remainingMs)}</span>

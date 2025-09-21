@@ -1,6 +1,6 @@
 param()
 
-$repoRoot = "C:\Users\yvallott\.codex\notionlab_010925"
+$repoRoot = "C:\dev\notionlab"
 $envPath = Join-Path $repoRoot ".env"
 
 $kv = @{}
