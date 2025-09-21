@@ -69,14 +69,14 @@ function tuneOpusSdp(sdp, maxAvgBitrate = AUDIO_MAX_BITRATE_BPS) {
 const FORCE_RELAY = String(import.meta.env?.VITE_FORCE_TURN || '').trim() === '1';
 const RTC_CONFIG = {
   iceServers: ICE_SERVERS,
-  // Small ICE candidate pool can help faster initial connectivity
-  iceCandidatePoolSize: 2,
+  // Slightly larger pool can help faster re-use of candidates
+  iceCandidatePoolSize: 4,
   ...(FORCE_RELAY ? { iceTransportPolicy: 'relay' } : {}),
 };
 // STUN-only configuration (ignores TURN servers)
 const RTC_STUN_ONLY_CONFIG = {
   iceServers: STUN_URLS.length ? [{ urls: STUN_URLS }] : [],
-  iceCandidatePoolSize: 2,
+  iceCandidatePoolSize: 4,
 };
 
 // Feature flags and telemetry (opt-in)
@@ -87,6 +87,13 @@ const FLAG_HOST_ONLY_FALLBACK = String(import.meta.env?.VITE_WEBRTC_HOST_ONLY_FA
 const CONNECT_TIMEOUT_MS = Math.max(5000, Number(import.meta.env?.VITE_WEBRTC_TIMEOUT_MS || 15000));
 const LOG_LEVEL = String(import.meta.env?.VITE_WEBRTC_LOG_LEVEL || 'none').toLowerCase();
 const BREADCRUMBS = String(import.meta.env?.VITE_WEBRTC_BREADCRUMBS || '0') === '1';
+const FLAG_AUTO_GREETING = String(import.meta.env?.VITE_WEBRTC_AUTO_GREETING || '1') === '1';
+const ICE_DISCONNECT_DEBOUNCE_MS = Math.max(5000, Number(import.meta.env?.VITE_WEBRTC_ICE_DISCONNECT_DEBOUNCE_MS || 12000));
+const FLAG_AUTO_VAD_RESPONSE = String(import.meta.env?.VITE_WEBRTC_AUTO_VAD_RESPONSE || '1') === '1';
+const INBOUND_IDLE_RESTART_MS = Math.max(10000, Number(import.meta.env?.VITE_WEBRTC_INBOUND_IDLE_RESTART_MS || 25000));
+const INBOUND_IDLE_RECONNECT_MS = Math.max(20000, Number(import.meta.env?.VITE_WEBRTC_INBOUND_IDLE_RECONNECT_MS || 45000));
+const FLAG_OAI_PING = String(import.meta.env?.VITE_WEBRTC_OAI_PING || '1') === '1';
+const OAI_PING_MS = Math.max(8000, Number(import.meta.env?.VITE_WEBRTC_OAI_PING_MS || 20000));
 
 // Network shaping: cap outgoing audio bitrate to reduce dropouts on flaky links
 const AUDIO_MAX_BITRATE_BPS = Math.max(
@@ -118,6 +125,37 @@ function addCrumb(event, data) {
   } catch {}
 }
 
+// Accessor for server-provided oai-events channel (do not create proactively)
+function getOaiChannel() {
+  try {
+    if (oaiDc && (oaiDc.readyState === 'open' || oaiDc.readyState === 'connecting')) return oaiDc;
+  } catch {}
+  return null;
+}
+
+function sendResponseCreate() {
+  try {
+    // Mark awaiting immediately so stall monitor can kick in even if channel opens late
+    awaitingResponse = true;
+    awaitingResponseSince = Date.now();
+    const trySend = (attempt = 0) => {
+      try {
+        const ch = getOaiChannel();
+        if (ch && ch.readyState === 'open') {
+          oaiDc.send(JSON.stringify({ type: 'response.create' }));
+          addCrumb('response_create_sent');
+          responseRetryCount = 0;
+          return;
+        }
+      } catch {}
+      if (attempt < 10) {
+        setTimeout(() => trySend(attempt + 1), 300);
+      }
+    };
+    trySend(0);
+  } catch {}
+}
+
 function buildConstraints(mic, cam) {
   return {
     audio: mic ? AUDIO_CONSTRAINTS : false,
@@ -143,8 +181,6 @@ async function applyAudioBitrate(peer) {
 let pc = null;
 let localStreamRef = null;
 let remoteStreamRef = null;
-let keepAliveDc = null;
-let keepAliveTimer = null;
 let iceRestartTimer = null;
 let statsTimer = null;
 let oaiDc = null;
@@ -155,6 +191,22 @@ let iceBackoffAttempt = 0;
 let iceBackoffTimer = null;
 let fallbackTimer = null;
 let hostOnlyAttempted = false;
+let awaitingResponse = false;
+let everConnected = false;
+let sentInitialResponse = false;
+let iceDisconnectTimer = null;
+let responseRetryCount = 0;
+let awaitingResponseSince = 0;
+let lastOutboundAudioBytes = 0;
+let lastOutboundCheckAt = 0;
+let userVoiceActive = false;
+let voiceSilentSince = 0;
+let lastInboundHeardAt = 0;
+let everHeardInbound = false;
+let longIdleRestartAttempt = 0;
+let oaiRestartTimer = null;
+let forceReconnectOnIceExhaust = false;
+let oaiPingTimer = null;
 
 export function useWebRTCClient() {
   const {
@@ -208,6 +260,12 @@ export function useWebRTCClient() {
     if (pc) return pc;
     pc = new RTCPeerConnection(configOverride || RTC_CONFIG);
 
+    // Ensure an audio transceiver exists (stable sender for PTT replaceTrack)
+    try {
+      const hasAudioTx = pc.getTransceivers?.().some(t => (t.sender?.track?.kind === 'audio') || (t.receiver?.track?.kind === 'audio'));
+      if (!hasAudioTx) pc.addTransceiver('audio', { direction: 'sendrecv' });
+    } catch {}
+
     // Remote media
     remoteStreamRef = new MediaStream();
     pc.ontrack = (e) => {
@@ -216,6 +274,29 @@ export function useWebRTCClient() {
           if (!track) return;
           const exists = remoteStreamRef.getTracks().some(t => t.id === track.id);
           if (!exists) remoteStreamRef.addTrack(track);
+          try {
+            track.onmute = () => {
+              try {
+                remoteStreamRef = new MediaStream(remoteStreamRef.getTracks());
+                setRemoteStream(remoteStreamRef);
+              } catch {}
+            };
+            track.onunmute = () => {
+              try {
+                remoteStreamRef = new MediaStream(remoteStreamRef.getTracks());
+                setRemoteStream(remoteStreamRef);
+              } catch {}
+            };
+            track.onended = () => {
+              try {
+                // Remove ended track and re-emit stream
+                const current = remoteStreamRef.getTracks();
+                current.forEach(t => { if (t.id === track.id) { try { remoteStreamRef.removeTrack(t); } catch {} } });
+                remoteStreamRef = new MediaStream(remoteStreamRef.getTracks());
+                setRemoteStream(remoteStreamRef);
+              } catch {}
+            };
+          } catch {}
         };
         if (e.streams && e.streams[0]) {
           e.streams[0].getTracks().forEach(addIfMissing);
@@ -223,7 +304,10 @@ export function useWebRTCClient() {
           addIfMissing(e.track);
         }
       } catch {}
-      setRemoteStream(remoteStreamRef);
+      try {
+        remoteStreamRef = new MediaStream(remoteStreamRef.getTracks());
+        setRemoteStream(remoteStreamRef);
+      } catch { setRemoteStream(remoteStreamRef); }
     };
 
     pc.onicecandidateerror = (e) => {
@@ -231,9 +315,9 @@ export function useWebRTCClient() {
       const detail = `${e?.errorText || e?.type || 'unknown'}`;
       addCrumb('ice_error', { detail });
       log('warn', 'icecandidateerror', { detail });
-      try { setError(`ICE error: ${detail}`); } catch {}
+      // Don't surface ICE candidate errors directly in UI; keep in breadcrumbs/logs only
       // Trigger host-only fallback if DNS/lookup error on STUN and flag enabled
-      if (FLAG_HOST_ONLY_FALLBACK && !hostOnlyAttempted && /lookup|dns/i.test(detail || '')) {
+      if (FLAG_HOST_ONLY_FALLBACK && !hostOnlyAttempted && !everConnected && /lookup|dns/i.test(detail || '')) {
         try { if (fallbackTimer) clearTimeout(fallbackTimer); } catch {}
         fallbackTimer = setTimeout(() => {
           if (!pc || pc.connectionState === 'connected') return;
@@ -242,34 +326,59 @@ export function useWebRTCClient() {
       }
     };
 
-    // Keepalive DataChannel (helps some NATs / middleboxes)
-    try {
-      keepAliveDc = pc.createDataChannel('keepalive');
-      keepAliveDc.onopen = () => {
-        try { if (keepAliveTimer) clearInterval(keepAliveTimer); } catch {}
-        keepAliveTimer = setInterval(() => {
-          try { keepAliveDc?.send('ping'); } catch {}
-        }, 15000);
-      };
-      const stopKA = () => { try { if (keepAliveTimer) clearInterval(keepAliveTimer); } catch {}; keepAliveTimer = null; };
-      keepAliveDc.onclose = stopKA;
-      keepAliveDc.onerror = stopKA;
-    } catch {}
+    // No custom keepalive DataChannel; rely on ICE checks and continuous opus frames (usedtx=0)
 
-    // Capture OpenAI Realtime events channel created by the server
+    // Capture OpenAI Realtime events channel created by the server (no custom pings)
     try {
       pc.ondatachannel = (ev) => {
         const ch = ev?.channel;
         if (ch && ch.label === 'oai-events') {
           oaiDc = ch;
-          oaiDc.onopen = () => { addCrumb('oai_dc_open'); };
-          const clearOai = () => { addCrumb('oai_dc_closed'); };
+          oaiDc.onopen = () => {
+            addCrumb('oai_dc_open');
+            // Start lightweight heartbeat to keep channel/session active
+            try { if (oaiPingTimer) clearInterval(oaiPingTimer); } catch {}
+            if (FLAG_OAI_PING) {
+              oaiPingTimer = setInterval(() => {
+                try {
+                  if (oaiDc && oaiDc.readyState === 'open') {
+                    oaiDc.send(JSON.stringify({ type: 'ping' }));
+                  }
+                } catch {}
+              }, OAI_PING_MS);
+            }
+          };
+          const clearOai = () => {
+            addCrumb('oai_dc_closed');
+            // If PC stays connected but channel closes, try an ICE restart to re-establish channels
+            try { if (oaiRestartTimer) clearTimeout(oaiRestartTimer); } catch {}
+            try { if (oaiPingTimer) clearInterval(oaiPingTimer); } catch {}
+            oaiPingTimer = null;
+            oaiRestartTimer = setTimeout(() => {
+              if (pc && pc.connectionState === 'connected') {
+                setConnectionState('reconnecting');
+                scheduleIceRestartBackoff('oai_dc_closed');
+              }
+            }, 1200);
+          };
           oaiDc.onclose = clearOai;
           oaiDc.onerror = clearOai;
+          oaiDc.onmessage = (ev) => {
+            try {
+              const msg = JSON.parse(ev?.data || '{}');
+              const t = String(msg?.type || msg?.event || '');
+              if (/response\.(completed|error|refused)/i.test(t)) {
+                awaitingResponse = false;
+                responseRetryCount = 0;
+                addCrumb('response_done', { t });
+              }
+            } catch {}
+          };
           // optional onmessage: ignored to keep logs silent by default
         }
       };
     } catch {}
+    // Do not proactively create here to avoid duplicate channels; server provides it.
 
     pc.onconnectionstatechange = () => {
       const state = pc.connectionState;
@@ -280,6 +389,12 @@ export function useWebRTCClient() {
         try { if (connectTimeoutTimer) clearTimeout(connectTimeoutTimer); } catch {}
         connectTimeoutTimer = null;
         iceBackoffAttempt = 0;
+        everConnected = true;
+        // Auto-greet once to keep session/media active even if user is silent
+        if (FLAG_AUTO_GREETING && !sentInitialResponse) {
+          sentInitialResponse = true;
+          setTimeout(() => { sendResponseCreate(); }, 200);
+        }
       } else if (state === 'connecting') {
         setConnectionState('connecting');
       } else if (state === 'disconnected' || state === 'failed') {
@@ -294,9 +409,23 @@ export function useWebRTCClient() {
       const s = pc.iceConnectionState;
       addCrumb('ice_state_change', { state: s });
       log('debug', `pc.iceConnectionState=${s}`);
-      if ((s === 'failed' || s === 'disconnected') && FLAG_RESTART_ICE) {
+      if (s === 'connected') {
+        try { if (iceDisconnectTimer) clearTimeout(iceDisconnectTimer); } catch {}
+        iceDisconnectTimer = null;
+        return;
+      }
+      if (s === 'disconnected' && FLAG_RESTART_ICE) {
+        try { if (iceDisconnectTimer) clearTimeout(iceDisconnectTimer); } catch {}
+        iceDisconnectTimer = setTimeout(() => {
+          if (!pc || pc.iceConnectionState !== 'disconnected') return;
+          setConnectionState('reconnecting');
+          scheduleIceRestartBackoff('disconnected');
+        }, ICE_DISCONNECT_DEBOUNCE_MS);
+        return;
+      }
+      if (s === 'failed' && FLAG_RESTART_ICE) {
         setConnectionState('reconnecting');
-        scheduleIceRestartBackoff(s);
+        scheduleIceRestartBackoff('failed');
       }
     };
 
@@ -304,15 +433,23 @@ export function useWebRTCClient() {
   }, [setRemoteStream, setConnectionState]);
 
   const scheduleIceRestartBackoff = (reason) => {
+    if (reason === 'inbound_idle' || reason === 'oai_dc_closed' || reason === 'no_inbound_audio') {
+      forceReconnectOnIceExhaust = true;
+    }
+    const allowWhileConnected = (reason === 'inbound_idle' || reason === 'oai_dc_closed' || reason === 'no_inbound_audio');
     try { if (iceBackoffTimer) clearTimeout(iceBackoffTimer); } catch {}
     const delays = [1000, 2000, 4000, 10000];
     const attempt = Math.min(iceBackoffAttempt, delays.length - 1);
     const wait = delays[attempt];
     iceBackoffTimer = setTimeout(async () => {
-      if (!pc || pc.connectionState === 'connected') return;
+      if (!pc) return;
+      if (pc.connectionState === 'connected' && !allowWhileConnected) return;
       addCrumb('ice_restart_attempt', { attempt: iceBackoffAttempt + 1, reason });
       log('info', 'ICE restart attempt', { attempt: iceBackoffAttempt + 1, reason });
       try {
+        if (allowWhileConnected) {
+          try { setConnectionState('reconnecting'); } catch {}
+        }
         if (typeof pc.restartIce === 'function') {
           pc.restartIce();
         } else {
@@ -320,17 +457,16 @@ export function useWebRTCClient() {
         }
         iceBackoffAttempt += 1;
         if (iceBackoffAttempt >= delays.length) {
-          // Maxed out; if still not connected, mark as failed under guard
+          // Maxed out; reconnect or fallback even if state still shows connected
           setTimeout(() => {
-            if (pc && pc.connectionState !== 'connected') {
-              addCrumb('ice_restart_exhausted');
-              log('warn', 'ICE restart attempts exhausted');
-              if (FLAG_HOST_ONLY_FALLBACK && !hostOnlyAttempted) {
-                fallbackToHostOnly().catch(() => {});
-              } else if (FLAG_GUARD_CONNECTED) {
-                setConnectionState('failed');
-              }
+            addCrumb('ice_restart_exhausted');
+            log('warn', 'ICE restart attempts exhausted');
+            if (!everConnected && FLAG_HOST_ONLY_FALLBACK && !hostOnlyAttempted) {
+              fallbackToHostOnly().catch(() => {});
+            } else if (forceReconnectOnIceExhaust || (pc && pc.connectionState !== 'connected')) {
+              try { reconnect(); } catch {}
             }
+            forceReconnectOnIceExhaust = false;
           }, 1500);
         }
       } catch (e) {
@@ -349,13 +485,12 @@ export function useWebRTCClient() {
     try {
       // Close current peer and timers
       try { pc?.close(); } catch {}
-      try { keepAliveDc?.close(); } catch {}
-      try { if (keepAliveTimer) clearInterval(keepAliveTimer); } catch {}
+      try { oaiDc?.close(); } catch {}
       try { if (iceRestartTimer) clearTimeout(iceRestartTimer); } catch {}
       try { if (iceBackoffTimer) clearTimeout(iceBackoffTimer); } catch {}
       try { if (statsTimer) clearInterval(statsTimer); } catch {}
       try { if (connectTimeoutTimer) clearTimeout(connectTimeoutTimer); } catch {}
-      keepAliveDc = null; keepAliveTimer = null; iceRestartTimer = null; iceBackoffTimer = null; statsTimer = null; connectTimeoutTimer = null;
+      iceRestartTimer = null; iceBackoffTimer = null; statsTimer = null; connectTimeoutTimer = null;
       pc = null;
 
       // Create host-only PC
@@ -431,6 +566,9 @@ export function useWebRTCClient() {
   const startConnection = useCallback(async ({ mic = false, cam = false, replaceTracks = false, stunOnly = false } = {}) => {
     setConnectionState('connecting');
     try {
+      // Reset per-call flags
+      sentInitialResponse = false;
+      awaitingResponse = false;
       await ensureStreams({ mic, cam });
 
       const peer = createPeer(stunOnly ? RTC_STUN_ONLY_CONFIG : undefined);
@@ -481,41 +619,113 @@ export function useWebRTCClient() {
       addCrumb('answer_applied');
       log('info', 'Remote answer applied');
 
-      // Start stats watcher to detect stalled audio
+      // Start stats watcher: detect stalled inbound audio (assistant speech)
+      // and simple local VAD (user end-of-speech) to auto-trigger responses.
       try { if (statsTimer) clearInterval(statsTimer); } catch {}
       lastInboundAudioBytes = 0;
       lastInboundCheckAt = Date.now();
+      lastOutboundAudioBytes = 0;
+      lastOutboundCheckAt = Date.now();
+      userVoiceActive = false;
+      voiceSilentSince = 0;
       statsTimer = setInterval(async () => {
         try {
           if (!pc || pc.connectionState !== 'connected') return;
           const stats = await pc.getStats();
           let inbound = 0;
+          let outbound = 0;
           stats.forEach((r) => {
-            if (r.type === 'inbound-rtp' && r.kind === 'audio') {
+            const isAudio = (r.kind || r.mediaType) === 'audio';
+            if (r.type === 'inbound-rtp' && isAudio) {
               inbound += r.bytesReceived || 0;
+            } else if (r.type === 'outbound-rtp' && isAudio) {
+              outbound += r.bytesSent || 0;
             }
           });
           const now = Date.now();
-          if (lastInboundAudioBytes > 0) {
-            const deltaBytes = inbound - lastInboundAudioBytes;
-            const deltaMs = now - lastInboundCheckAt;
-            // If no bytes in ~7s while connected, try ICE restart
-            if (deltaBytes <= 20 && deltaMs >= 7000) {
+          const deltaBytes = inbound - lastInboundAudioBytes;
+          const deltaMs = now - lastInboundCheckAt;
+          const deltaOutBytes = outbound - lastOutboundAudioBytes;
+          const deltaOutMs = now - lastOutboundCheckAt;
+
+          // Simple VAD: detect end-of-speech and trigger response if enabled
+          if (FLAG_AUTO_VAD_RESPONSE) {
+            // thresholds tuned for 2s interval; adapt if deltaOutMs differs
+            const talking = deltaOutBytes > 1800; // ~7.2 kbps over 2s
+            if (talking) {
+              userVoiceActive = true;
+              voiceSilentSince = 0;
+            } else {
+              if (userVoiceActive && voiceSilentSince === 0) voiceSilentSince = now;
+              const silentLongEnough = userVoiceActive && voiceSilentSince && (now - voiceSilentSince >= 1400);
+              if (silentLongEnough && !awaitingResponse) {
+                addCrumb('vad_silence_commit');
+                sendResponseCreate();
+                // Reset VAD state to avoid repeated triggers
+                userVoiceActive = false;
+                voiceSilentSince = 0;
+              }
+            }
+          }
+
+          // Only monitor stalls while we are actually awaiting a response
+          if (awaitingResponse) {
+            // If oai-events channel is not open for a while, escalate to reconnect
+            if ((!oaiDc || oaiDc.readyState !== 'open') && (now - (awaitingResponseSince || now)) >= 8000) {
+              addCrumb('oai_dc_missing_reconnect');
+              try { reconnect(); } catch {}
+              // avoid immediate repeat; give it time
+              awaitingResponseSince = now;
+            }
+            // If nothing after 6s, try one resend of response.create
+            if (deltaBytes <= 10 && deltaMs >= 6000 && responseRetryCount < 1) {
+              addCrumb('response_resend');
+              sendResponseCreate();
+              responseRetryCount += 1;
+              // don't early return; still update baselines to avoid rapid repeats
+            }
+            // If no bytes in >=15s after asking for a response, consider nudging ICE
+            if (deltaBytes <= 50 && deltaMs >= 15000) {
               addCrumb('no_inbound_audio');
-              log('warn', 'No inbound audio detected, attempting ICE restart');
-              try {
-                if (FLAG_RESTART_ICE && typeof pc.restartIce === 'function') pc.restartIce();
-                else if (FLAG_RESTART_ICE) await iceRestart();
-              } catch { try { await reconnect(); } catch {} }
-              lastInboundAudioBytes = 0; // reset baseline after restart
+              log('warn', 'No inbound audio detected while awaiting response');
+              forceReconnectOnIceExhaust = true;
+              scheduleIceRestartBackoff('no_inbound_audio');
+              // reset baseline after attempt
+              lastInboundAudioBytes = inbound;
               lastInboundCheckAt = now;
               return;
+            }
+            // If we started receiving audio, stop awaiting
+            if (deltaBytes > 200) {
+              awaitingResponse = false;
+              responseRetryCount = 0;
+            }
+          }
+          // Track general inbound activity to detect long mute while "connected"
+          if (deltaBytes > 10) {
+            everHeardInbound = true;
+            lastInboundHeardAt = now;
+            // reset idle attempts once traffic flows again
+            longIdleRestartAttempt = 0;
+          }
+          if (!awaitingResponse && everHeardInbound) {
+            const idleFor = now - (lastInboundHeardAt || lastInboundCheckAt);
+            if (idleFor >= INBOUND_IDLE_RECONNECT_MS && longIdleRestartAttempt >= 2) {
+              addCrumb('inbound_idle_reconnect', { idle_ms: idleFor });
+              try { reconnect(); } catch {}
+              longIdleRestartAttempt = 0;
+            } else if (idleFor >= INBOUND_IDLE_RESTART_MS && longIdleRestartAttempt < 2) {
+              addCrumb('inbound_idle_restart', { idle_ms: idleFor });
+              scheduleIceRestartBackoff('inbound_idle');
+              longIdleRestartAttempt += 1;
             }
           }
           lastInboundAudioBytes = inbound;
           lastInboundCheckAt = now;
+          lastOutboundAudioBytes = outbound;
+          lastOutboundCheckAt = now;
         } catch {}
-      }, 5000);
+      }, 2000);
 
       // Connection timeout guard
       if (FLAG_GUARD_CONNECTED) {
@@ -573,76 +783,40 @@ export function useWebRTCClient() {
     return canvas.toDataURL('image/png');
   }, []);
 
-  // Press-to-Talk controls: attach/detach the microphone track to the audio sender
-  const beginPtt = useCallback(async () => {
-    if (!pc) return;
-    // Ensure we have an audio track
-    if (!localStreamRef || !localStreamRef.getAudioTracks().length) {
-      try {
-        await ensureStreams({ mic: true, cam: false });
-      } catch {}
-    }
-    const track = localStreamRef?.getAudioTracks?.()[0];
-    if (!track) return;
-    try { track.enabled = true; } catch {}
-    try {
-      const senders = pc.getSenders() || [];
-      let audioSender = senders.find(s => (s.track && s.track.kind === 'audio'));
-      if (!audioSender) {
-        // Try to find an audio sender via transceivers
-        try {
-          const tx = pc.getTransceivers?.().find(t => t.receiver?.track?.kind === 'audio' || t.sender?.track?.kind === 'audio' || t.mid === 'audio');
-          if (tx && tx.sender) audioSender = tx.sender;
-        } catch {}
-      }
-      if (audioSender) {
-        await audioSender.replaceTrack(track);
-      } else {
-        pc.addTrack(track, localStreamRef);
-      }
-    } catch {}
-  }, [ensureStreams]);
-
-  const endPtt = useCallback(() => {
-    if (!pc) return;
-    try {
-      const senders = pc.getSenders() || [];
-      const audioSender = senders.find(s => (s.track && s.track.kind === 'audio'));
-      if (audioSender && audioSender.replaceTrack) {
-        audioSender.replaceTrack(null).catch(() => {});
-      }
-    } catch {}
-    // Stop and remove local mic tracks to avoid capturing when not pressed
-    try {
-      if (localStreamRef) {
-        localStreamRef.getAudioTracks().forEach(t => { try { t.stop(); } catch {}; try { localStreamRef.removeTrack(t); } catch {}; });
-        setLocalStream(localStreamRef);
-      }
-    } catch {}
-  }, [setLocalStream]);
+  // Live mode: PTT removed. Mic is attached according to micOn toggle via ensureStreams/startConnection.
 
   const stopConnection = useCallback(() => {
-    if (pc) {
-      try { pc.getSenders().forEach(s => s.track && s.track.stop()); } catch (_) {}
-      try { pc.close(); } catch (_) {}
-    }
-    try { keepAliveDc?.close(); } catch {}
+    try {
+      if (pc) {
+        try { pc.getSenders().forEach(s => s.track && s.track.stop()); } catch {}
+        try { pc.close(); } catch {}
+      }
+    } catch {}
     try { oaiDc?.close(); } catch {}
-    try { if (keepAliveTimer) clearInterval(keepAliveTimer); } catch {}
     try { if (iceRestartTimer) clearTimeout(iceRestartTimer); } catch {}
     try { if (iceBackoffTimer) clearTimeout(iceBackoffTimer); } catch {}
     try { if (statsTimer) clearInterval(statsTimer); } catch {}
     try { if (connectTimeoutTimer) clearTimeout(connectTimeoutTimer); } catch {}
     try { if (fallbackTimer) clearTimeout(fallbackTimer); } catch {}
-    keepAliveDc = null;
+    try { if (iceDisconnectTimer) clearTimeout(iceDisconnectTimer); } catch {}
+    try { if (oaiRestartTimer) clearTimeout(oaiRestartTimer); } catch {}
+    try { if (oaiPingTimer) clearInterval(oaiPingTimer); } catch {}
     oaiDc = null;
-    keepAliveTimer = null;
     iceRestartTimer = null;
     iceBackoffTimer = null;
+    iceDisconnectTimer = null;
+    oaiRestartTimer = null;
+    oaiPingTimer = null;
     statsTimer = null;
     connectTimeoutTimer = null;
     fallbackTimer = null;
     hostOnlyAttempted = false;
+    awaitingResponse = false;
+    everConnected = false;
+    sentInitialResponse = false;
+    everHeardInbound = false;
+    lastInboundHeardAt = 0;
+    longIdleRestartAttempt = 0;
     pc = null;
     setConnectionState('disconnected');
   }, [setConnectionState]);
@@ -653,8 +827,8 @@ export function useWebRTCClient() {
       // Force a fresh peer connection on reconnect to recover from failures
       try { pc?.close(); } catch {}
       pc = null;
-      // Do not auto-enable mic on reconnect; PTT controls mic attachment
-      await startConnection({ mic: false, cam: camOn, replaceTracks: true, stunOnly: false });
+      // Preserve current toggles in live mode
+      await startConnection({ mic: micOn, cam: camOn, replaceTracks: true, stunOnly: false });
     } catch (e) {
       setConnectionState('disconnected');
       throw e;
@@ -662,13 +836,8 @@ export function useWebRTCClient() {
   }, [startConnection, micOn, camOn, setConnectionState]);
 
   const requestResponse = useCallback(() => {
-    try {
-      if (oaiDc && oaiDc.readyState === 'open') {
-        oaiDc.send(JSON.stringify({ type: 'response.create' }));
-        addCrumb('response_create_sent');
-      }
-    } catch {}
+    try { sendResponseCreate(); } catch {}
   }, []);
 
-  return { startConnection, stopConnection, snapshotFromVideo, reconnect, beginPtt, endPtt, requestResponse };
+  return { startConnection, stopConnection, snapshotFromVideo, reconnect, requestResponse };
 }

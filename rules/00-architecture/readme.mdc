@@ -5,7 +5,7 @@ date: "2025-01-18"
 owner: "NEEDS-VERIFY Provide owner or primary contact."
 contenu: Objectifs, SLA, contraintes, architecture, découpage, auth, état, logs, config, flags, i18n, accessibilité, ADR, glossaire.
 
-•	Workspace lives in C:\Users\yvallott\.codex\notionlab_010925; operate only inside this Vite/React (18) project via Windsurf, keeping readmeIA (file in the root of the project) as the canonical reference.
+•	Workspace lives in C:\dev\notionlab; operate only inside this Vite/React (18) project via Windsurf, keeping readmeIA (file in the root of the project) as the canonical reference.
 •	Favor functional, declarative React; stay modular (component → subcomponents → hooks/helpers → static data); centralize Supabase access and keep helpers pure.
 •	Always source env values (e.g., VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY) through @/lib/customSupabaseClient; warn if missing; never hard-code keys or expose service-role secrets client-side.
 •	Manage auth exclusively via SupabaseAuthContext/useAuth(); respect authReady/authLoading; on critical auth failures sign out and redirect /connexion.
