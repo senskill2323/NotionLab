@@ -1,19 +1,46 @@
+# --- Vite/React SPA on Apache/LiteSpeed (Hostinger) ---
 <IfModule mod_rewrite.c>
+  Options -MultiViews
   RewriteEngine On
   RewriteBase /
-  RewriteCond %{REQUEST_FILENAME} !-f
-  RewriteCond %{REQUEST_FILENAME} !-d
-  RewriteRule ^ index.html [L]
+
+  # Laisser passer les fichiers/dossiers existants
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Exclusions utiles (API, ACME/Let's Encrypt, etc.)
+  RewriteCond %{REQUEST_URI} !^/api/
+  RewriteCond %{REQUEST_URI} !^/\.well-known/
+
+  # Tout le reste -> index.html (routing SPA)
+  RewriteRule . /index.html [L]
 </IfModule>
 
-<IfModule mod_headers.c>
-  Header set X-Powered-By "Hostinger Horizons"
+# Types explicites (certains mutualisés en ont besoin)
+AddType application/javascript .js .mjs
+AddType text/css .css
 
-  # Cache everything on CDN by default
-  Header set Cache-Control "public, s-maxage=604800, max-age=0"
-  
-  # Cache in browser all assets
-  <If "%{REQUEST_URI} =~ m#^/assets/.*$#">
-    Header set Cache-Control "public, max-age=604800"
-  </If>
+<IfModule mod_headers.c>
+  # Ne JAMAIS cacher index.html
+  <FilesMatch "^index\.html$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+  </FilesMatch>
+
+  # Service worker : pas de cache (évite les versions périmées)
+  <FilesMatch "(^|/)(sw|service-worker)\.js$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+  </FilesMatch>
+
+  # Manifest : rafraîchi rapidement
+  <FilesMatch "(\.webmanifest|manifest\.json)$">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
+
+  # Long cache pour assets fingerprintés par Vite
+  <FilesMatch "\.(js|css|png|jpg|jpeg|gif|svg|webp|ico|woff2|woff|ttf|eot)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
 </IfModule>
