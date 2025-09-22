@@ -74,19 +74,26 @@ const UserAccountPanel = () => {
     return 'Utilisateur,';
   };
 
-  const isAdmin = user && ['admin', 'prof', 'owner'].includes(user.profile?.user_type);
+  const userType = user?.profile?.user_type;
+  const isAdmin = user && ['admin', 'prof', 'owner'].includes(userType);
 
-  // Determine safest dashboard path to avoid redirect loops for admins without access
-  const dashboardPath = isAdmin
-    ? ((permissionsReady && hasPermission('admin:access_dashboard')) ? '/admin/dashboard' : '/')
-    : '/dashboard';
+  // Resolve dashboard destination at click time to avoid stale readiness
+  const resolveDashboardPath = () => {
+    if (!isAdmin) return '/dashboard';
+    // Owners always have access to admin dashboard
+    if (userType === 'owner') return '/admin/dashboard';
+    // If permissions not ready on public pages (e.g., homepage), optimistically try admin dashboard.
+    // ProtectedRoute will redirect to '/dashboard' if permission is actually missing.
+    if (!permissionsReady) return '/admin/dashboard';
+    return hasPermission('admin:access_dashboard') ? '/admin/dashboard' : '/dashboard';
+  };
 
   const menuItems = [
     {
       id: 'dashboard',
       title: 'Mon Dashboard',
       icon: LayoutDashboard,
-      action: () => handleNavigation(dashboardPath)
+      action: () => handleNavigation(resolveDashboardPath())
     },
     {
       id: 'profile',

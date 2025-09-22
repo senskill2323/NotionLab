@@ -182,8 +182,6 @@ const UserManagementPanel = () => {
     }
   };
 
-  const getBadgeVariant = (type) => ({ owner: 'default', prof: 'destructive', admin: 'secondary' }[type] || 'outline');
-
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
       <Card className="glass-effect">
@@ -282,20 +280,20 @@ const UserManagementPanel = () => {
                     <TableCell className="text-xs">{user.last_name}</TableCell>
                     <TableCell className="text-xs">{user.email}</TableCell>
                     <TableCell>
-                      {user.user_types?.type_name === 'owner' ? (
-                         <Badge variant={getBadgeVariant(user.user_types.type_name)}>{user.user_types.display_name}</Badge>
-                      ) : (
-                        <Select 
-                          value={user.user_type_id?.toString() || ''} 
-                          onValueChange={(newTypeId) => handleUserTypeChange(user.id, parseInt(newTypeId))}
-                          disabled={isProcessing || user.id === currentUser.id}
-                        >
-                          <SelectTrigger className="w-[100px] h-6 text-xs"><SelectValue placeholder="Type" /></SelectTrigger>
-                          <SelectContent>
-                            {userTypes.filter(ut => ut.type_name !== 'owner').map(ut => <SelectItem key={ut.id} value={ut.id.toString()}>{ut.display_name}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      )}
+                      <Select
+                        value={user.user_type_id?.toString() || ''}
+                        onValueChange={(newTypeId) => handleUserTypeChange(user.id, parseInt(newTypeId))}
+                        disabled={isProcessing || user.id === currentUser.id}
+                      >
+                        <SelectTrigger className="w-[100px] h-6 text-xs"><SelectValue placeholder="Type" /></SelectTrigger>
+                        <SelectContent>
+                          {userTypes.map((ut) => (
+                            <SelectItem key={ut.id} value={ut.id.toString()}>
+                              {ut.display_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </TableCell>
                     <TableCell className="text-xs">{user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleString() : 'Jamais'}</TableCell>
                     <TableCell className="text-right">
