@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useAssistantStore } from '@/hooks/useAssistantStore';
-import { Mic, MicOff, Video, VideoOff, Camera, Upload, X, RefreshCw, Link as LinkIcon } from 'lucide-react';
+import { Mic, MicOff, Video, VideoOff, Camera, Upload, X, RefreshCw, Link as LinkIcon, ChevronLeft, ChevronRight, Volume1, Volume2, Pause, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ragSearch, getMemory, updateMemory } from '@/lib/assistantApi';
 import { getAssistantSettings } from '@/lib/assistantAdminApi';
@@ -10,7 +10,7 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 
 const ConnectionBadge = ({ state }) => {
   const color = state === 'connected' ? 'bg-green-500' : state === 'reconnecting' ? 'bg-yellow-500' : 'bg-red-500';
-  const text = state === 'connected' ? 'Connecté' : state === 'reconnecting' ? 'Reconnexion…' : 'Hors ligne';
+  const text = state === 'connected' ? 'ConnectÃ©' : state === 'reconnecting' ? 'Reconnexionâ€¦' : 'Hors ligne';
   return (
     <div className="flex items-center gap-2 text-xs">
       <span className={`inline-block w-2 h-2 rounded-full ${color}`} />
@@ -29,6 +29,8 @@ const AssistantDrawer = ({ open, onClose }) => {
     messages, pushMessage,
     connectionState,
     error,
+    minimized,
+    toggleWidget,
   } = useAssistantStore();
   const { user } = useAuth();
   const [lastImage, setLastImage] = useState(null);
@@ -126,7 +128,7 @@ const AssistantDrawer = ({ open, onClose }) => {
     } else if (connectionState === 'connecting') {
       startRingback();
     } else {
-      // failed, disconnected, idle → stop
+      // failed, disconnected, idle â†’ stop
       stopRingback();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -151,7 +153,7 @@ const AssistantDrawer = ({ open, onClose }) => {
   useEffect(() => {
     try {
       if ('mediaSession' in navigator) {
-        navigator.mediaSession.metadata = callActive ? new window.MediaMetadata({ title: 'Assistant', artist: 'GPT‑Realtime' }) : null;
+        navigator.mediaSession.metadata = callActive ? new window.MediaMetadata({ title: 'Assistant', artist: 'GPTâ€‘Realtime' }) : null;
         navigator.mediaSession.playbackState = callActive ? 'playing' : 'none';
       }
     } catch {}
@@ -208,7 +210,7 @@ const AssistantDrawer = ({ open, onClose }) => {
       await startConnection({ mic: true, cam: camOn, stunOnly: true });
       try { await audioRef.current?.play?.(); } catch {}
     } catch (_) {
-      // On échec, raccrocher proprement
+      // On Ã©chec, raccrocher proprement
       handleHangup();
       return;
     }
@@ -251,6 +253,31 @@ const AssistantDrawer = ({ open, onClose }) => {
     return `${String(m).padStart(1, '0')}:${String(s).padStart(2, '0')}`;
   };
 
+  // UI-only helpers (front-only): volume and pause/play
+  const handleVolumeDown = () => {
+    try {
+      const a = audioRef.current; if (!a) return;
+      a.volume = Math.max(0, Math.round((a.volume - 0.1) * 10) / 10);
+    } catch {}
+  };
+
+  const handleVolumeUp = () => {
+    try {
+      const a = audioRef.current; if (!a) return;
+      a.volume = Math.min(1, Math.round((a.volume + 0.1) * 10) / 10);
+    } catch {}
+  };
+
+  const handlePauseResume = async () => {
+    try {
+      if (callActive) {
+        handleHangup();
+      } else {
+        await handleCall();
+      }
+    } catch {}
+  };
+
   const handleToggleMic = async () => {
     const next = !micOn;
     setMic(next);
@@ -268,7 +295,7 @@ const AssistantDrawer = ({ open, onClose }) => {
     const dataUrl = await snapshotFromVideo(videoRef.current);
     if (dataUrl) {
       setLastImage(dataUrl);
-      pushMessage({ role: 'user', content: 'Snapshot envoyé.', image: dataUrl });
+      pushMessage({ role: 'user', content: 'Snapshot envoyÃ©.', image: dataUrl });
     }
   };
 
@@ -281,7 +308,7 @@ const AssistantDrawer = ({ open, onClose }) => {
     reader.onload = () => {
       const uploaded = { name: file.name, type: file.type, dataUrl: reader.result };
       setLastFile(uploaded);
-      pushMessage({ role: 'user', content: `Fichier téléchargé: ${file.name}`, file: uploaded });
+      pushMessage({ role: 'user', content: `Fichier tÃ©lÃ©chargÃ©: ${file.name}`, file: uploaded });
     };
     reader.readAsDataURL(file);
   };
@@ -299,14 +326,14 @@ const AssistantDrawer = ({ open, onClose }) => {
     try {
       const { answer, sources, unavailable, message } = await ragSearch({ query: text, includeSources: showSources, image: lastImage, file: lastFile });
       if (unavailable) {
-        const fallbackMsg = adminSettings?.rag_error_message || "Je n’ai pas accès à tes documents pour le moment. Je tente un accès générique et je me reconnecte si possible.";
+        const fallbackMsg = adminSettings?.rag_error_message || "Je nâ€™ai pas accÃ¨s Ã  tes documents pour le moment. Je tente un accÃ¨s gÃ©nÃ©rique et je me reconnecte si possible.";
         pushMessage({ role: 'assistant', content: message || fallbackMsg, meta: { reason: 'no_access' } });
       }
-      pushMessage({ role: 'assistant', content: answer || '…', sources: showSources ? sources : undefined });
+      pushMessage({ role: 'assistant', content: answer || 'â€¦', sources: showSources ? sources : undefined });
       setLastImage(null);
       setLastFile(null);
     } catch (e) {
-      pushMessage({ role: 'assistant', content: "Connexion instable, je tente de me reconnecter…" });
+      pushMessage({ role: 'assistant', content: "Connexion instable, je tente de me reconnecterâ€¦" });
       try { await reconnect(); } catch (_) {}
     } finally {
       setSending(false);
@@ -324,11 +351,18 @@ const AssistantDrawer = ({ open, onClose }) => {
   }, [connectionState, open, reconnect]);
 
   return (
-    <div className={`fixed top-0 right-0 h-screen w-full sm:w-[440px] md:w-[480px] max-w-[90vw] bg-background shadow-2xl z-50 transition-transform duration-300 ${open ? 'translate-x-0' : 'translate-x-full'}`}>
+    <div className={`fixed top-0 right-0 h-screen ${minimized ? 'w-[56px]' : 'w-full sm:w-[440px] md:w-[480px] max-w-[90vw]'} bg-background shadow-2xl z-50 transition-transform duration-300 ${open ? 'translate-x-0' : 'translate-x-full'}`}>
       <div className="flex items-center justify-between p-3 border-b">
-        <div className="flex items-center gap-3">
-          <h2 className="text-base font-semibold">Assistant</h2>
-          <ConnectionBadge state={connectionState} />
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" onClick={toggleWidget} title={minimized ? 'Agrandir' : 'R?duire'} aria-label={minimized ? 'Agrandir' : 'R?duire'}>
+            {minimized ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+          </Button>
+          {!minimized && (
+            <>
+              <h2 className="text-base font-semibold">Assistant</h2>
+              <ConnectionBadge state={connectionState} />
+            </>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" onClick={() => reconnect()} title="Reconnexion">
@@ -340,13 +374,8 @@ const AssistantDrawer = ({ open, onClose }) => {
         </div>
       </div>
 
-      <div className="p-3 space-y-3 overflow-y-auto h-[calc(100vh-56px)]">
-        {/* Remote audio */}
-        <div className="p-2 rounded-md border">
-          <p className="text-sm text-foreground/80 mb-2">Voix de l’assistante</p>
-          <audio ref={audioRef} autoPlay playsInline controls className="w-full" />
-        </div>
-
+      {!minimized && (<div className="p-3 space-y-3 overflow-y-auto h-[calc(100vh-56px)]">
+        <audio ref={audioRef} autoPlay playsInline className="sr-only" />
         {/* Media controls */}
         <div className="flex items-center gap-2">
           <Button variant="default" onClick={handleCall} disabled={!open || callActive}>
@@ -355,6 +384,15 @@ const AssistantDrawer = ({ open, onClose }) => {
           <Button variant="destructive" onClick={handleHangup} disabled={!open || !callActive}>
             Raccrocher
           </Button>
+          <Button variant="ghost" size="icon" onClick={handlePauseResume} title={callActive ? 'Pause' : 'Lecture'} aria-label={callActive ? 'Pause' : 'Lecture'}>
+            {callActive ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+          </Button>
+          <Button variant="ghost" size="icon" onClick={handleVolumeDown} title="Baisser le volume" aria-label="Baisser le volume">
+            <Volume1 className="w-4 h-4" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={handleVolumeUp} title="Augmenter le volume" aria-label="Augmenter le volume">
+            <Volume2 className="w-4 h-4" />
+          </Button>
           {callActive && (
             <span className="text-xs text-foreground/70 ml-1">{fmtRemaining(remainingMs)}</span>
           )}
@@ -362,13 +400,13 @@ const AssistantDrawer = ({ open, onClose }) => {
             {micOn ? <Mic className="w-4 h-4 mr-2" /> : <MicOff className="w-4 h-4 mr-2" />} {micOn ? 'Micro ON' : 'Micro OFF'}
           </Button>
           <Button variant={camOn ? 'default' : 'secondary'} onClick={handleToggleCam}>
-            {camOn ? <Video className="w-4 h-4 mr-2" /> : <VideoOff className="w-4 h-4 mr-2" />} {camOn ? 'Caméra ON' : 'Caméra OFF'}
+            {camOn ? <Video className="w-4 h-4 mr-2" /> : <VideoOff className="w-4 h-4 mr-2" />} {camOn ? 'CamÃ©ra ON' : 'CamÃ©ra OFF'}
           </Button>
           <Button variant="outline" onClick={handleSnapshot}>
-            <Camera className="w-4 h-4 mr-2" /> Montre‑lui
+            <Camera className="w-4 h-4 mr-2" /> Montreâ€‘lui
           </Button>
           <input ref={fileInputRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => handleFiles(e.target.files)} />
-          {/* Upload déplacé près du bouton Envoyer */}
+          {/* Upload dÃ©placÃ© prÃ¨s du bouton Envoyer */}
         </div>
 
         {/* Local preview */}
@@ -381,7 +419,7 @@ const AssistantDrawer = ({ open, onClose }) => {
         {/* Messages */}
         <div className="space-y-2 max-h-[40vh] overflow-y-auto border rounded-md p-2">
           {messages.length === 0 && (
-            <div className="text-sm text-foreground/60">Commence à parler au micro ou tape un message ci‑dessous.</div>
+            <div className="text-sm text-foreground/60">Commence Ã  parler au micro ou tape un message ciâ€‘dessous.</div>
           )}
           {messages.map((m, idx) => (
             <div key={idx} className="text-sm">
@@ -420,7 +458,7 @@ const AssistantDrawer = ({ open, onClose }) => {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') sendQuery(); }}
             className="flex-1 px-3 py-2 border rounded-md bg-background"
-            placeholder="Pose ta question…"
+            placeholder="Pose ta questionâ€¦"
           />
           <Button variant="ghost" size="icon" onClick={handleUploadClick} title="Joindre un fichier">
             <Upload className="w-4 h-4" />
@@ -437,21 +475,25 @@ const AssistantDrawer = ({ open, onClose }) => {
 
         {callActive && connectionState !== 'connected' && (
           <div className="text-xs text-foreground/70">
-            {connectionState === 'connecting' && 'Appel en cours…'}
-            {connectionState === 'reconnecting' && 'Reconnexion…'}
-            {connectionState === 'failed' && 'Impossible d’établir la connexion. Vérifie le réseau puis réessaie.'}
+            {connectionState === 'connecting' && 'Appel en coursâ€¦'}
+            {connectionState === 'reconnecting' && 'Reconnexionâ€¦'}
+            {connectionState === 'failed' && 'Impossible dâ€™Ã©tablir la connexion. VÃ©rifie le rÃ©seau puis rÃ©essaie.'}
             {(connectionState === 'disconnected' || connectionState === 'idle') && 'Hors ligne.'}
           </div>
         )}
         {error && (
           <div className="text-xs text-red-500/80 border border-red-500/40 bg-red-500/5 rounded-md p-2">
-            <div className="font-medium mb-1">Détail technique (debug)</div>
+            <div className="font-medium mb-1">DÃ©tail technique (debug)</div>
             <code className="whitespace-pre-wrap break-all">{String(error)}</code>
           </div>
         )}
-      </div>
+      </div>)}
     </div>
   );
 };
 
 export default AssistantDrawer;
+
+
+
+
