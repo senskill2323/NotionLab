@@ -22,15 +22,19 @@ const ClientAccountPage = () => {
     return null;
   }
 
-  const isAdmin = user && ['admin', 'prof', 'owner'].includes(user.profile?.user_type);
+  const userType = user?.profile?.user_type;
+  const isAdmin = user && ['admin', 'prof', 'owner'].includes(userType);
 
-  // Determine safest dashboard path to avoid redirect loops for admins without access
-  const dashboardPath = isAdmin
-    ? ((permissionsReady && hasPermission('admin:access_dashboard')) ? '/admin/dashboard' : '/')
-    : '/dashboard';
+  // Determine dashboard destination without hard fallback to '/'
+  const resolveDashboardPath = () => {
+    if (!isAdmin) return '/dashboard';
+    if (userType === 'owner') return '/admin/dashboard';
+    if (!permissionsReady) return '/admin/dashboard';
+    return hasPermission('admin:access_dashboard') ? '/admin/dashboard' : '/dashboard';
+  };
 
   const handleBackToDashboard = () => {
-    navigate(dashboardPath);
+    navigate(resolveDashboardPath());
   };
 
   return (

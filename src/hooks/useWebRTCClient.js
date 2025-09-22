@@ -1,6 +1,7 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useAssistantStore } from '@/hooks/useAssistantStore';
 import { supabase } from '@/lib/customSupabaseClient';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
 
 // Build ICE servers from env with sane defaults
 const ICE_SERVERS = [];
@@ -217,6 +218,31 @@ export function useWebRTCClient() {
     camOn,
     setError,
   } = useAssistantStore();
+  const { user } = useAuth();
+
+  const assistantProfileHint = useMemo(() => {
+    const normalize = (value) => {
+      if (typeof value !== 'string') return null;
+      const trimmed = value.trim();
+      return trimmed.length ? trimmed : null;
+    };
+    const profile = user?.profile;
+    if (!profile) return null;
+    const firstName = normalize(profile.first_name);
+    const lastName = normalize(profile.last_name);
+    const city = normalize(profile.city);
+    if (!firstName && !lastName && !city) return null;
+    return { firstName, lastName, city };
+  }, [user?.profile?.first_name, user?.profile?.last_name, user?.profile?.city]);
+
+  const buildOfferPayload = useCallback((sdp) => {
+    const payload = { sdp };
+    if (assistantProfileHint) {
+      return { ...payload, profileHint: assistantProfileHint };
+    }
+    return payload;
+  }, [assistantProfileHint]);
+
 
   const ensureStreams = useCallback(async ({ mic = true, cam = false } = {}) => {
     const constraints = buildConstraints(mic, cam);
@@ -523,7 +549,9 @@ export function useWebRTCClient() {
       await peer.setLocalDescription({ type: 'offer', sdp: tunedSdp });
       await waitForIceGatheringComplete(peer);
       const localSdp = (peer.localDescription && peer.localDescription.sdp) || tunedSdp || offer.sdp;
-      const { data, error } = await supabase.functions.invoke('realtime-offer', { body: { sdp: localSdp } });
+      const { data, error } = await supabase.functions.invoke('realtime-offer', {
+        body: buildOfferPayload(localSdp),
+      });
       if (error) throw error;
       const { sdp: answerSdp } = data || {};
       if (!answerSdp) throw new Error('No SDP answer (host-only)');
@@ -608,7 +636,7 @@ export function useWebRTCClient() {
       // Call the Supabase Edge Function proxy to OpenAI Realtime
       const localSdp = (peer.localDescription && peer.localDescription.sdp) || tunedSdp || offer.sdp;
       const { data, error } = await supabase.functions.invoke('realtime-offer', {
-        body: { sdp: localSdp },
+        body: buildOfferPayload(localSdp),
       });
       if (error) throw error;
 
@@ -759,7 +787,7 @@ export function useWebRTCClient() {
       await waitForIceGatheringComplete(pc);
       const localSdp = (pc.localDescription && pc.localDescription.sdp) || tunedSdp || offer.sdp;
       const { data, error } = await supabase.functions.invoke('realtime-offer', {
-        body: { sdp: localSdp },
+        body: buildOfferPayload(localSdp),
       });
       if (error) throw error;
       const { sdp: answerSdp } = data || {};
