@@ -214,7 +214,6 @@ export function useWebRTCClient() {
     setLocalStream,
     setRemoteStream,
     setConnectionState,
-    micOn,
     camOn,
     setError,
   } = useAssistantStore();
@@ -591,7 +590,7 @@ export function useWebRTCClient() {
     peer.addEventListener('icegatheringstatechange', check);
   });
 
-  const startConnection = useCallback(async ({ mic = false, cam = false, replaceTracks = false, stunOnly = false } = {}) => {
+  const startConnection = useCallback(async ({ mic = true, cam = false, replaceTracks = false, stunOnly = false } = {}) => {
     setConnectionState('connecting');
     try {
       // Reset per-call flags
@@ -614,7 +613,21 @@ export function useWebRTCClient() {
         for (const track of localStreamRef.getTracks()) {
           const senders = peer.getSenders();
           const kind = track.kind;
-          const existing = senders.find(s => s.track && s.track.kind === kind);
+          let existing = senders.find(s => s.track && s.track.kind === kind);
+
+          if (kind === 'audio') {
+            if (!existing) {
+              existing = senders.find(s => !s.track && typeof s.replaceTrack === 'function');
+            }
+            if (existing) {
+              if (existing.track !== track) {
+                try { await existing.replaceTrack(track); } catch (_) {}
+              }
+              try { existing.track && (existing.track.enabled = track.enabled); } catch {}
+              continue;
+            }
+          }
+
           if (existing && replaceTracks) {
             try { await existing.replaceTrack(track); } catch (_) {}
           } else if (!existing) {
@@ -811,7 +824,7 @@ export function useWebRTCClient() {
     return canvas.toDataURL('image/png');
   }, []);
 
-  // Live mode: PTT removed. Mic is attached according to micOn toggle via ensureStreams/startConnection.
+  // Live mode: PTT removed. Mic is always attached via ensureStreams/startConnection.
 
   const stopConnection = useCallback(() => {
     try {
@@ -856,12 +869,12 @@ export function useWebRTCClient() {
       try { pc?.close(); } catch {}
       pc = null;
       // Preserve current toggles in live mode
-      await startConnection({ mic: micOn, cam: camOn, replaceTracks: true, stunOnly: false });
+      await startConnection({ mic: true, cam: camOn, replaceTracks: true, stunOnly: false });
     } catch (e) {
       setConnectionState('disconnected');
       throw e;
     }
-  }, [startConnection, micOn, camOn, setConnectionState]);
+  }, [startConnection, camOn, setConnectionState]);
 
   const requestResponse = useCallback(() => {
     try { sendResponseCreate(); } catch {}

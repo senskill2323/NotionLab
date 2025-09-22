@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useAssistantStore } from '@/hooks/useAssistantStore';
-import { Mic, MicOff, Video, VideoOff, Camera, Upload, X, RefreshCw, Link as LinkIcon, ChevronLeft, ChevronRight, Volume1, Volume2, Pause, Play } from 'lucide-react';
+import { Video, VideoOff, Camera, Upload, X, RefreshCw, Link as LinkIcon, ChevronLeft, ChevronRight, Volume1, Volume2, Pause, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ragSearch, getMemory, updateMemory } from '@/lib/assistantApi';
 import { getAssistantSettings } from '@/lib/assistantAdminApi';
@@ -21,8 +21,8 @@ const ConnectionBadge = ({ state }) => {
 
 const AssistantDrawer = ({ open, onClose }) => {
   const {
-    micOn, camOn,
-    setMic, setCam,
+    camOn,
+    setCam,
     localStream, setLocalStream,
     remoteStream, setRemoteStream,
     transcript, setTranscript, appendTranscript,
@@ -113,12 +113,12 @@ const AssistantDrawer = ({ open, onClose }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // Update tracks when a call is active based on mic/cam toggles
+  // Update tracks when a call is active to reflect camera toggle changes
   useEffect(() => {
     if (!open || !callActive) return;
-    startConnection({ mic: micOn, cam: camOn, replaceTracks: true }).catch(() => {});
+    startConnection({ mic: true, cam: camOn, replaceTracks: true }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [micOn, camOn, callActive]);
+  }, [camOn, callActive]);
 
   // Ringback tone control based on connection state (only on initial connecting)
   useEffect(() => {
@@ -235,17 +235,17 @@ const AssistantDrawer = ({ open, onClose }) => {
     wakeLockRef.current = null;
   };
 
-  // Live mode: start/stop local transcription based on micOn
+  // Live mode: start/stop local transcription while call is active
   useEffect(() => {
     if (!sttSupported) return;
-    if (callActive && micOn && !listening) {
+    if (callActive && !listening) {
       try { startListening(); } catch {}
     }
-    if ((!callActive || !micOn) && listening) {
+    if (!callActive && listening) {
       try { stopListening(); } catch {}
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [callActive, micOn, sttSupported]);
+  }, [callActive, sttSupported]);
 
   const fmtRemaining = (ms) => {
     const m = Math.floor((ms || 0) / 60000);
@@ -276,15 +276,6 @@ const AssistantDrawer = ({ open, onClose }) => {
         await handleCall();
       }
     } catch {}
-  };
-
-  const handleToggleMic = async () => {
-    const next = !micOn;
-    setMic(next);
-    if (sttSupported) {
-      if (next && !listening) startListening();
-      if (!next && listening) stopListening();
-    }
   };
 
   const handleToggleCam = async () => {
@@ -396,9 +387,6 @@ const AssistantDrawer = ({ open, onClose }) => {
           {callActive && (
             <span className="text-xs text-foreground/70 ml-1">{fmtRemaining(remainingMs)}</span>
           )}
-          <Button variant={micOn ? 'default' : 'secondary'} onClick={handleToggleMic}>
-            {micOn ? <Mic className="w-4 h-4 mr-2" /> : <MicOff className="w-4 h-4 mr-2" />} {micOn ? 'Micro ON' : 'Micro OFF'}
-          </Button>
           <Button variant={camOn ? 'default' : 'secondary'} onClick={handleToggleCam}>
             {camOn ? <Video className="w-4 h-4 mr-2" /> : <VideoOff className="w-4 h-4 mr-2" />} {camOn ? 'CamÃ©ra ON' : 'CamÃ©ra OFF'}
           </Button>
