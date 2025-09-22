@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+﻿import { useCallback, useMemo } from 'react';
 import { useAssistantStore } from '@/hooks/useAssistantStore';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -31,38 +31,43 @@ if (TURN_URLS.length && TURN_USERNAME && TURN_CREDENTIAL) {
 
 function tuneOpusSdp(sdp, maxAvgBitrate = AUDIO_MAX_BITRATE_BPS) {
   try {
-    // Find opus payload type
-    const rtpmap = sdp.match(/a=rtpmap:(\d+) opus\/(\d+)/);
-    if (!rtpmap) return sdp;
-    const pt = rtpmap[1];
-    const fmtpRegex = new RegExp(`a=fmtp:${pt} (.*)`);
-    const hasFmtp = fmtpRegex.test(sdp);
-    const params = [
+    // Match "a=rtpmap:<pt> opus/48000" ou "opus/48000/2" (insensible à la casse, multilignes)
+    const r = sdp.match(/a=rtpmap:(\d+)\s+opus\/\d+(?:\/\d+)?/im);
+    if (!r) return sdp;
+    const pt = r[1];
+
+    // a=fmtp:<pt> <params...> — capturer la ligne entière, params sans retour ligne
+    const fmtpRe = new RegExp(`^a=fmtp:${pt} ([^\\r\\n]*)$`, 'im');
+
+    const merged = new Set([
       `stereo=0`,
       `sprop-stereo=0`,
       `maxaveragebitrate=${Math.max(12000, Math.min(128000, maxAvgBitrate))}`,
-      `usedtx=0`,
       `useinbandfec=1`,
-    ];
-    if (hasFmtp) {
-      sdp = sdp.replace(fmtpRegex, (m, p1) => {
-        // Merge existing params with ours
-        const existing = new Set(String(p1).split(';').map(s => s.trim()).filter(Boolean));
-        params.forEach(kv => existing.add(kv));
-        return `a=fmtp:${pt} ${Array.from(existing).join(';')}`;
+    ]);
+
+    if (fmtpRe.test(sdp)) {
+      sdp = sdp.replace(fmtpRe, (_line, p1) => {
+        String(p1).split(';').map(s => s.trim()).filter(Boolean).forEach(kv => merged.add(kv));
+        return `a=fmtp:${pt} ${Array.from(merged).join(';')}`;
       });
     } else {
-      // Insert after rtpmap line
-      sdp = sdp.replace(new RegExp(`a=rtpmap:${pt} opus\\/\\d+\\/\\d+`), (line) => {
-        return `${line}\r\na=fmtp:${pt} ${params.join(';')}`;
+      // Insérer l’fmtp juste APRES la ligne rtpmap correspondante
+      const rtpmapRe = new RegExp(`^(a=rtpmap:${pt}\\s+opus\\/\\d+(?:\\/\\d+)?)(\\r?\\n)`, 'im');
+      sdp = sdp.replace(rtpmapRe, (_m, rtpLine, nl) => {
+        return `${rtpLine}${nl}a=fmtp:${pt} ${Array.from(merged).join(';')}${nl}`;
       });
     }
-    // Ensure ptime=20
-    if (!/a=ptime:20/.test(sdp)) {
-      sdp = sdp.replace(/(m=audio .*?\r\n)/, `$1a=ptime:20\r\n`);
+
+    // Garantir exactement un "a=ptime:20"
+    if (/^a=ptime:\d+$/im.test(sdp)) {
+      sdp = sdp.replace(/^a=ptime:\d+$/gim, 'a=ptime:20');
+    } else {
+      sdp = sdp.replace(/(m=audio [^\r\n]*\r?\n)/i, `$1a=ptime:20\r\n`);
     }
+
     return sdp;
-  } catch (_) {
+  } catch {
     return sdp;
   }
 }
@@ -143,7 +148,7 @@ function sendResponseCreate() {
       try {
         const ch = getOaiChannel();
         if (ch && ch.readyState === 'open') {
-          oaiDc.send(JSON.stringify({ type: 'response.create' }));
+          ch.send(JSON.stringify({ type: 'response.create' }));
           addCrumb('response_create_sent');
           responseRetryCount = 0;
           return;
@@ -184,6 +189,7 @@ let localStreamRef = null;
 let remoteStreamRef = null;
 let iceRestartTimer = null;
 let statsTimer = null;
+let statsRunning = false;
 let oaiDc = null;
 let lastInboundAudioBytes = 0;
 let lastInboundCheckAt = 0;
@@ -247,7 +253,14 @@ export function useWebRTCClient() {
     const constraints = buildConstraints(mic, cam);
     // Fresh acquire if no stream yet
     if (!localStreamRef) {
-      localStreamRef = await navigator.mediaDevices.getUserMedia(constraints).catch(() => null);
+      try {
+        localStreamRef = await navigator.mediaDevices.getUserMedia(constraints);
+      } catch (_) {
+        if (mic) {
+          throw new Error("Impossible d'activer le micro : autorise l'accès au micro puis réessaie.");
+        }
+        localStreamRef = null;
+      }
       setLocalStream(localStreamRef);
       return;
     }
@@ -265,7 +278,14 @@ export function useWebRTCClient() {
     const needAudio = mic && !hasAudio;
     const needVideo = cam && !hasVideo;
     if (needAudio || needVideo) {
-      const newStream = await navigator.mediaDevices.getUserMedia(buildConstraints(needAudio, needVideo)).catch(() => null);
+      let newStream = null;
+      try {
+        newStream = await navigator.mediaDevices.getUserMedia(buildConstraints(needAudio, needVideo));
+      } catch (_) {
+        if (needAudio) {
+          throw new Error("Impossible d'activer le micro : autorise l'accès au micro puis réessaie.");
+        }
+      }
       if (newStream) {
         newStream.getTracks().forEach(t => localStreamRef.addTrack(t));
         setLocalStream(localStreamRef);
@@ -351,7 +371,7 @@ export function useWebRTCClient() {
       }
     };
 
-    // No custom keepalive DataChannel; rely on ICE checks and continuous opus frames (usedtx=0)
+    // Pas de keepalive custom via DataChannel : on s’appuie sur ICE checks (et ping oai-events si activé).
 
     // Capture OpenAI Realtime events channel created by the server (no custom pings)
     try {
@@ -551,7 +571,10 @@ export function useWebRTCClient() {
       const { data, error } = await supabase.functions.invoke('realtime-offer', {
         body: buildOfferPayload(localSdp),
       });
-      if (error) throw error;
+      if (error) {
+        const message = error?.message || error?.error_description || error?.hint || error;
+        throw new Error(`Realtime offer (host-only) failed: ${String(message)}`);
+      }
       const { sdp: answerSdp } = data || {};
       if (!answerSdp) throw new Error('No SDP answer (host-only)');
       await peer.setRemoteDescription({ type: 'answer', sdp: answerSdp });
@@ -578,16 +601,52 @@ export function useWebRTCClient() {
     }
   };
 
-  const waitForIceGatheringComplete = (peer) => new Promise((resolve) => {
-    if (!peer) return resolve();
-    if (peer.iceGatheringState === 'complete') return resolve();
-    const check = () => {
-      if (peer.iceGatheringState === 'complete') {
-        peer.removeEventListener('icegatheringstatechange', check);
-        resolve();
+  const waitForIceGatheringComplete = (peer, timeoutMs = 5000) => new Promise((resolve) => {
+    if (!peer || peer.iceGatheringState === 'complete') return resolve();
+    let timeoutId = null;
+    let settled = false;
+
+    function cleanup() {
+      try { peer.removeEventListener('icegatheringstatechange', onGatheringState); } catch {}
+      try { peer.removeEventListener('connectionstatechange', onConnectionState); } catch {}
+      try { peer.removeEventListener('iceconnectionstatechange', onConnectionState); } catch {}
+      if (timeoutId) {
+        try { clearTimeout(timeoutId); } catch {}
+        timeoutId = null;
       }
-    };
-    peer.addEventListener('icegatheringstatechange', check);
+    }
+
+    function finish() {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve();
+    }
+
+    function onGatheringState() {
+      if (peer.iceGatheringState === 'complete') {
+        finish();
+      }
+    }
+
+    function onConnectionState() {
+      const state = peer.connectionState || peer.iceConnectionState;
+      if (state === 'failed' || state === 'closed') {
+        finish();
+      }
+    }
+
+    let attached = false;
+    try { peer.addEventListener('icegatheringstatechange', onGatheringState); attached = true; } catch {}
+    try { peer.addEventListener('connectionstatechange', onConnectionState); attached = true; } catch {}
+    try { peer.addEventListener('iceconnectionstatechange', onConnectionState); attached = true; } catch {}
+
+    if (!attached) {
+      finish();
+      return;
+    }
+
+    timeoutId = setTimeout(finish, timeoutMs);
   });
 
   const startConnection = useCallback(async ({ mic = true, cam = false, replaceTracks = false, stunOnly = false } = {}) => {
@@ -651,7 +710,10 @@ export function useWebRTCClient() {
       const { data, error } = await supabase.functions.invoke('realtime-offer', {
         body: buildOfferPayload(localSdp),
       });
-      if (error) throw error;
+      if (error) {
+        const message = error?.message || error?.error_description || error?.hint || error;
+        throw new Error(`Realtime offer failed: ${String(message)}`);
+      }
 
       const { sdp: answerSdp } = data || {};
       if (!answerSdp) throw new Error('No SDP answer from realtime proxy');
@@ -670,6 +732,8 @@ export function useWebRTCClient() {
       userVoiceActive = false;
       voiceSilentSince = 0;
       statsTimer = setInterval(async () => {
+        if (statsRunning) return;
+        statsRunning = true;
         try {
           if (!pc || pc.connectionState !== 'connected') return;
           const stats = await pc.getStats();
@@ -692,7 +756,9 @@ export function useWebRTCClient() {
           // Simple VAD: detect end-of-speech and trigger response if enabled
           if (FLAG_AUTO_VAD_RESPONSE) {
             // thresholds tuned for 2s interval; adapt if deltaOutMs differs
-            const talking = deltaOutBytes > 1800; // ~7.2 kbps over 2s
+            const ms = Math.max(deltaOutMs, 1);
+            const bytesPerSec = (deltaOutBytes * 1000) / ms;
+            const talking = bytesPerSec > 900; // ~7.2 kbps
             if (talking) {
               userVoiceActive = true;
               voiceSilentSince = 0;
@@ -765,7 +831,9 @@ export function useWebRTCClient() {
           lastInboundCheckAt = now;
           lastOutboundAudioBytes = outbound;
           lastOutboundCheckAt = now;
-        } catch {}
+        } catch {} finally {
+          statsRunning = false;
+        }
       }, 2000);
 
       // Connection timeout guard
@@ -802,7 +870,10 @@ export function useWebRTCClient() {
       const { data, error } = await supabase.functions.invoke('realtime-offer', {
         body: buildOfferPayload(localSdp),
       });
-      if (error) throw error;
+      if (error) {
+        const message = error?.message || error?.error_description || error?.hint || error;
+        throw new Error(`Realtime offer (ICE restart) failed: ${String(message)}`);
+      }
       const { sdp: answerSdp } = data || {};
       if (!answerSdp) throw new Error('No SDP answer (ICE restart)');
       await pc.setRemoteDescription({ type: 'answer', sdp: answerSdp });
@@ -829,10 +900,15 @@ export function useWebRTCClient() {
   const stopConnection = useCallback(() => {
     try {
       if (pc) {
-        try { pc.getSenders().forEach(s => s.track && s.track.stop()); } catch {}
+        try { pc.getSenders().forEach(s => { try { s.track?.stop(); } catch {} }); } catch {}
         try { pc.close(); } catch {}
       }
     } catch {}
+    try { localStreamRef?.getTracks().forEach(t => t.stop()); } catch {}
+    localStreamRef = null;
+    remoteStreamRef = null;
+    try { setLocalStream(null); } catch {}
+    try { setRemoteStream(null); } catch {}
     try { oaiDc?.close(); } catch {}
     try { if (iceRestartTimer) clearTimeout(iceRestartTimer); } catch {}
     try { if (iceBackoffTimer) clearTimeout(iceBackoffTimer); } catch {}
@@ -860,7 +936,7 @@ export function useWebRTCClient() {
     longIdleRestartAttempt = 0;
     pc = null;
     setConnectionState('disconnected');
-  }, [setConnectionState]);
+  }, [setConnectionState, setLocalStream, setRemoteStream]);
 
   const reconnect = useCallback(async () => {
     setConnectionState('reconnecting');
@@ -882,3 +958,7 @@ export function useWebRTCClient() {
 
   return { startConnection, stopConnection, snapshotFromVideo, reconnect, requestResponse };
 }
+
+
+
+
