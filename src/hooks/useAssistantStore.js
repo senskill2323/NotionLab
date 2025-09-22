@@ -6,13 +6,12 @@ export const useAssistantStore = create((set, get) => ({
   minimized: false,
 
   // Media state
-  micOn: false,
   camOn: false,
   localStream: null,
   remoteStream: null,
 
   // Realtime state (explicit state machine)
-  // idle → connecting → connected → reconnecting → failed | disconnected
+  // idle -> connecting -> connected -> reconnecting -> failed | disconnected
   connectionState: 'idle', // 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'failed' | 'disconnected'
   lastDisconnectAt: null,
 
@@ -27,9 +26,7 @@ export const useAssistantStore = create((set, get) => ({
   toggleDrawer: () => set({ isOpen: !get().isOpen }),
   toggleWidget: () => set({ minimized: !get().minimized }),
 
-  setMic: (on) => set({ micOn: on }),
   setCam: (on) => set({ camOn: on }),
-  toggleMic: () => set({ micOn: !get().micOn }),
   toggleCam: () => set({ camOn: !get().camOn }),
 
   setLocalStream: (s) => set({ localStream: s }),
@@ -53,7 +50,6 @@ export const useAssistantStore = create((set, get) => ({
   reset: () => set({
     isOpen: false,
     minimized: false,
-    micOn: false,
     camOn: false,
     localStream: null,
     remoteStream: null,
