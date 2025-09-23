@@ -65,8 +65,53 @@ import { Checkbox } from '@/components/ui/checkbox';
               .order('created_at', { ascending: false });
 
             if (ticketsError) throw ticketsError;
-            
-            setTickets(data);
+
+            let enrichedTickets = Array.isArray(data) ? [...data] : [];
+
+            if (enrichedTickets.length > 0) {
+              try {
+                const ticketIds = enrichedTickets.map((ticket) => ticket.id).filter(Boolean);
+                if (ticketIds.length > 0) {
+                  const { data: repliesData, error: repliesError } = await supabase
+                    .from('ticket_replies')
+                    .select('ticket_id, user_id, created_at, profile:user_id(user_types(type_name))')
+                    .in('ticket_id', ticketIds)
+                    .order('created_at', { ascending: false });
+
+                  if (repliesError) {
+                    console.error('Error fetching ticket replies metadata:', repliesError);
+                  } else if (Array.isArray(repliesData)) {
+                    const latestReplyByTicket = new Map();
+                    for (const reply of repliesData) {
+                      if (!latestReplyByTicket.has(reply.ticket_id)) {
+                        latestReplyByTicket.set(reply.ticket_id, reply);
+                      }
+                    }
+
+                    const adminRoles = new Set(['owner', 'admin', 'prof']);
+
+                    enrichedTickets = enrichedTickets.map((ticket) => {
+                      const latestReply = latestReplyByTicket.get(ticket.id);
+                      const authorRole = latestReply?.profile?.user_types?.type_name;
+                      const replyAuthorId = latestReply?.user_id || null;
+                      const isAdminAuthor = !!latestReply && (
+                        adminRoles.has(authorRole) ||
+                        (replyAuthorId && replyAuthorId !== ticket.user_id)
+                      );
+                      const hasNewAdminReply =
+                        isAdminAuthor &&
+                        (!ticket.client_last_viewed_at || new Date(latestReply.created_at) > new Date(ticket.client_last_viewed_at));
+
+                      return { ...ticket, hasNewAdminReply };
+                    });
+                  }
+                }
+              } catch (metaErr) {
+                console.error('Error enriching tickets with reply metadata:', metaErr);
+              }
+            }
+
+            setTickets(enrichedTickets);
         } catch (err) {
             console.error('Error fetching tickets:', err);
             setError('Impossible de charger vos tickets.');
@@ -210,7 +255,16 @@ import { Checkbox } from '@/components/ui/checkbox';
           key: 'title',
           header: 'Description du ticket',
           className: 'font-normal truncate',
-          render: (ticket) => ticket.title
+          render: (ticket) => (
+            <div className="flex items-center gap-2">
+              <span className="truncate max-w-[220px] lg:max-w-[280px]">{ticket.title}</span>
+              {ticket.hasNewAdminReply && !editMode && (
+                <span className="text-[10px] uppercase tracking-wide font-semibold text-primary border border-primary/40 bg-primary/10 rounded px-2 py-0.5">
+                  Reponse admin
+                </span>
+              )}
+            </div>
+          )
         },
         {
           key: 'status',
@@ -312,8 +366,14 @@ import { Checkbox } from '@/components/ui/checkbox';
               {ticketList.map((ticket) => (
                 <TableRow
                   key={ticket.id}
-                  className="group cursor-pointer hover:bg-muted/30 motion-safe:hover:shadow-sm"
-                  onClick={() => !editMode && navigate(`/ticket/${ticket.id}`)}
+                  className={`group cursor-pointer transition-colors hover:bg-muted/30 motion-safe:hover:shadow-sm ${ticket.hasNewAdminReply && !editMode ? 'bg-primary/10 dark:bg-primary/20 animate-[pulse_1.6s_ease-in-out_infinite]' : ''}`}
+                  onClick={() => {
+                    if (editMode) return;
+                    if (ticket.hasNewAdminReply) {
+                      setTickets(prev => prev.map(t => t.id === ticket.id ? { ...t, hasNewAdminReply: false } : t));
+                    }
+                    navigate(`/ticket/${ticket.id}`);
+                  }}
                 >
                   {columnsConfig.map((col) => (
                     <TableCell key={`${ticket.id}-${col.key}`} className={col.className}>
@@ -420,3 +480,4 @@ import { Checkbox } from '@/components/ui/checkbox';
 };
 
 export default TicketsPanel;
+

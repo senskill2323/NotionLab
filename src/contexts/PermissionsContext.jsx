@@ -93,24 +93,36 @@ export const PermissionsProvider = ({ children }) => {
       }
     }
 
-    if (hasValidCache) {
-      setPermissions(cached.permissions);
+    const cachedPermissions = hasValidCache && Array.isArray(cached.permissions) ? cached.permissions : [];
+    const cacheHasData = cachedPermissions.length > 0;
+
+    if (hasValidCache && !cacheHasData) {
+      // Drop empty cache entries so we can refresh from the network
+      try {
+        localStorage.removeItem(getCacheKey(user));
+      } catch (_) {
+        // ignore cache remove errors
+      }
+    }
+
+    if (cacheHasData) {
+      setPermissions(cachedPermissions);
       setUserType(cached.userType || expectedType);
       setReady(true);
       setLoading(false);
       // Skip immediate network fetch; rely on TTL, visibility/online events, or explicit refresh
       return;
-    } else {
-      // No valid cache: set minimal fallback, but mark as not ready
-      const fallbackType = expectedType;
-      setUserType(fallbackType);
-      // If we were already ready once, keep UI ready and fetch in background without forcing fallback UI
-      if (!ready) {
-        setPermissions([]);
-        setUsingFallback(true);
-        setReady(false);
-        setLoading(false);
-      }
+    }
+
+    // No valid cache data: set minimal fallback, but mark as not ready
+    const fallbackType = expectedType;
+    setUserType(fallbackType);
+    // If we were already ready once, keep UI ready and fetch in background without forcing fallback UI
+    if (!ready) {
+      setPermissions([]);
+      setUsingFallback(true);
+      setReady(false);
+      setLoading(false);
     }
 
     try {

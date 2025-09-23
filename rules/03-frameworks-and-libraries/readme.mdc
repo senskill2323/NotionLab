@@ -33,7 +33,9 @@ readmeIA decrit les librairies clefs du module Formations : React 18, Vite 7 et 
 - Le Kanban temps reel combine formation_module_statuses et supabase.channel pour synchroniser l'avancement utilisateur.
 - FormationsPanel.jsx consomme supabase.rpc('get_user_courses_and_parcours') pour lister les formations et parcours custom.
 - Page Admin Â« ThÃ¨mes Â» (`src/components/admin/ThemePanel.jsx`) pilote les tokens via la table `public.themes` et 2 RPCs: `get_active_theme_tokens()` (lecture) et `set_active_theme(uuid)` (activation). L'aperÃ§u applique `ThemeContext.applyTheme()`.
+ - Live Chat admin : `AdminLiveChatPage.jsx` doit lancer `fetchConversations()` au montage avant toute souscription realtime. Ne compte jamais uniquement sur les évènements `supabase.channel`, sinon la liste reste vide et le spinner tourne indéfiniment.
  - Onboarding formation:
+ - Tickets admin : `TicketManagementPanel.jsx` doit enrichir les tickets avec `hasNewClientReply` (dernière réponse client + `admin_last_viewed_at`) et `AdminDashboardPage.jsx` doit déclencher périodiquement `checkTicketActivity()` ; sans ce fetch initial, les badges/boutons ne s'actualisent pas.
    - Wizard: `TrainingOnboardingWizard.jsx` affiche uniquement les questions actives et masque les sections vides; autosauvegarde dÃ©bouncÃ©e; toasts d'erreur.
    - RÃ©sumÃ©: `TrainingPreferencesSummary.jsx` cÃ´tÃ© client et admin (lecture seule) avec pictos; CTA Â« Mettre Ã  jour Â».
    - Notifications: `supabase.functions.invoke('notify-training-onboarding', {...})`.

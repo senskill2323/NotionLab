@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
@@ -13,7 +14,33 @@ const AdminLiveChatPage = () => {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState('active'); // 'active' | 'archived'
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const fromPath = location.state?.from ?? '/admin/dashboard';
 
+  const markViewInFlightRef = useRef(false);
+
+  const markConversationAsViewed = useCallback(async (conversationId) => {
+    if (!conversationId) return;
+    if (markViewInFlightRef.current) return;
+    markViewInFlightRef.current = true;
+    const nowIso = new Date().toISOString();
+
+    try {
+      const { error } = await supabase
+        .from('chat_conversations')
+        .update({ admin_last_viewed_at: nowIso })
+        .eq('id', conversationId);
+
+      if (error) {
+        console.error('Error marking chat conversation as viewed by admin:', error);
+      }
+    } catch (err) {
+      console.error('Unexpected error while marking chat conversation as viewed by admin:', err);
+    } finally {
+      markViewInFlightRef.current = false;
+    }
+  }, []);
   const fetchConversations = useCallback(async () => {
     setLoading(true);
     try {
@@ -45,6 +72,12 @@ const AdminLiveChatPage = () => {
   useEffect(() => {
     fetchConversations();
   }, [fetchConversations]);
+  useEffect(() => {
+    if (selectedConversation?.id) {
+      markConversationAsViewed(selectedConversation.id);
+    }
+  }, [selectedConversation?.id, markConversationAsViewed]);
+
 
   useEffect(() => {
     const channel = supabase
@@ -78,6 +111,7 @@ const AdminLiveChatPage = () => {
 
   const handleSelectConversation = (conversation) => {
     setSelectedConversation(conversation);
+    markConversationAsViewed(conversation?.id);
   };
 
   const handleViewChange = (newView) => {
@@ -106,6 +140,7 @@ const AdminLiveChatPage = () => {
                 onSelectConversation={handleSelectConversation}
                 view={view}
                 onViewChange={handleViewChange}
+                onBack={() => navigate(fromPath, { replace: true })}
               />
             )}
           </aside>
@@ -131,3 +166,8 @@ const AdminLiveChatPage = () => {
 };
 
 export default AdminLiveChatPage;
+
+
+
+
+
