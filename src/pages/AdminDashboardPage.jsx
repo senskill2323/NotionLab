@@ -25,7 +25,6 @@ import TabsEditorPage from '@/pages/admin/TabsEditorPage';
 import FormationManagementPanel from '@/components/admin/FormationManagementPanel';
 import UserFormationSubmissionsPanel from '@/components/admin/UserFormationSubmissionsPanel';
 import OnboardingQuestionsAdminPanel from '@/components/admin/formation-live/OnboardingQuestionsAdminPanel';
-import AssistantAdminPage from '@/pages/admin/AssistantAdminPage';
 
 const LiveChatPlaceholder = () => {
   const navigate = useNavigate();
@@ -61,7 +60,6 @@ const adminComponentMap = {
   UserFormationSubmissionsPanel,
   OnboardingQuestionsAdminPanel,
   AdminLiveChatPage: LiveChatPlaceholder,
-  AssistantAdminPage,
 };
 
 const KpiCard = ({ title, value, subValue, loading }) => (
