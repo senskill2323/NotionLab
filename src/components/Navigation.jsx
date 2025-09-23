@@ -8,7 +8,6 @@ import { LogOut, LayoutDashboard, Home, Wrench } from 'lucide-react';
 import ManagedComponent from '@/components/ManagedComponent';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import UserAccountPanel from '@/components/UserAccountPanel';
-import { useAssistantStore } from '@/hooks/useAssistantStore';
 
 const NavItem = ({ to, children, componentKey, onClick }) => {
   const commonClasses = "relative text-sm font-medium transition-colors hover:text-primary";
@@ -44,7 +43,6 @@ const Navigation = () => {
   const { user, signOut, authReady } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const openAssistant = useAssistantStore((s) => s.openDrawer);
 
   const isAdminDashboard = location.pathname.startsWith('/admin/dashboard');
 
@@ -54,7 +52,6 @@ const Navigation = () => {
   };
 
   const isAdmin = user && ['admin', 'prof', 'owner'].includes(user.profile?.user_type);
-  const canUseAssistant = user && ['owner', 'admin', 'client'].includes(user.profile?.user_type);
 
   return (
     <motion.header
@@ -93,19 +90,6 @@ const Navigation = () => {
               <TooltipContent><p>Forum</p></TooltipContent>
             </Tooltip>
           </ManagedComponent>
-
-          {canUseAssistant && (
-            <ManagedComponent componentKey="nav:assistant">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="default" onClick={() => openAssistant()}>
-                    Assistant
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent><p>Assistant</p></TooltipContent>
-              </Tooltip>
-            </ManagedComponent>
-          )}
 
           <ManagedComponent componentKey="nav:client_chat">
             <Tooltip>

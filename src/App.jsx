@@ -53,8 +53,6 @@ import React from 'react';
     import ModuleManagerPage from '@/pages/admin/ModuleManagerPage';
     import TabsEditorPage from '@/pages/admin/TabsEditorPage';
     import AdminLiveChatPage from '@/pages/admin/AdminLiveChatPage';
-    import AssistantRoot from '@/components/assistant/AssistantRoot';
-    import MentionsConfidentialitePage from '@/pages/MentionsConfidentialitePage';
 
     const MainLayout = ({ children }) => {
       const location = useLocation();
@@ -94,7 +92,6 @@ import React from 'react';
         <Route path="/contact" element={<ContactPage />} />
         <Route path="/confirmation" element={<ConfirmationPage />} />
         <Route path="/assistance-a-distance" element={<AssistancePage />} />
-        <Route path="/mentions-confidentialite" element={<MentionsConfidentialitePage />} />
         <Route path="/demo-dashboard" element={<DemoDashboardPage />} />
         <Route path="/forum" element={<ProtectedRoute requiredPermission="forum:view"><ForumPage /></ProtectedRoute>} />
         <Route path="/forum/topic/new" element={<ProtectedRoute requiredPermission="forum:create_topic"><CreateForumTopicPage /></ProtectedRoute>} />
@@ -155,7 +152,6 @@ import React from 'react';
                         <BuilderCatalogProvider>
                           <TooltipProvider>
                             <Toaster />
-                            <AssistantRoot />
                             <AppContent />
                           </TooltipProvider>
                         </BuilderCatalogProvider>

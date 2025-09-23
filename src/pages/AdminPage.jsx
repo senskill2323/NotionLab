@@ -3,13 +3,12 @@ import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, BookOpen, MessageSquare, Settings, BarChart3, LifeBuoy, Puzzle, Shield, SlidersHorizontal, Bot } from 'lucide-react';
+import { Users, BookOpen, MessageSquare, Settings, BarChart3, LifeBuoy, Puzzle, Shield, SlidersHorizontal } from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useNavigate } from 'react-router-dom';
 import RolesPermissionsPage from '@/pages/admin/RolesPermissionsPage';
 import ModuleManagerPage from '@/pages/admin/ModuleManagerPage';
 import ComponentManagerPage from '@/pages/admin/ComponentManagerPage';
-import AssistantAdminPage from '@/pages/admin/AssistantAdminPage';
 
 const AdminPage = () => {
   const { user } = useAuth();
@@ -29,15 +28,7 @@ const AdminPage = () => {
     { id: 'settings', label: 'Paramètres', icon: Settings, component: <p>Paramètres à venir.</p> },
   ];
 
-  // Onglet "IAssistant" accessible uniquement au rôle owner
-  // Tolérance: si la jointure user_types n'est pas disponible, on accepte aussi le fallback texte
-  const isOwner = (user?.profile?.user_type === 'owner') || (user?.profile?.user_types?.type_name === 'owner');
-  const tabs = isOwner
-    ? [
-        { id: 'iassistant', label: 'IAssistant', icon: Bot, component: <AssistantAdminPage /> },
-        ...baseTabs,
-      ]
-    : baseTabs;
+  const tabs = baseTabs;
 
   return (
     <>
