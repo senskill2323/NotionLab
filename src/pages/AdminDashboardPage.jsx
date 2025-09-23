@@ -25,24 +25,7 @@ import TabsEditorPage from '@/pages/admin/TabsEditorPage';
 import FormationManagementPanel from '@/components/admin/FormationManagementPanel';
 import UserFormationSubmissionsPanel from '@/components/admin/UserFormationSubmissionsPanel';
 import OnboardingQuestionsAdminPanel from '@/components/admin/formation-live/OnboardingQuestionsAdminPanel';
-
-const LiveChatPlaceholder = () => {
-  const navigate = useNavigate();
-  const currentLocation = useLocation();
-  const fromPath = currentLocation.pathname || '/admin/dashboard';
-  return (
-    <div className="p-4 border rounded-lg bg-muted/20">
-      <h3 className="font-medium mb-2">Live Chat</h3>
-      <p className="text-sm text-muted-foreground mb-3">
-        Le module Live Chat s’ouvre désormais sur une page dédiée.
-      </p>
-      <Button size="sm" onClick={() => navigate('/admin/live-chat', { state: { from: fromPath } })}>
-        <Icons.MessageCircle className="h-4 w-4 mr-2" />
-        Ouvrir le Live Chat
-      </Button>
-    </div>
-  );
-};
+import AdminLiveChatPanel from '@/components/admin/AdminLiveChatPanel';
 
 const adminComponentMap = {
   UserManagementPanel,
@@ -61,7 +44,7 @@ const adminComponentMap = {
   CourseManagementPanel: FormationManagementPanel, // Rétrocompatibilité
   UserFormationSubmissionsPanel,
   OnboardingQuestionsAdminPanel,
-  AdminLiveChatPage: LiveChatPlaceholder,
+  AdminLiveChatPage: AdminLiveChatPanel,
 };
 
 const KpiCard = ({ title, value, subValue, loading }) => (
@@ -370,18 +353,13 @@ const AdminDashboardPage = () => {
   }, [permsLoadingEffective, tabsLoading, determineInitialTab, navigate, location.search]);
   
   const handleTabChange = (value) => {
-    if (value === 'live-chat') {
-      navigate('/admin/live-chat', { state: { from: fromPath } });
-      setNewActivity(prev => ({ ...prev, chat: false }));
-      return;
-    }
-
     setActiveTab(value);
     const sp = new URLSearchParams(location.search);
     sp.set('tab', value);
     navigate(`/admin/dashboard?${sp.toString()}`, { replace: true });
     if (value === 'tickets') setNewActivity(prev => ({ ...prev, tickets: false }));
     if (value === 'builder-parcours') setNewActivity(prev => ({ ...prev, builder: false }));
+    if (value === 'live-chat') setNewActivity(prev => ({ ...prev, chat: false }));
   };
 
   const renderTabContent = (tabId) => {
@@ -417,6 +395,10 @@ const AdminDashboardPage = () => {
           const componentProps = {};
           if (module.component_name === 'TicketManagementPanel') {
             componentProps.onDataChange = handleTicketPanelData;
+          }
+          if (module.component_name === 'AdminLiveChatPage') {
+            componentProps.onActivityCleared = () => setNewActivity(prev => ({ ...prev, chat: false }));
+            componentProps.className = 'min-h-[520px] overflow-hidden rounded-xl border border-border/60 bg-card/40';
           }
           return <Component key={module.module_key} {...componentProps} />;
         })}

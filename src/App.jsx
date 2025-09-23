@@ -64,11 +64,10 @@ import React from 'react';
       const isAdminRoute = location.pathname.startsWith('/admin');
       const isDemoDashboard = location.pathname.startsWith('/demo-dashboard');
       const isChatPage = location.pathname.startsWith('/chat');
-      const isLiveChatPage = location.pathname.startsWith('/admin/live-chat');
       const isFormationDetailPage = location.pathname.match(/^\/formation\/[^/]+$/);
       const isHomePage = location.pathname === '/';
       
-      const showFooter = !isAdminRoute && !isDashboardRoute && !isBuilderPage && !isDemoDashboard && !isChatPage && !isLiveChatPage && !isFormationDetailPage && !isHomePage;
+      const showFooter = !isAdminRoute && !isDashboardRoute && !isBuilderPage && !isDemoDashboard && !isChatPage && !isFormationDetailPage && !isHomePage;
 
       // Do not block rendering on theme loading; a fallback theme is applied immediately.
 
@@ -129,12 +128,11 @@ import React from 'react';
 
     const AppContent = () => {
       const location = useLocation();
-      const isLiveChatPage = location.pathname.startsWith('/admin/live-chat');
       const isBuilderPage = location.pathname.startsWith('/formation-builder');
 
       return (
         <MainLayout>
-          {!isLiveChatPage && !isBuilderPage && <Navigation />}
+          {!isBuilderPage && <Navigation />}
           <AppRoutes />
         </MainLayout>
       );
