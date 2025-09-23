@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { supabase } from '@/lib/customSupabaseClient';
@@ -18,6 +18,29 @@ const ManageTicketPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
+  const markViewInFlightRef = useRef(false);
+
+  const markTicketAsViewed = useCallback(async (ticketId) => {
+    if (!ticketId) return;
+    if (markViewInFlightRef.current) return;
+    markViewInFlightRef.current = true;
+    const nowIso = new Date().toISOString();
+
+    try {
+      const { error } = await supabase
+        .from('tickets')
+        .update({ admin_last_viewed_at: nowIso })
+        .eq('id', ticketId);
+
+      if (error) {
+        console.error('Error marking ticket as viewed by admin:', error);
+      }
+    } catch (err) {
+      console.error('Unexpected error while marking ticket as viewed by admin:', err);
+    } finally {
+      markViewInFlightRef.current = false;
+    }
+  }, []);
 
   const [ticket, setTicket] = useState(null);
   const [replies, setReplies] = useState([]);
@@ -42,6 +65,7 @@ const ManageTicketPage = () => {
       if (ticketError) throw ticketError;
       setTicket(ticketData);
       setSummary(ticketData.summary || '');
+      markTicketAsViewed(ticketData.id);
 
       const { data: repliesData, error: repliesError } = await supabase
         .from('ticket_replies')
@@ -66,7 +90,7 @@ const ManageTicketPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [id, toast]);
+  }, [id, toast, markTicketAsViewed]);
 
   useEffect(() => {
     fetchTicketData();
@@ -84,6 +108,7 @@ const ManageTicketPage = () => {
 
       if (!error && newReplyData) {
         setReplies(prevReplies => [...prevReplies, newReplyData]);
+        markTicketAsViewed(id);
       }
     };
 
@@ -105,7 +130,7 @@ const ManageTicketPage = () => {
       supabase.removeChannel(repliesChannel);
       supabase.removeChannel(ticketUpdateChannel);
     };
-  }, [id]);
+  }, [id, markTicketAsViewed]);
 
   const handleUpdate = async (field, value) => {
     const { error } = await supabase
@@ -198,6 +223,7 @@ const ManageTicketPage = () => {
     content: ticket.description,
     created_at: ticket.created_at,
     profile: ticket.profile,
+    user_id: ticket.user_id,
     isInitial: true,
   };
 
@@ -234,9 +260,9 @@ const ManageTicketPage = () => {
                 </Card>
 
                 <div className="space-y-4">
-                  <ReplyCard reply={initialPost} />
+                  <ReplyCard reply={initialPost} currentUserId={user?.id} ticketOwnerId={ticket?.user_id} />
                   {replies.map(reply => (
-                    <ReplyCard key={reply.id} reply={reply} />
+                    <ReplyCard key={reply.id} reply={reply} currentUserId={user?.id} ticketOwnerId={ticket?.user_id} />
                   ))}
                 </div>
 

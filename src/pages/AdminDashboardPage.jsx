@@ -28,13 +28,15 @@ import OnboardingQuestionsAdminPanel from '@/components/admin/formation-live/Onb
 
 const LiveChatPlaceholder = () => {
   const navigate = useNavigate();
+  const currentLocation = useLocation();
+  const fromPath = currentLocation.pathname || '/admin/dashboard';
   return (
     <div className="p-4 border rounded-lg bg-muted/20">
       <h3 className="font-medium mb-2">Live Chat</h3>
       <p className="text-sm text-muted-foreground mb-3">
         Le module Live Chat s’ouvre désormais sur une page dédiée.
       </p>
-      <Button size="sm" onClick={() => navigate('/admin/live-chat')}>
+      <Button size="sm" onClick={() => navigate('/admin/live-chat', { state: { from: fromPath } })}>
         <Icons.MessageCircle className="h-4 w-4 mr-2" />
         Ouvrir le Live Chat
       </Button>
@@ -95,6 +97,7 @@ const AdminDashboardPage = () => {
   const { hasPermission, loading: permissionsLoading } = usePermissions();
   const navigate = useNavigate();
   const location = useLocation();
+  const fromPath = location.pathname || '/admin/dashboard';
   const { toast } = useToast();
   const userName = user?.profile?.first_name || 'Admin';
   const missingComponentsRef = useRef(new Set());
@@ -108,7 +111,138 @@ const AdminDashboardPage = () => {
   const [tabsLoading, setTabsLoading] = useState(true);
   const [modulesConfig, setModulesConfig] = useState([]);
   const [modulesLoading, setModulesLoading] = useState(true);
-  
+
+  const handleTicketPanelData = useCallback((ticketsData) => {
+    if (!Array.isArray(ticketsData)) return;
+    const hasNewClientReply = ticketsData.some(ticket => ticket.hasNewClientReply);
+    setNewActivity((prev) => {
+      if (prev.tickets === hasNewClientReply) return prev;
+      return { ...prev, tickets: hasNewClientReply };
+    });
+  }, []);
+
+  const checkTicketActivity = useCallback(async () => {
+    try {
+      const { data: ticketsData, error: ticketsError } = await supabase
+        .from('tickets')
+        .select('id, user_id, admin_last_viewed_at');
+      if (ticketsError || !Array.isArray(ticketsData) || ticketsData.length === 0) {
+        if (ticketsError) console.error('Error fetching tickets for activity check:', ticketsError);
+        setNewActivity(prev => ({ ...prev, tickets: false }));
+        return;
+      }
+
+      const ticketIds = ticketsData.map(ticket => ticket.id).filter(Boolean);
+      if (ticketIds.length === 0) {
+        setNewActivity(prev => ({ ...prev, tickets: false }));
+        return;
+      }
+
+      const { data: repliesData, error: repliesError } = await supabase
+        .from('ticket_replies')
+        .select('ticket_id, user_id, created_at, profile:user_id(user_types(type_name))')
+        .in('ticket_id', ticketIds)
+        .order('created_at', { ascending: false });
+
+      if (repliesError) {
+        console.error('Error fetching replies for activity check:', repliesError);
+        return;
+      }
+
+      if (!Array.isArray(repliesData) || repliesData.length === 0) {
+        setNewActivity(prev => ({ ...prev, tickets: false }));
+        return;
+      }
+
+      const latestReplyByTicket = new Map();
+      for (const reply of repliesData) {
+        if (!latestReplyByTicket.has(reply.ticket_id)) {
+          latestReplyByTicket.set(reply.ticket_id, reply);
+        }
+      }
+
+      const clientRoles = new Set(['client', 'vip']);
+      const hasNewClientReply = ticketsData.some(ticket => {
+        const latestReply = latestReplyByTicket.get(ticket.id);
+        if (!latestReply) return false;
+        const authorRole = latestReply.profile?.user_types?.type_name || null;
+        const replyAuthorId = latestReply.user_id || null;
+        const isClientAuthor = clientRoles.has(authorRole) || (replyAuthorId && replyAuthorId === ticket.user_id);
+        if (!isClientAuthor) return false;
+        if (!ticket.admin_last_viewed_at) return true;
+        try {
+          return new Date(latestReply.created_at) > new Date(ticket.admin_last_viewed_at);
+        } catch (_) {
+          return false;
+        }
+      });
+
+      setNewActivity(prev => ({ ...prev, tickets: hasNewClientReply }));
+    } catch (err) {
+      console.error('Unexpected error while checking ticket activity:', err);
+    }
+  }, []);
+  const checkChatActivity = useCallback(async () => {
+    try {
+      const { data: conversationsData, error: conversationsError } = await supabase
+        .from('chat_conversations')
+        .select('id, admin_last_viewed_at');
+
+      if (conversationsError || !Array.isArray(conversationsData) || conversationsData.length === 0) {
+        if (conversationsError) console.error('Error fetching conversations for activity check:', conversationsError);
+        setNewActivity(prev => ({ ...prev, chat: false }));
+        return;
+      }
+
+      const conversationIds = conversationsData.map(conversation => conversation.id).filter(Boolean);
+      if (conversationIds.length === 0) {
+        setNewActivity(prev => ({ ...prev, chat: false }));
+        return;
+      }
+
+      const { data: messagesData, error: messagesError } = await supabase
+        .from('chat_messages')
+        .select('conversation_id, sender, created_at')
+        .in('conversation_id', conversationIds)
+        .order('created_at', { ascending: false });
+
+      if (messagesError) {
+        console.error('Error fetching chat messages for activity check:', messagesError);
+        return;
+      }
+
+      if (!Array.isArray(messagesData) || messagesData.length === 0) {
+        setNewActivity(prev => ({ ...prev, chat: false }));
+        return;
+      }
+
+      const latestMessageByConversation = new Map();
+      for (const message of messagesData) {
+        if (!latestMessageByConversation.has(message.conversation_id)) {
+          latestMessageByConversation.set(message.conversation_id, message);
+        }
+      }
+
+      const hasNewClientMessage = conversationsData.some(conversation => {
+        const latestMessage = latestMessageByConversation.get(conversation.id);
+        if (!latestMessage) return false;
+        const isClientAuthor = latestMessage.sender !== 'admin';
+        if (!isClientAuthor) return false;
+        if (!conversation.admin_last_viewed_at) return true;
+        try {
+          return new Date(latestMessage.created_at) > new Date(conversation.admin_last_viewed_at);
+        } catch (_) {
+          return false;
+        }
+      });
+
+      setNewActivity(prev => ({ ...prev, chat: hasNewClientMessage }));
+    } catch (err) {
+      console.error('Unexpected error while checking chat activity:', err);
+    }
+  }, []);
+
+
   const DEFAULT_TAB_ID = 'user_submissions';
   const queryParams = new URLSearchParams(location.search);
   const tabFromUrl = queryParams.get('tab') || DEFAULT_TAB_ID;
@@ -173,6 +307,27 @@ const AdminDashboardPage = () => {
         supabase.removeChannel(configChannel);
     };
   }, [fetchAdminConfig, fetchKpis]);
+
+  useEffect(() => {
+    checkTicketActivity();
+    checkChatActivity();
+    const ticketActivityChannel = supabase
+      .channel('admin-dashboard-ticket-activity')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ticket_replies' }, checkTicketActivity)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tickets' }, checkTicketActivity)
+      .subscribe();
+    const chatActivityChannel = supabase
+      .channel('admin-dashboard-chat-activity')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, checkChatActivity)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'chat_conversations' }, checkChatActivity)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(ticketActivityChannel);
+      supabase.removeChannel(chatActivityChannel);
+    };
+  }, [checkTicketActivity, checkChatActivity]);
+
   
   // Exclude legacy tabs and unwanted tabs
   const accessibleTabs = tabsConfig
@@ -216,7 +371,8 @@ const AdminDashboardPage = () => {
   
   const handleTabChange = (value) => {
     if (value === 'live-chat') {
-      navigate('/admin/live-chat');
+      navigate('/admin/live-chat', { state: { from: fromPath } });
+      setNewActivity(prev => ({ ...prev, chat: false }));
       return;
     }
 
@@ -258,7 +414,11 @@ const AdminDashboardPage = () => {
             }
             return null;
           }
-          return <Component key={module.module_key} />;
+          const componentProps = {};
+          if (module.component_name === 'TicketManagementPanel') {
+            componentProps.onDataChange = handleTicketPanelData;
+          }
+          return <Component key={module.module_key} {...componentProps} />;
         })}
       </div>
     );
@@ -294,15 +454,21 @@ const AdminDashboardPage = () => {
                     <TabsList key={rowKey} className="bg-muted/50 dark:bg-muted/20 p-1 h-auto rounded-lg flex-wrap justify-start">
                       {(tabsByRow[rowKey] || []).sort((a, b) => (a.col_order || 0) - (b.col_order || 0)).map(tab => {
                         const Icon = Icons[tab.icon] || Icons.HelpCircle;
+                        const isTicketsTab = tab.tab_id === 'tickets' || tab.label?.toLowerCase() === 'tickets';
+                        const isLiveChatTab = tab.tab_id === 'live-chat' || tab.label?.toLowerCase().includes('chat');
+                        const activityKey = isTicketsTab ? 'tickets' : isLiveChatTab ? 'chat' : tab.tab_id;
+                        const shouldHighlight = !!newActivity[activityKey];
+                        const iconClassName = `h-4 w-4 ${shouldHighlight ? 'text-emerald-400 animate-[pulse_1.4s_ease-in-out_infinite]' : ''}`;
+                        const labelClassName = shouldHighlight ? 'text-emerald-100 dark:text-emerald-300' : '';
                         return (
                           <AnimatedTabTrigger 
                             key={tab.tab_id} 
                             value={tab.tab_id}
-                            hasNewActivity={newActivity[tab.tab_id]}
+                            hasNewActivity={shouldHighlight}
                             onClick={() => handleTabChange(tab.tab_id)}
                           >
-                            {tab.label !== 'Formation Live' && <Icon className="h-4 w-4" />}
-                            <div className="flex items-center gap-2">
+                            {tab.label !== 'Formation Live' && <Icon className={iconClassName} />}
+                            <div className={`flex items-center gap-2 ${labelClassName}`}>
                               {tab.label === 'Formation Live' && (
                                 <div className="w-2 h-2 bg-red-500 rounded-full"></div>
                               )}
@@ -336,3 +502,6 @@ const AdminDashboardPage = () => {
 };
 
 export default AdminDashboardPage;
+
+
+

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { supabase } from '@/lib/customSupabaseClient';
@@ -31,6 +31,32 @@ const TicketDetailPage = () => {
   const [newReply, setNewReply] = useState('');
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const markViewInFlightRef = useRef(false);
+
+  const markTicketAsViewed = useCallback(async (ticketId, ticketOwnerId) => {
+    if (!user?.id || !ticketId) return;
+    if (ticketOwnerId && ticketOwnerId !== user.id) return;
+    if (markViewInFlightRef.current) return;
+    markViewInFlightRef.current = true;
+    const nowIso = new Date().toISOString();
+
+    try {
+      const { error: markError } = await supabase
+        .from('tickets')
+        .update({ client_last_viewed_at: nowIso })
+        .eq('id', ticketId)
+        .eq('user_id', user.id);
+
+      if (markError) {
+        console.error('Error marking ticket as viewed:', markError);
+      }
+    } catch (viewErr) {
+      console.error('Unexpected error while marking ticket as viewed:', viewErr);
+    } finally {
+      markViewInFlightRef.current = false;
+    }
+  }, [user]);
+
   const [error, setError] = useState(null);
 
   const fetchTicketData = useCallback(async () => {
@@ -52,6 +78,7 @@ const TicketDetailPage = () => {
       const { data: ticketData, error: ticketError } = await withTimeout(ticketPromise);
       if (ticketError) throw new Error("Ticket non trouvé ou accès non autorisé.");
       setTicket(ticketData);
+      markTicketAsViewed(ticketData.id, ticketData.user_id);
 
       const repliesPromise = supabase
         .from('ticket_replies')
@@ -71,11 +98,17 @@ const TicketDetailPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [id, toast]);
+  }, [id, toast, markTicketAsViewed]);
 
   useEffect(() => {
     fetchTicketData();
   }, [fetchTicketData]);
+
+  useEffect(() => {
+    if (ticket?.id) {
+      markTicketAsViewed(ticket.id, ticket.user_id);
+    }
+  }, [ticket?.id, ticket?.user_id, markTicketAsViewed]);
 
   useEffect(() => {
     if (!id) return;
@@ -89,6 +122,7 @@ const TicketDetailPage = () => {
 
       if (!error && newReplyData) {
         setReplies(prevReplies => [...prevReplies, newReplyData]);
+        markTicketAsViewed(id, ticket?.user_id || user?.id);
       }
     };
 
@@ -309,8 +343,13 @@ const TicketDetailPage = () => {
             </Card>
 
             <div className="space-y-4 mb-6">
-              {replies.map(reply => (
-                <ReplyCard key={reply.id} reply={reply} />
+              {replies.map((reply) => (
+                <ReplyCard
+                  key={reply.id}
+                  reply={reply}
+                  currentUserId={user?.id}
+                  ticketOwnerId={ticket.user_id}
+                />
               ))}
             </div>
 
@@ -343,3 +382,4 @@ const TicketDetailPage = () => {
 };
 
 export default TicketDetailPage;
+
