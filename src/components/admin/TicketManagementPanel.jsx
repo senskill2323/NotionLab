@@ -31,7 +31,7 @@ const TicketManagementPanel = ({ onDataChange }) => {
           .from('tickets')
           .select(`
             id, created_at, title, status, priority, client_email, reference_number,
-            user_id, assigned_to,
+            user_id, assigned_to, client_last_viewed_at, admin_last_viewed_at,
             profile:profiles!tickets_user_id_fkey ( id, email, user_types(type_name) ),
             assignee:profiles!tickets_assigned_to_fkey ( id, email, first_name, last_name )
           `)
@@ -45,7 +45,50 @@ const TicketManagementPanel = ({ onDataChange }) => {
       if (ticketsResponse.error) throw ticketsResponse.error;
       if (usersResponse.error) throw usersResponse.error;
       
-      const ticketsData = ticketsResponse.data || [];
+      let ticketsData = ticketsResponse.data || [];
+
+      if (ticketsData.length > 0) {
+        try {
+          const ticketIds = ticketsData.map((ticket) => ticket.id).filter(Boolean);
+          if (ticketIds.length > 0) {
+            const { data: repliesData, error: repliesError } = await supabase
+              .from('ticket_replies')
+              .select('ticket_id, user_id, created_at, profile:user_id(user_types(type_name))')
+              .in('ticket_id', ticketIds)
+              .order('created_at', { ascending: false });
+
+            if (repliesError) {
+              console.error('Error fetching ticket replies metadata:', repliesError);
+            } else if (Array.isArray(repliesData)) {
+              const latestReplyByTicket = new Map();
+              for (const reply of repliesData) {
+                if (!latestReplyByTicket.has(reply.ticket_id)) {
+                  latestReplyByTicket.set(reply.ticket_id, reply);
+                }
+              }
+
+              const clientRoles = new Set(['client', 'vip']);
+
+              ticketsData = ticketsData.map((ticket) => {
+                const latestReply = latestReplyByTicket.get(ticket.id);
+                const authorRole = latestReply?.profile?.user_types?.type_name;
+                const replyAuthorId = latestReply?.user_id || null;
+                const isClientAuthor = !!latestReply && (
+                  clientRoles.has(authorRole) || (replyAuthorId && replyAuthorId === ticket.user_id)
+                );
+                const hasNewClientReply =
+                  isClientAuthor &&
+                  (!ticket.admin_last_viewed_at || new Date(latestReply.created_at) > new Date(ticket.admin_last_viewed_at));
+
+                return { ...ticket, hasNewClientReply };
+              });
+            }
+          }
+        } catch (metaErr) {
+          console.error('Error enriching tickets with reply metadata:', metaErr);
+        }
+      }
+
       setTickets(ticketsData);
       setAssignableUsers(usersResponse.data || []);
       
@@ -114,6 +157,11 @@ const TicketManagementPanel = ({ onDataChange }) => {
   };
   
   const handleViewTicket = (ticketId) => {
+    setTickets(prev => {
+      const next = prev.map(t => t.id === ticketId ? { ...t, hasNewClientReply: false } : t);
+      if (onDataChange) onDataChange(next);
+      return next;
+    });
     navigate(`/admin/ticket/${ticketId}`);
   };
 
@@ -201,7 +249,7 @@ const TicketManagementPanel = ({ onDataChange }) => {
           {groupTickets.length === 0 ? (
              <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Aucun ticket à afficher.</TableCell></TableRow>
           ) : groupTickets.map((ticket) => (
-            <TableRow key={ticket.id}>
+            <TableRow key={ticket.id} className={`group cursor-pointer transition-colors hover:bg-muted/30 motion-safe:hover:shadow-sm ${ticket.hasNewClientReply ? 'bg-amber-100/60 dark:bg-amber-500/10 animate-[pulse_1.6s_ease-in-out_infinite]' : ''}`}>
               <TableCell>{ticket.reference_number}</TableCell>
               <TableCell>
                 <Select value={ticket.status} onValueChange={(newStatus) => handleFieldChange(ticket.id, 'status', newStatus)}>
@@ -244,7 +292,16 @@ const TicketManagementPanel = ({ onDataChange }) => {
                   <SelectContent><SelectItem value="unassigned">Non assigné</SelectItem>{assignableUsers.map(u => <SelectItem key={u.id} value={u.id}>{u.first_name} {u.last_name}</SelectItem>)}</SelectContent>
                 </Select>
               </TableCell>
-              <TableCell className="font-medium truncate">{ticket.title}</TableCell>
+              <TableCell className="font-medium truncate">
+                <div className="flex items-center gap-2">
+                  <span className="truncate">{ticket.title}</span>
+                  {ticket.hasNewClientReply && (
+                    <span className="text-[10px] uppercase tracking-wide font-semibold text-amber-700 dark:text-amber-300 border border-amber-400/60 bg-amber-100/70 dark:bg-amber-500/15 rounded px-2 py-0.5">
+                      Réponse client
+                    </span>
+                  )}
+                </div>
+              </TableCell>
               <TableCell>{new Date(ticket.created_at).toLocaleDateString('fr-FR')}</TableCell>
               <TableCell>{new Date(ticket.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</TableCell>
               <TableCell className="text-right">

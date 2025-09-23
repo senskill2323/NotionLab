@@ -1,13 +1,21 @@
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { User, Bot } from 'lucide-react';
-import { motion } from 'framer-motion';
+import React from "react";
+import { CardContent, CardHeader } from "@/components/ui/card";
+import { User, Bot } from "lucide-react";
+import { motion } from "framer-motion";
 
-const ReplyCard = ({ reply }) => {
-  const isClient = reply.profile.role === 'client';
-  const authorName = isClient ? "Vous" : "Support Notion Pro";
-  const AuthorIcon = isClient ? User : Bot;
-  const cardClasses = isClient ? 'bg-card' : 'bg-primary/5 dark:bg-primary/10';
+const ReplyCard = ({ reply, currentUserId, ticketOwnerId }) => {
+  const profileRole = reply?.profile?.role || reply?.profile?.user_types?.type_name || null;
+  const isTicketOwner = reply?.user_id && ticketOwnerId && reply.user_id === ticketOwnerId;
+  const isCurrentUser = reply?.user_id && currentUserId && reply.user_id === currentUserId;
+  const isClientAuthor = profileRole === "client" || profileRole === "vip" || isTicketOwner;
+
+  const authorName = isCurrentUser
+    ? "Vous"
+    : isClientAuthor
+      ? "Client"
+      : "Support NotionLab";
+  const AuthorIcon = isClientAuthor ? User : Bot;
+  const cardClasses = isClientAuthor ? "bg-card" : "bg-primary/5 dark:bg-primary/10";
 
   return (
     <motion.div
@@ -17,8 +25,8 @@ const ReplyCard = ({ reply }) => {
       transition={{ duration: 0.3 }}
     >
       <div className="flex flex-col items-center">
-        <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${isClient ? 'bg-secondary' : 'notion-gradient'}`}>
-          <AuthorIcon className={`w-5 h-5 ${isClient ? 'text-muted-foreground' : 'text-white'}`} />
+        <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${isClientAuthor ? "bg-secondary" : "notion-gradient"}`}>
+          <AuthorIcon className={`w-5 h-5 ${isClientAuthor ? "text-muted-foreground" : "text-white"}`} />
         </div>
         <div className="w-px flex-grow bg-border my-2"></div>
       </div>
@@ -29,12 +37,12 @@ const ReplyCard = ({ reply }) => {
             <div className="flex items-center gap-2 text-sm">
               <p className="font-bold">{authorName}</p>
               <p className="text-muted-foreground text-xs">
-                · {new Date(reply.created_at).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                {reply?.created_at ? new Date(reply.created_at).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : ""}
               </p>
             </div>
           </CardHeader>
           <CardContent className="p-4 pt-0">
-            <p className="whitespace-pre-wrap text-foreground/90">{reply.content}</p>
+            <p className="whitespace-pre-wrap text-foreground/90">{reply?.content}</p>
           </CardContent>
         </div>
       </div>
@@ -43,3 +51,4 @@ const ReplyCard = ({ reply }) => {
 };
 
 export default ReplyCard;
+

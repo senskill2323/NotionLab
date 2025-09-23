@@ -87,7 +87,7 @@ const ConversationItem = ({ conversation, isSelected, onSelect, canArchive, onTo
   );
 };
 
-const ConversationList = ({ conversations, selectedConversation, onSelectConversation, view = 'active', onViewChange }) => {
+const ConversationList = ({ conversations, selectedConversation, onSelectConversation, view = 'active', onViewChange, onBack }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm] = useDebounce(searchTerm, 300);
   const navigate = useNavigate();
@@ -132,7 +132,7 @@ const ConversationList = ({ conversations, selectedConversation, onSelectConvers
     <div className="h-full w-full flex flex-col">
       <div className="p-3 border-b">
         <div className="flex items-center gap-2 mb-2">
-          <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
+          <Button variant="ghost" size="sm" onClick={() => { if (onBack) { onBack(); } else { navigate(-1); } }}>
             <ArrowLeft className="h-4 w-4 mr-1" />
             Retour
           </Button>
@@ -189,3 +189,4 @@ const ConversationList = ({ conversations, selectedConversation, onSelectConvers
 };
 
 export default ConversationList;
+
