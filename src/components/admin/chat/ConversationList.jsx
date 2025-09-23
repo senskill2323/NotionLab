@@ -4,10 +4,9 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
-import { Search, ArrowLeft, Archive, ArchiveRestore } from 'lucide-react';
+import { Search, Archive, ArchiveRestore } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -87,10 +86,9 @@ const ConversationItem = ({ conversation, isSelected, onSelect, canArchive, onTo
   );
 };
 
-const ConversationList = ({ conversations, selectedConversation, onSelectConversation, view = 'active', onViewChange, onBack }) => {
+const ConversationList = ({ conversations, selectedConversation, onSelectConversation, view = 'active', onViewChange }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm] = useDebounce(searchTerm, 300);
-  const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
   const canArchive = !!(user && ['owner', 'admin'].includes(user.profile?.user_type));
@@ -132,10 +130,6 @@ const ConversationList = ({ conversations, selectedConversation, onSelectConvers
     <div className="h-full w-full flex flex-col">
       <div className="p-3 border-b">
         <div className="flex items-center gap-2 mb-2">
-          <Button variant="ghost" size="sm" onClick={() => { if (onBack) { onBack(); } else { navigate(-1); } }}>
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            Retour
-          </Button>
           <h2 className="text-lg font-semibold">Conversations</h2>
         </div>
         <div className="relative">
