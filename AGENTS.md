@@ -1,6 +1,6 @@
 ## Règles de travail
 
-*les fichiers dans ./rules. sont des instructions à lire avant chaque tâches afin de connaitre le contexte. 
+*les fichiers dans ./rules. sont des instructions à lire avant chaque tâches afin de connaitre l'environnement du projet. 
 * Priorité: 00-architecture.md, 01-standards.md, 02-programming-languages.md, 03-conventions.md.
 * Traite ./rules comme source autoritative; ne modifie pas sans accord, mais n'abandonne par car les instructions de l'interdisent, demande si tu es bloqué
 * le projet NotionLab est sur le supabase cloud (projet id kiudpvvqpbkzeybogrnq)
