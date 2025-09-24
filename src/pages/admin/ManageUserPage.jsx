@@ -141,9 +141,14 @@ const ManageUserPage = () => {
     setIsSubmitting(true);
     try {
       // Use RPC that performs full cleanup (snapshots, formations, submissions) and deletes auth user
-      const { data: rpcData, error: rpcError } = await supabase.rpc('admin_delete_user_full', { p_user_id: user.id });
-      if (rpcError || rpcData?.error) {
-        throw new Error(rpcError?.message || rpcData?.error || "Échec de la suppression de l'utilisateur");
+      const { data: fnData, error: fnError } = await supabase.functions.invoke('delete-user-full', {
+        body: { userId: user.id },
+      });
+      if (fnError) {
+        throw new Error(fnError.message || "Echec de la suppression de l'utilisateur");
+      }
+      if (fnData?.error) {
+        throw new Error(fnData.error);
       }
       toast({ title: 'Succès', description: 'Utilisateur supprimé avec succès.' });
       navigate('/admin/dashboard?tab=users');

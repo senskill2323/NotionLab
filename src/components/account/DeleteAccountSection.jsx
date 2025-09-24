@@ -35,39 +35,41 @@ const DeleteAccountSection = () => {
     if (!isConfirmationValid) return;
 
     setIsDeleting(true);
-    
+
     try {
-      // Supprimer l'avatar s'il existe
       if (user.profile?.avatar_url) {
         const avatarPath = user.profile.avatar_url.split('/').pop();
-        // Path must be relative to bucket root; do not prefix with bucket name
-        await supabase.storage
-          .from('avatars')
-          .remove([avatarPath]);
+        if (avatarPath) {
+          await supabase.storage.from('avatars').remove([avatarPath]);
+        }
       }
 
-      // Supprimer complètement le compte via RPC SQL (service definer côté DB)
-      const { data: rpcData, error: rpcError } = await supabase.rpc('admin_delete_user_full', { p_user_id: user.id });
-      if (rpcError || rpcData?.error) {
-        throw new Error(rpcError?.message || rpcData?.error || 'Échec de la suppression du compte');
+      const { data: fnData, error: fnError } = await supabase.functions.invoke('delete-user-full', {
+        body: { userId: user.id },
+      });
+
+      if (fnError) {
+        throw new Error(fnError.message || 'Suppression impossible');
       }
 
-      // Déconnexion et redirection
+      if (fnData?.error) {
+        throw new Error(fnData.error);
+      }
+
       await signOut();
-      
+
       toast({
-        title: "Compte supprimé",
-        description: "Votre compte a été supprimé définitivement",
+        title: 'Compte supprime',
+        description: 'Votre compte a ete supprime definitivement.',
       });
 
       navigate('/');
-
     } catch (error) {
       console.error('Erreur suppression compte:', error);
       toast({
-        title: "Erreur",
-        description: "Impossible de supprimer votre compte. Contactez le support.",
-        variant: "destructive",
+        title: 'Erreur',
+        description: 'Impossible de supprimer votre compte. Contactez le support.',
+        variant: 'destructive',
       });
     } finally {
       setIsDeleting(false);
@@ -81,8 +83,8 @@ const DeleteAccountSection = () => {
       <Alert variant="destructive">
         <AlertTriangle className="h-4 w-4" />
         <AlertDescription>
-          <strong>Attention :</strong> La suppression de votre compte est définitive et irréversible. 
-          Toutes vos données, formations, tickets et historique seront perdus.
+          <strong>Attention :</strong> La suppression de votre compte est definitive et irreversible.
+          Toutes vos donnees, formations, tickets et historique seront perdus.
         </AlertDescription>
       </Alert>
 
@@ -93,25 +95,24 @@ const DeleteAccountSection = () => {
             Supprimer mon compte
           </Button>
         </AlertDialogTrigger>
-        
+
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2 text-destructive">
               <AlertTriangle className="h-5 w-5" />
-              Supprimer définitivement votre compte
+              Supprimer definitivement votre compte
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-3">
-              <p>
-                Cette action est <strong>irréversible</strong>. En supprimant votre compte, vous perdrez :
-              </p>
+              <p>Cette action est <strong>irreversible</strong>. En supprimant votre compte, vous perdrez :</p>
               <ul className="list-disc list-inside space-y-1 text-sm">
-                <li>Toutes vos données personnelles</li>
+                <li>Toutes vos donnees personnelles</li>
                 <li>Vos formations et progression</li>
                 <li>Vos tickets de support</li>
                 <li>Votre historique complet</li>
               </ul>
               <p className="text-sm font-medium">
-                Pour confirmer, tapez exactement : <code className="bg-muted px-1 rounded">{confirmationPhrase}</code>
+                Pour confirmer, tapez exactement :{' '}
+                <code className="bg-muted px-1 rounded">{confirmationPhrase}</code>
               </p>
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -128,7 +129,7 @@ const DeleteAccountSection = () => {
           </div>
 
           <AlertDialogFooter>
-            <AlertDialogCancel 
+            <AlertDialogCancel
               onClick={() => {
                 setConfirmationText('');
                 setIsDialogOpen(false);
@@ -150,7 +151,7 @@ const DeleteAccountSection = () => {
               ) : (
                 <>
                   <Trash2 className="h-4 w-4 mr-2" />
-                  Supprimer définitivement
+                  Supprimer definitivement
                 </>
               )}
             </AlertDialogAction>

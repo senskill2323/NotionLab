@@ -1,9 +1,9 @@
----
+﻿---
 title: "NotionLab Guide IA - Module Formations"
 version: "2"
 date: "2025-01-18"
 owner: "NEEDS-VERIFY Provide owner or primary contact."
-description: Guides de style, conventions commits, branches, PR, commentaires, README, licences, RFC internes, dépréciation.
+description: Guides de style, conventions commits, branches, PR, commentaires, README, licences, RFC internes, dÃ©prÃ©ciation.
 ---
 
 <!-- AUTO:BEGIN -->
@@ -12,25 +12,30 @@ Les regles extraites de readmeIA encadrent les interventions IA, les conventions
 
 <!-- ANCHOR:STANDARDS -->
 - Reutiliser le client Supabase fourni par src/lib/customSupabaseClient pour beneficier du timeout et du singleton GoTrue.
+- Invitations admin :
+  - Utiliser supabase.functions.invoke('invite-user', ...) depuis l'UI admin ; pas de service-role cote client.
+  - La fonction Edge met profiles.status = 'active' et applique le user_type client ; garder cette source de verite.
+  - Secrets requis cote Edge : SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (optionnel INVITE_REDIRECT_URL).
+
 - Respecter authReady et authLoading avant redirection afin d'eviter un spinner permanent ou des redirections prematures.
 - Verifier les droits via usePermissions().hasPermission et mettre a jour role_permissions ou modules_registry.required_permission si besoin.
 - Conserver le nommage snake_case et les prefixes get_/set_/search_ pour toute nouvelle fonction SQL ou migration dans Supabase/migrations/.
 - Ne jamais exposer SUPABASE_SERVICE_ROLE dans le code client et limiter la diffusion du fichier .env.local.
-- Thèmes UI: versionner les changements dans `Supabase/migrations/<date>_themes_and_rpcs.sql` en conservant les noms RPC `get_active_theme_tokens` et `set_active_theme`. Restreindre `set_active_theme` aux admins/owners via RLS/policies et/ou gardes dans la fonction.
+- TheÌ€mes UI: versionner les changements dans `Supabase/migrations/<date>_themes_and_rpcs.sql` en conservant les noms RPC `get_active_theme_tokens` et `set_active_theme`. Restreindre `set_active_theme` aux admins/owners via RLS/policies et/ou gardes dans la fonction.
  - Onboarding formation (standards UI):
-   - Cartes cliquables pour single/multi, sliders 1–5 avec ancres, aucune question obligatoire.
-   - FR uniquement (tutoiement), disclaimer minimal sous « Valider » interdisant les données sensibles.
-   - Résumé avec pictogrammes Lucide, sections et items triés par `step_order`/`sort_order`.
- - Onboarding formation (standards d’accès):
-   - Visibilité client actif uniquement (`ClientOnlyRoute`), non-bloquant, CTA « Remplir les préférences » si vide.
+   - Cartes cliquables pour single/multi, sliders 1â€“5 avec ancres, aucune question obligatoire.
+   - FR uniquement (tutoiement), disclaimer minimal sous Â« Valider Â» interdisant les donnÃ©es sensibles.
+   - RÃ©sumÃ© avec pictogrammes Lucide, sections et items triÃ©s par `step_order`/`sort_order`.
+ - Onboarding formation (standards dâ€™accÃ¨s):
+   - VisibilitÃ© client actif uniquement (`ClientOnlyRoute`), non-bloquant, CTA Â« Remplir les prÃ©fÃ©rences Â» si vide.
  - Notifications: conserver Resend via Edge Function `notify-training-onboarding` avec secrets `RESEND_API_KEY`, `ONBOARDING_NOTIFICATION_EMAIL` (fallback `OWNER_EMAIL`), `ONBOARDING_EMAIL_FROM` (fallback `SENDER_EMAIL`).
 
 <!-- ANCHOR:ACCOUNT_DELETION_STANDARDS -->
-- Utiliser exclusivement l'appel `supabase.rpc('admin_delete_user_full', { p_user_id })` pour supprimer un compte depuis l'UI (Admin et auto‑suppression).
-- Ne plus appeler `auth.admin.deleteUser` directement depuis le client: nécessite la service_role et peut échouer ou laisser des identités orphelines.
-- Les dialogues de confirmation doivent refléter une suppression TOTALE (auth + identités + profil + données liées) et être irréversibles.
-- Permissions: seul un `owner` peut supprimer un `owner`; `owner`/`admin` peuvent supprimer d'autres comptes; un utilisateur peut se supprimer lui‑même.
-- Pré‑vérification d'email d'inscription: privilégier `public.check_email_available(p_email text)` (security definer) ou désactiver via `VITE_SIGNUP_EMAIL_PRECHECK=false` si la RPC n'est pas en place.
+- Utiliser exclusivement l'appel `supabase.rpc('admin_delete_user_full', { p_user_id })` pour supprimer un compte depuis l'UI (Admin et autoâ€‘suppression).
+- Ne plus appeler `auth.admin.deleteUser` directement depuis le client: nÃ©cessite la service_role et peut Ã©chouer ou laisser des identitÃ©s orphelines.
+- Les dialogues de confirmation doivent reflÃ©ter une suppression TOTALE (auth + identitÃ©s + profil + donnÃ©es liÃ©es) et Ãªtre irrÃ©versibles.
+- Permissions: seul un `owner` peut supprimer un `owner`; `owner`/`admin` peuvent supprimer d'autres comptes; un utilisateur peut se supprimer luiâ€‘mÃªme.
+- PrÃ©â€‘vÃ©rification d'email d'inscription: privilÃ©gier `public.check_email_available(p_email text)` (security definer) ou dÃ©sactiver via `VITE_SIGNUP_EMAIL_PRECHECK=false` si la RPC n'est pas en place.
 
 <!-- ANCHOR:WORKFLOWS -->
 - Invalider les caches critiques avec emitSessionRefresh ou queryClient.invalidateQueries() apres toute mise a jour de profil, permissions ou layout.
@@ -38,18 +43,18 @@ Les regles extraites de readmeIA encadrent les interventions IA, les conventions
 - Cycle parcours : draft client -> soumission -> validation -> init_kanban_statuses_for_submission.
 - Modifications autorisees : UI/UX formation, logique client du builder, styles, permissions (cf. src/components et src/hooks dedies).
 - Modifications interdites sans validation : schema des tables courses et formation_module_statuses, RPC submit_*/approve_*/init_kanban_*, logiques de snapshot et policies RLS.
-- Thèmes: utiliser `ThemePanel` (Admin) pour CRUD/activation; côté client, récupérer les tokens via `supabase.rpc('get_active_theme_tokens')` et appliquer via `ThemeContext.applyTheme()`.
+- ThÃ¨mes: utiliser `ThemePanel` (Admin) pour CRUD/activation; cÃ´tÃ© client, rÃ©cupÃ©rer les tokens via `supabase.rpc('get_active_theme_tokens')` et appliquer via `ThemeContext.applyTheme()`.
  - Flux Onboarding:
-   - Chargement config: `fetchTrainingOnboardingConfig({ includeInactive: false })` côté wizard; `fetchTrainingOnboardingConfigWithAllQuestions()` côté résumé (client/admin).
-   - Autosauvegarde brouillon: debounce 600 ms, statut « Brouillon enregistré »; toast destructif en cas d’échec.
-   - Soumission: upsert `training_onboarding_responses`, mise à jour de `profiles.profession` depuis `metier_activite`.
-   - Notification: `supabase.functions.invoke('notify-training-onboarding', {...})` avec résumé texte.
+   - Chargement config: `fetchTrainingOnboardingConfig({ includeInactive: false })` cÃ´tÃ© wizard; `fetchTrainingOnboardingConfigWithAllQuestions()` cÃ´tÃ© rÃ©sumÃ© (client/admin).
+   - Autosauvegarde brouillon: debounce 600 ms, statut Â« Brouillon enregistrÃ© Â»; toast destructif en cas dâ€™Ã©chec.
+   - Soumission: upsert `training_onboarding_responses`, mise Ã  jour de `profiles.profession` depuis `metier_activite`.
+   - Notification: `supabase.functions.invoke('notify-training-onboarding', {...})` avec rÃ©sumÃ© texte.
    - Premier envoi: mini NPS (Oui/Non + commentaire), puis redirection.
 
 <!-- ANCHOR:ACCOUNT_DELETION_WORKFLOWS -->
-- Admin Users list (`src/components/admin/UserManagementPanel.jsx`) → corbeille → RPC `admin_delete_user_full`.
-- Admin User page (`src/pages/admin/ManageUserPage.jsx`) → bouton supprimer → RPC `admin_delete_user_full`.
-- Compte utilisateur (`src/components/account/DeleteAccountSection.jsx`) → bouton supprimer → RPC `admin_delete_user_full`.
+- Admin Users list (`src/components/admin/UserManagementPanel.jsx`) â†’ corbeille â†’ RPC `admin_delete_user_full`.
+- Admin User page (`src/pages/admin/ManageUserPage.jsx`) â†’ bouton supprimer â†’ RPC `admin_delete_user_full`.
+- Compte utilisateur (`src/components/account/DeleteAccountSection.jsx`) â†’ bouton supprimer â†’ RPC `admin_delete_user_full`.
 
 
 <!-- ANCHOR:EXAMPLES -->
@@ -60,7 +65,7 @@ const { data, error } = await supabase.rpc('get_user_courses_and_parcours', {
 ```
 
 ```javascript
-// Lecture tokens de thème et application
+// Lecture tokens de thÃ¨me et application
 const { data: tokens } = await supabase.rpc('get_active_theme_tokens');
 if (tokens) applyTheme(tokens);
 ```
@@ -68,6 +73,9 @@ if (tokens) applyTheme(tokens);
 <!-- ANCHOR:LIMITS -->
 - NEEDS-VERIFY : confirmer la presence d'automatisation de tests pour les formations.
 - NEEDS-VERIFY : valider l'encodage des fichiers contenant des caracteres etendus avant edition.
- - Étapes: brief cible 4–6 étapes; seed en 10 sections. Réduire en désactivant des sections/questions côté admin (le wizard masque automatiquement les sections vides) ou regrouper côté UI (évolution).
- - Encodage FR: prévoir une migration de correction d’accents sur titres/libellés `training_onboarding_*` sans toucher aux `slug`/`value`.
+ - Ã‰tapes: brief cible 4â€“6 Ã©tapes; seed en 10 sections. RÃ©duire en dÃ©sactivant des sections/questions cÃ´tÃ© admin (le wizard masque automatiquement les sections vides) ou regrouper cÃ´tÃ© UI (Ã©volution).
+ - Encodage FR: prÃ©voir une migration de correction dâ€™accents sur titres/libellÃ©s `training_onboarding_*` sans toucher aux `slug`/`value`.
 <!-- AUTO:END -->
+
+
+

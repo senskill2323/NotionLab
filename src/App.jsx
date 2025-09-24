@@ -20,6 +20,7 @@ import React from 'react';
     import AboutPage from '@/pages/AboutPage';
     import LoginPage from '@/pages/LoginPage';
     import RegisterPage from '@/pages/RegisterPage';
+    import InvitationActivationPage from '@/pages/InvitationActivationPage';
     import ConfirmationPage from '@/pages/ConfirmationPage';
     import DashboardPage from '@/pages/DashboardPage';
     import CreateTicketPage from '@/pages/CreateTicketPage';
@@ -98,6 +99,8 @@ import React from 'react';
         <Route path="/admin" element={<AdminPage />} />
         <Route path="/connexion" element={<PublicOnlyRoute><LoginPage /></PublicOnlyRoute>} />
         <Route path="/inscription" element={<PublicOnlyRoute><RegisterPage /></PublicOnlyRoute>} />
+        
+        <Route path="/activation-invitation" element={<InvitationActivationPage />} />
         
         <Route path="/mes-preferences-formation" element={<ClientOnlyRoute><TrainingPreferencesPage /></ClientOnlyRoute>} />
         <Route path="/mes-preferences-formation/editer" element={<ClientOnlyRoute><TrainingPreferencesWizardPage /></ClientOnlyRoute>} />

@@ -1,29 +1,29 @@
----
+﻿---
 title: "NotionLab Guide IA - Module Formations"
 version: "2"
 date: "2025-01-18"
 owner: "NEEDS-VERIFY Provide owner or primary contact."
-contenu: Objectifs, SLA, contraintes, architecture, découpage, auth, état, logs, config, flags, i18n, accessibilité, ADR, glossaire.
+contenu: Objectifs, SLA, contraintes, architecture, dÃ©coupage, auth, Ã©tat, logs, config, flags, i18n, accessibilitÃ©, ADR, glossaire.
 
-•	Workspace lives in C:\dev\notionlab; operate only inside this Vite/React (18) project via Windsurf, keeping readmeIA (file in the root of the project) as the canonical reference.
-•	Favor functional, declarative React; stay modular (component → subcomponents → hooks/helpers → static data); centralize Supabase access and keep helpers pure.
-•	Always source env values (e.g., VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY) through @/lib/customSupabaseClient; warn if missing; never hard-code keys or expose service-role secrets client-side.
-•	Manage auth exclusively via SupabaseAuthContext/useAuth(); respect authReady/authLoading; on critical auth failures sign out and redirect /connexion.
-•	Route protection uses <ProtectedRoute requiredPermission="…"> with PermissionsContext/hasPermission(); keep Admin vs Client content separated.
-•	For data operations favor Supabase RPCs or Edge Functions (standard response { data, error }); keep client queries minimal/paginated; add DB indexes as needed before shipping.
-•	Realtime: subscribe with supabase.channel(...).on('postgres_changes', …) only where required; name channels explicitly and clean them up on unmount.
-•	Storage: keep DB/storage in sync (avatars, resources, chat/forum attachments) following bucket conventions.
-•	Naming: DB objects snake_case, Edge Functions kebab-case; use Vite alias @ for imports.
-•	UI: use Radix + Tailwind, react-hook-form, Zustand for shared state, framer-motion for subtle animations, @dnd-kit for drag/drop, React Flow for builders; keep interactions accessible.
-•	Theme system: couleurs pilotées par variables CSS `--colors-*` injectées par `ThemeContext` (RPC `get_active_theme_tokens`) et consommées via `hsl(var(--colors-…))` dans `tailwind.config.js`. Fallbacks `:root` dans `src/index.css` évitent tout flash au premier rendu.
-•	CSS compat: toujours fournir la paire standard + préfixée pour `backdrop-filter` et `text-size-adjust` dans `src/index.css` (standard et `-webkit-…`).
-•	ThemeProvider: présent uniquement dans `src/main.jsx` (supprimé de `src/App.jsx`) pour éviter les doubles injections et effets de bord.
-•	Kanban/admin flows: reuse AdminKanbanView, UserKanbanDashboard, and related hooks; avoid duplicating logic—extend via composition.
-•	On cache-sensitive updates call emitSessionRefresh or invalidate relevant queries; log structured errors and show user-friendly toasts (no sensitive details).
-•	Database/RLS: assume operations must respect row-level security; escalate to Edge Functions when privileged access is required; use explicit upsert conflicts and enum defaults.
-•	Component registries & dashboards: interact via component_rules, modules_registry, and dashboard RPCs/Edge Functions (get-dashboard-layout, update-dashboard-layout) instead of hard-coded toggles.
-•	CI/dev: Node 20 pipeline runs npm ci, npm run build, deploys via FTPS; run local checks with npm run dev or npm run preview; SQL via npm run db:query/db:file.
-•	Treat these rules plus readmeIA as the single source of truth; update them when new tables/RPCs/Edge Functions land.
+â€¢	Workspace lives in C:\dev\notionlab; operate only inside this Vite/React (18) project via Windsurf, keeping readmeIA (file in the root of the project) as the canonical reference.
+â€¢	Favor functional, declarative React; stay modular (component â†’ subcomponents â†’ hooks/helpers â†’ static data); centralize Supabase access and keep helpers pure.
+â€¢	Always source env values (e.g., VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY) through @/lib/customSupabaseClient; warn if missing; never hard-code keys or expose service-role secrets client-side.
+â€¢	Manage auth exclusively via SupabaseAuthContext/useAuth(); respect authReady/authLoading; on critical auth failures sign out and redirect /connexion.
+â€¢	Route protection uses <ProtectedRoute requiredPermission="â€¦"> with PermissionsContext/hasPermission(); keep Admin vs Client content separated.
+â€¢	For data operations favor Supabase RPCs or Edge Functions (standard response { data, error }); keep client queries minimal/paginated; add DB indexes as needed before shipping.
+â€¢	Realtime: subscribe with supabase.channel(...).on('postgres_changes', â€¦) only where required; name channels explicitly and clean them up on unmount.
+â€¢	Storage: keep DB/storage in sync (avatars, resources, chat/forum attachments) following bucket conventions.
+â€¢	Naming: DB objects snake_case, Edge Functions kebab-case; use Vite alias @ for imports.
+â€¢	UI: use Radix + Tailwind, react-hook-form, Zustand for shared state, framer-motion for subtle animations, @dnd-kit for drag/drop, React Flow for builders; keep interactions accessible.
+â€¢	Theme system: couleurs pilotÃ©es par variables CSS `--colors-*` injectÃ©es par `ThemeContext` (RPC `get_active_theme_tokens`) et consommÃ©es via `hsl(var(--colors-â€¦))` dans `tailwind.config.js`. Fallbacks `:root` dans `src/index.css` Ã©vitent tout flash au premier rendu.
+â€¢	CSS compat: toujours fournir la paire standard + prÃ©fixÃ©e pour `backdrop-filter` et `text-size-adjust` dans `src/index.css` (standard et `-webkit-â€¦`).
+â€¢	ThemeProvider: prÃ©sent uniquement dans `src/main.jsx` (supprimÃ© de `src/App.jsx`) pour Ã©viter les doubles injections et effets de bord.
+â€¢	Kanban/admin flows: reuse AdminKanbanView, UserKanbanDashboard, and related hooks; avoid duplicating logicâ€”extend via composition.
+â€¢	On cache-sensitive updates call emitSessionRefresh or invalidate relevant queries; log structured errors and show user-friendly toasts (no sensitive details).
+â€¢	Database/RLS: assume operations must respect row-level security; escalate to Edge Functions when privileged access is required; use explicit upsert conflicts and enum defaults.
+â€¢	Component registries & dashboards: interact via component_rules, modules_registry, and dashboard RPCs/Edge Functions (get-dashboard-layout, update-dashboard-layout) instead of hard-coded toggles.
+â€¢	CI/dev: Node 20 pipeline runs npm ci, npm run build, deploys via FTPS; run local checks with npm run dev or npm run preview; SQL via npm run db:query/db:file.
+â€¢	Treat these rules plus readmeIA as the single source of truth; update them when new tables/RPCs/Edge Functions land.
 
 ---
 
@@ -36,27 +36,34 @@ Le module Formations gere des parcours standard publies et des parcours custom c
 - Supabase centralise RPC, fonctions edge, stockage et canal realtime pour les formations.
 - Les parcours valides sont figes via des snapshots avant publication.
 - Le Kanban formation_module_statuses suit l'avancement par utilisateur et soumission.
- - Onboarding formation: l'UI charge uniquement les questions actives (admin peut activer/désactiver), wizard non bloquant, autosauvegarde, et résumé consultable côté client et admin.
- - Notifications onboarding: fonction Edge `notify-training-onboarding` (Deno) conserve le mécanisme actuel (Resend). Secrets requis: `RESEND_API_KEY`, `ONBOARDING_NOTIFICATION_EMAIL` (fallback `OWNER_EMAIL`), `ONBOARDING_EMAIL_FROM` (fallback `SENDER_EMAIL`). CORS: `POST, OPTIONS`.
- - Visibilité: routes protégées par `ClientOnlyRoute`; accès réservé aux utilisateurs `client`/`vip` avec `profile.status === 'active'`. Les admins sont redirigés vers `/admin/dashboard`.
- - Français uniquement, tutoiement, disclaimer minimal sous le bouton « Valider » interdisant les données sensibles.
+ - Onboarding formation: l'UI charge uniquement les questions actives (admin peut activer/dÃ©sactiver), wizard non bloquant, autosauvegarde, et rÃ©sumÃ© consultable cÃ´tÃ© client et admin.
+ - Notifications onboarding: fonction Edge `notify-training-onboarding` (Deno) conserve le mÃ©canisme actuel (Resend). Secrets requis: `RESEND_API_KEY`, `ONBOARDING_NOTIFICATION_EMAIL` (fallback `OWNER_EMAIL`), `ONBOARDING_EMAIL_FROM` (fallback `SENDER_EMAIL`). CORS: `POST, OPTIONS`.
+ - VisibilitÃ©: routes protÃ©gÃ©es par `ClientOnlyRoute`; accÃ¨s rÃ©servÃ© aux utilisateurs `client`/`vip` avec `profile.status === 'active'`. Les admins sont redirigÃ©s vers `/admin/dashboard`.
+ - FranÃ§ais uniquement, tutoiement, disclaimer minimal sous le bouton Â« Valider Â» interdisant les donnÃ©es sensibles.
  <!-- ANCHOR:WORKFLOWS -->
 - Cycle parcours : brouillon client -> soumission -> validation admin -> Kanban live synchronise.
 - Gardes de routes : ProtectedRoute, ClientOnlyRoute et PublicOnlyRoute utilisent authReady, allowedUserTypes et requiredPermission.
- - Flux Onboarding: (1) chargement des sections/questions actives; (2) autosauvegarde du brouillon (toast à l'échec); (3) soumission = upsert de `training_onboarding_responses`, mise à jour éventuelle de `profiles.profession` (depuis `metier_activite`); (4) envoi de notification via `notify-training-onboarding`; (5) premier envoi: mini NPS (Oui/Non + commentaire);
- - Restitution: page client « Mes préférences de formation » avec bouton « Mettre à jour », panneau admin « Brief & Profil » en lecture seule dans le Kanban Formation Live.
+ - Flux Onboarding: (1) chargement des sections/questions actives; (2) autosauvegarde du brouillon (toast Ã  l'Ã©chec); (3) soumission = upsert de `training_onboarding_responses`, mise Ã  jour Ã©ventuelle de `profiles.profession` (depuis `metier_activite`); (4) envoi de notification via `notify-training-onboarding`; (5) premier envoi: mini NPS (Oui/Non + commentaire);
+ - Restitution: page client Â« Mes prÃ©fÃ©rences de formation Â» avec bouton Â« Mettre Ã  jour Â», panneau admin Â« Brief & Profil Â» en lecture seule dans le Kanban Formation Live.
 
 <!-- ANCHOR:ACCOUNT_DELETION -->
-- Objectif: la suppression d'un utilisateur doit effacer l'ensemble du compte (Auth + identités) et les données liées côté domaine.
-- Déclencheurs UI:
-  - `src/components/admin/UserManagementPanel.jsx` (corbeille) → appelle `supabase.rpc('admin_delete_user_full', { p_user_id })`.
-  - `src/pages/admin/ManageUserPage.jsx` (bouton supprimer) → même RPC.
-  - `src/components/account/DeleteAccountSection.jsx` (auto‑suppression) → même RPC.
+<!-- ANCHOR:USER_INVITATIONS -->
+- Invitations admin :
+  - Le bouton "Inviter un utilisateur" dans src/components/admin/UserManagementPanel.jsx appelle l'Edge Function invite-user.
+  - La fonction (Supabase/functions/invite-user/index.ts) cree ou re-utilise l'utilisateur via uth.admin.inviteUserByEmail, met a jour public.profiles avec le user_type_id client et status = 'active'.
+  - Secrets requis cote Edge : SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (optionnel INVITE_REDIRECT_URL sinon fallback /connexion).
+  - L'activation ne passe plus par guest : l'utilisateur arrive sur /activation-invitation pour definir son mot de passe mais il a deja l'acces client.
+
+- Objectif: la suppression d'un utilisateur doit effacer l'ensemble du compte (Auth + identitÃ©s) et les donnÃ©es liÃ©es cÃ´tÃ© domaine.
+- DÃ©clencheurs UI:
+  - `src/components/admin/UserManagementPanel.jsx` (corbeille) â†’ appelle `supabase.rpc('admin_delete_user_full', { p_user_id })`.
+  - `src/pages/admin/ManageUserPage.jsx` (bouton supprimer) â†’ mÃªme RPC.
+  - `src/components/account/DeleteAccountSection.jsx` (autoâ€‘suppression) â†’ mÃªme RPC.
 - Orchestration serveur: RPC `public.admin_delete_user_full(uuid)` (SECURITY DEFINER) qui:
-  - Nettoie d'abord les tables domaine: `formation_module_statuses`, `user_formation_snapshots`, `user_formations`, `formation_submissions`, `tickets`, `ticket_replies`, `action_logs`, `chat_messages`, `chat_conversations`, ainsi que les `courses` personnalisés (`author_id` = user, `course_type='custom'`).
+  - Nettoie d'abord les tables domaine: `formation_module_statuses`, `user_formation_snapshots`, `user_formations`, `formation_submissions`, `tickets`, `ticket_replies`, `action_logs`, `chat_messages`, `chat_conversations`, ainsi que les `courses` personnalisÃ©s (`author_id` = user, `course_type='custom'`).
   - Supprime ensuite `public.profiles` puis appelle `auth.admin.delete_user(p_user_id)` (supprime aussi `auth.identities`).
-- Autorisations: un utilisateur peut se supprimer lui‑même; `owner`/`admin` peuvent supprimer d'autres comptes; seul un `owner` peut supprimer un `owner`.
-- Remplacement: l'ancien flux supprimant uniquement `public.profiles` a été remplacé par cette suppression totale; les dialogues de confirmation ont été mis à jour pour le refléter.
+- Autorisations: un utilisateur peut se supprimer luiâ€‘mÃªme; `owner`/`admin` peuvent supprimer d'autres comptes; seul un `owner` peut supprimer un `owner`.
+- Remplacement: l'ancien flux supprimant uniquement `public.profiles` a Ã©tÃ© remplacÃ© par cette suppression totale; les dialogues de confirmation ont Ã©tÃ© mis Ã  jour pour le reflÃ©ter.
 
 <!-- ANCHOR:EXAMPLES -->
 ```
@@ -95,8 +102,10 @@ src/
 <!-- ANCHOR:LIMITS -->
 - NEEDS-VERIFY : confirmer l'existence de CreateFormationPage.jsx et ManageFormationPage.jsx dans src/pages/admin/.
 - Encodage : certains fichiers (ex. src/contexts/SupabaseAuthContext.jsx) montrent des caracteres etendus signe d'encodage degrade.
- - Étapes: le brief cible 4–6 étapes; le seed comporte 10 sections. Réduire à 4–6 en désactivant des sections/questions via l'admin (le wizard masque les sections vides) ou prévoir un regroupement UI.
- - Encodage FR: certains titres/libellés seedés affichent des « ? ». Prévoir une migration corrective d'accents (UPDATE des champs textuels, sans toucher aux slug/values).
- - Accessibilité AA: structure déjà en place (fieldset/legend, aria-live); prévoir un mini audit (focus visibles, ordre tab, toasts accessibles) avant production.
- - Observabilité: logs Edge Functions visibles ~1 minute (Supabase dashboard). Tester la réception e-mail juste après soumission.
+ - Ã‰tapes: le brief cible 4â€“6 Ã©tapes; le seed comporte 10 sections. RÃ©duire Ã  4â€“6 en dÃ©sactivant des sections/questions via l'admin (le wizard masque les sections vides) ou prÃ©voir un regroupement UI.
+ - Encodage FR: certains titres/libellÃ©s seedÃ©s affichent des Â« ? Â». PrÃ©voir une migration corrective d'accents (UPDATE des champs textuels, sans toucher aux slug/values).
+ - AccessibilitÃ© AA: structure dÃ©jÃ  en place (fieldset/legend, aria-live); prÃ©voir un mini audit (focus visibles, ordre tab, toasts accessibles) avant production.
+ - ObservabilitÃ©: logs Edge Functions visibles ~1 minute (Supabase dashboard). Tester la rÃ©ception e-mail juste aprÃ¨s soumission.
 <!-- AUTO:END -->
+
+
