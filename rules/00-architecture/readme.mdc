@@ -34,15 +34,21 @@ Le module Formations gere des parcours standard publies et des parcours custom c
 <!-- ANCHOR:STANDARDS -->
 - React 18 + Vite 7 pilotent le catalogue, le builder et les interfaces admin.
 - Supabase centralise RPC, fonctions edge, stockage et canal realtime pour les formations.
-- Les parcours valides sont figes via des snapshots avant publication.
-- Le Kanban formation_module_statuses suit l'avancement par utilisateur et soumission.
+- Les parcours validés sont figés via des snapshots avant publication (`formation_submissions.course_snapshot`, `user_formation_snapshots`).
+- Soumission catalogue standard : `submit_course_for_validation(p_course_id uuid)` depuis `src/pages/FormationDetailPage.jsx` (formations `course_type='standard'`).
+- Soumission parcours custom : `submit_user_parcours_for_validation(p_course_id uuid)` via le builder (`src/hooks/useFormationBuilder.js`, `src/components/dashboard/modules/UserFormationStatusSelect.jsx`).
+- Validation / rejets admin : `get_admin_formations_and_submissions`, `search_user_formation_submissions`, `approve_user_parcours_submission`, `revert_submission_to_pending`, `reject_user_parcours_submission`, orchestrés par `FormationManagementPanel` et `UserFormationSubmissionsPanel` (Kanban `AdminKanbanView`, agrégats `UserKanbanDashboard`).
+- Le Kanban `formation_module_statuses` suit l'avancement par utilisateur et soumission (initialisé par `init_kanban_statuses_for_submission`).
  - Onboarding formation: l'UI charge uniquement les questions actives (admin peut activer/désactiver), wizard non bloquant, autosauvegarde, et résumé consultable côté client et admin.
  - Notifications onboarding: fonction Edge `notify-training-onboarding` (Deno) conserve le mécanisme actuel (Resend). Secrets requis: `RESEND_API_KEY`, `ONBOARDING_NOTIFICATION_EMAIL` (fallback `OWNER_EMAIL`), `ONBOARDING_EMAIL_FROM` (fallback `SENDER_EMAIL`). CORS: `POST, OPTIONS`.
  - Visibilité: routes protégées par `ClientOnlyRoute`; accès réservé aux utilisateurs `client`/`vip` avec `profile.status === 'active'`. Les admins sont redirigés vers `/admin/dashboard`.
  - Français uniquement, tutoiement, disclaimer minimal sous le bouton « Valider » interdisant les données sensibles.
+- Stockage visuels catalogue : bucket Supabase `formation-images` (PNG/JPG ≤ 5 Mo), mis à jour via `FormationCard.jsx`.
  <!-- ANCHOR:WORKFLOWS -->
-- Cycle parcours : brouillon client -> soumission -> validation admin -> Kanban live synchronise.
+- Cycle catalogue : visite formation -> `submit_course_for_validation` -> validation admin (`approve_user_parcours_submission`) -> init Kanban (`init_kanban_statuses_for_submission`) -> suivi `formation_module_statuses`.
+- Cycle parcours custom : builder (`useFormationBuilder`) -> `submit_user_parcours_for_validation` -> validation admin -> snapshot (`user_formation_snapshots`) -> restitution client `/parcours/:id` (`ParcoursDetailPage.jsx`).
 - Gardes de routes : ProtectedRoute, ClientOnlyRoute et PublicOnlyRoute utilisent authReady, allowedUserTypes et requiredPermission.
+- Opérations admin : `FormationManagementPanel` (liste catalogue + duplication + upload visuel + type/delivery_mode), `UserFormationSubmissionsPanel` (filtre LIVE, rejets, retour pending, Kanban `AdminKanbanView`, agrégats `UserKanbanDashboard`).
  - Flux Onboarding: (1) chargement des sections/questions actives; (2) autosauvegarde du brouillon (toast à l'échec); (3) soumission = upsert de `training_onboarding_responses`, mise à jour éventuelle de `profiles.profession` (depuis `metier_activite`); (4) envoi de notification via `notify-training-onboarding`; (5) premier envoi: mini NPS (Oui/Non + commentaire);
  - Restitution: page client « Mes préférences de formation » avec bouton « Mettre à jour », panneau admin « Brief & Profil » en lecture seule dans le Kanban Formation Live.
 
@@ -64,19 +70,28 @@ src/
 |-- pages/
 |   |-- FormationsPage.jsx
 |   |-- FormationDetailPage.jsx
+|   |-- ParcoursDetailPage.jsx
 |   |-- FormationBuilderPage.jsx
 |   `-- admin/
-|       |-- CreateFormationPage.jsx  (NEEDS-VERIFY existe ?)
-|       `-- ManageFormationPage.jsx  (NEEDS-VERIFY existe ?)
+|       `-- AdminDashboardPage.jsx
 |-- components/
-|   |-- formation/
-|   |-- builder/
-|   |-- kanban/
+|   |-- admin/
+|   |   |-- FormationManagementPanel.jsx
+|   |   |-- UserFormationSubmissionsPanel.jsx
+|   |   `-- formation-live/
+|   |       |-- AdminKanbanView.jsx
+|   |       |-- UserKanbanDashboard.jsx
+|   |       `-- OnboardingQuestionsAdminPanel.jsx
 |   |-- dashboard/modules/
-|   `-- admin/
+|   |   `-- UserFormationStatusSelect.jsx
+|   |-- builder/
+|   |   |-- ModuleCatalog.jsx
+|   |   `-- BuilderHeader.jsx
+|   `-- onboarding/
+|       `-- TrainingOnboardingWizard.jsx
 |-- hooks/
-|-- lib/builder/
-`-- contexts/BuilderCatalogContext.jsx
+|   |-- useFormationBuilder.js
+|   `-- useSubmissions.js
 ```
 
 <!-- ANCHOR:ONBOARDING_TRAINING_FORM -->
@@ -93,7 +108,7 @@ src/
   - `Supabase/migrations/2025-09-20_training_onboarding_form.sql`
 
 <!-- ANCHOR:LIMITS -->
-- NEEDS-VERIFY : confirmer l'existence de CreateFormationPage.jsx et ManageFormationPage.jsx dans src/pages/admin/.
+- Pages `CreateFormationPage.jsx` / `ManageFormationPage.jsx` sont des coquilles vides conservées pour compatibilité; la gestion réelle passe par `FormationManagementPanel` dans le dashboard admin.
 - Encodage : certains fichiers (ex. src/contexts/SupabaseAuthContext.jsx) montrent des caracteres etendus signe d'encodage degrade.
  - Étapes: le brief cible 4–6 étapes; le seed comporte 10 sections. Réduire à 4–6 en désactivant des sections/questions via l'admin (le wizard masque les sections vides) ou prévoir un regroupement UI.
  - Encodage FR: certains titres/libellés seedés affichent des « ? ». Prévoir une migration corrective d'accents (UPDATE des champs textuels, sans toucher aux slug/values).

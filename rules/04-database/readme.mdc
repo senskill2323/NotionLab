@@ -60,6 +60,90 @@ Supabase pilote la couche donnees du module Formations : tables courses et forma
   - Vérifie `auth.users.email` et `auth.identities (provider='email', identity_data->>'email')` en minuscules.
   - Droits d’exécution: `GRANT EXECUTE ... TO anon, authenticated;`
 
+<!-- ANCHOR:TABLE_INVENTORY -->
+- Inventaire des tables Supabase (audit 2025-09-24) :
+- Détails colonnes par table : voir `rules/04-database/table-columns.mdc` (export automatique).
+- **Schema auth**
+- `auth.audit_log_entries` - Journal des événements Auth (connexion, MFA, provisioning) géré par Supabase; ne pas modifier.
+- `auth.flow_state` - État éphémère des flux OAuth/PKCE conservé pendant les redirections.
+- `auth.identities` - Identités par fournisseur pour chaque utilisateur (email/password, SSO, phone, etc.).
+- `auth.instances` - Données système Supabase sur l’instance Auth (lecture seule, pas utilisée applicativement).
+- `auth.mfa_amr_claims` - Historique des facteurs MFA validés; support audit MFA.
+- `auth.mfa_challenges` - Défis MFA en cours (OTP, WebAuthn) créés par GoTrue.
+- `auth.mfa_factors` - Facteurs MFA enregistrés par utilisateur.
+- `auth.oauth_clients` - Configuration d’éventuels clients OAuth personnalisés.
+- `auth.one_time_tokens` - Jetons OTP/magic links temporaires (inscription, reset).
+- `auth.refresh_tokens` - Tokens de rafraîchissement actifs (revocation list).
+- `auth.saml_providers` - Paramétrage SAML (metadata, certificats) si activé.
+- `auth.saml_relay_states` - États relayés pendant un handshake SAML; éphémères.
+- `auth.schema_migrations` - Suivi des migrations internes du schéma Auth.
+- `auth.sessions` - Sessions utilisateur actives (GoTrue) avec expiration.
+- `auth.sso_domains` - Domains d’entreprise mappés à des providers SSO.
+- `auth.sso_providers` - Fournisseurs OAuth/SAML configurés pour l’instance.
+- `auth.users` - Table centrale des comptes authentifiés Supabase.
+- **Schema public**
+- `public.action_logs` - Journal structuré des actions (type, acteur, états JSON) pour audit/support.
+- `public.admin_dashboard_tabs` - Définition des onglets UI de l’admin (tab_id, label, icône, ordre).
+- `public.admin_modules_registry` - Registre des modules disponibles par onglet admin (component_name, permission, ordre, état actif).
+- `public.assistant_limits` - Limites temporelles/bitrates/contexte RAG pour l’assistant par scope ou utilisateur.
+- `public.assistant_metrics` - Télémetrie des sessions assistant (événement, latence, volumétrie, erreurs RAG) horodatée.
+- `public.assistant_settings` - Paramètres globaux de l’assistant (activation, instructions, voix, endpoints mémoire/RAG, messages fallback).
+- `public.block_samples` - Bibliothèque de blocs exemples (layout + contenu JSON) pour préconfigurer des pages/sections.
+- `public.builder_families` - Familles de modules du builder (nom, icône, ordre).
+- `public.builder_modules` - Modules unitaires exploitables dans le builder (titre, description, durée, rattachement subfamily).
+- `public.builder_subfamilies` - Sous-familles utilisées pour regrouper les modules (ordre d’affichage, lien famille).
+- `public.chat_conversations` - Conversations live chat (participant invité/profil, statut, résumés, flags d’archivage).
+- `public.chat_messages` - Messages de chat (contenu, pièce jointe, ressource liée) indexés par conversation.
+- `public.component_rules` - Règles d’activation des composants UI par rôle (anonymous/client/vip/prof/admin/owner).
+- `public.content_blocks` - CMS des blocs éditoriaux (statut, audience, contenu JSON, tags, layout).
+- `public.courses` - Modèle de formation/parcours (métadonnées, graph nodes/edges, type catalogue/custom, objectifs/programme).
+- `public.dashboard_layouts` - Stockage JSON des layouts personnalisés (owner_type/id) pour dashboards/modules.
+- `public.formation_module_statuses` - Statuts Kanban par module et submission (todo/in_progress/blocked/done + position).
+- `public.formation_submissions` - Soumissions de parcours (snapshot JSON, statut validation, notes admin, timestamps).
+- `public.forum_posts` - Messages individuels des topics forum (contenu, auteur, pièces jointes, MAJ).
+- `public.forum_topics` - Sujets forum (titre, contenu initial, pin/lock, activité, pièces jointes).
+- `public.modules_registry` - Modules fonctionnels côté client (permission requise, layout par défaut, description).
+- `public.profiles` - Profil applicatif lié à auth.users (identité, statut, type, infos contact/profession).
+- `public.resource_assignments` - Historique des affectations de ressources à un utilisateur (assigné par, horodatage).
+- `public.resource_ratings` - Notes/commentaires chiffrés laissés sur les ressources.
+- `public.resources` - Catalogue des ressources pédagogiques (type, format, URL/contenu, rattachements builder).
+- `public.role_permissions` - Matrice des permissions (flags par rôle, famille, ordre) alimentant PermissionsContext.
+- `public.static_pages` - Pages statiques CMS (slug, contenu, statut, options SEO).
+- `public.themes` - Thèmes UI (tokens JSON, is_default, timestamps) consommés par ThemeContext.
+- `public.ticket_replies` - Réponses aux tickets support (contenu, auteur, horodatage).
+- `public.tickets` - Tickets support (statut, priorité, modules liés, assignation, trace des lectures).
+- `public.training_onboarding_nps` - Mini NPS associé à une réponse onboarding (oui/non + commentaire).
+- `public.training_onboarding_question_options` - Options de réponse paramétrées (label, ordre, activation) par question.
+- `public.training_onboarding_questions` - Questions configurables (type, validations, métadonnées, état actif) rattachées à une section.
+- `public.training_onboarding_responses` - Brouillons et soumissions onboarding (réponses JSON, timestamps, statut).
+- `public.training_onboarding_sections` - Sections du questionnaire (slug, icône, ordre, descriptions).
+- `public.user_formation_snapshots` - Snapshots JSON d’un parcours au moment de la soumission (user_id, course_id).
+- `public.user_formations` - Liaison formation/utilisateur (statut d’avancement, enrolled_at, formation_id).
+- `public.user_types` - Table de référence des types d’utilisateur (id, type_name, libellé affiché).
+- **Schema realtime**
+- `realtime.messages` - Table parent des messages Realtime (diffusions Postgres -> websockets).
+- `realtime.messages_2025_09_21` - Partition journalière Realtime générée automatiquement (ne pas éditer).
+- `realtime.messages_2025_09_22` - Partition journalière Realtime générée automatiquement (ne pas éditer).
+- `realtime.messages_2025_09_23` - Partition journalière Realtime générée automatiquement (ne pas éditer).
+- `realtime.messages_2025_09_24` - Partition journalière Realtime générée automatiquement (ne pas éditer).
+- `realtime.messages_2025_09_25` - Partition journalière Realtime générée automatiquement (ne pas éditer).
+- `realtime.messages_2025_09_26` - Partition journalière Realtime générée automatiquement (ne pas éditer).
+- `realtime.messages_2025_09_27` - Partition journalière Realtime générée automatiquement (ne pas éditer).
+- `realtime.schema_migrations` - Suivi des migrations du schéma Realtime (extension Realtime).
+- `realtime.subscription` - Paramétrage des abonnements Realtime (channels, topics) géré par Supabase.
+- **Schema storage**
+- `storage.buckets` - Registre des buckets de stockage (ACL, versioning).
+- `storage.buckets_analytics` - Statistiques agrégées par bucket (taille, nombre d’objets).
+- `storage.migrations` - Historique des migrations du schéma Storage.
+- `storage.objects` - Stock des objets/fichiers (clé, metadata, propriétaire, checksum).
+- `storage.prefixes` - Préfixes/dossiers virtuels pour accélérer les listings.
+- `storage.s3_multipart_uploads` - États d’uploads multipart en cours (S3 compat).
+- `storage.s3_multipart_uploads_parts` - Morceaux d’uploads multipart (S3 compat).
+- **Schema supabase_migrations**
+- `supabase_migrations.schema_migrations` - Journal des migrations SQL exécutées via Supabase CLI.
+- **Schema vault**
+- `vault.secrets` - Secrets chiffrés stockés via Supabase Vault (clé, nonce, metadata); accès restreint.
+
 <!-- ANCHOR:EXAMPLES -->
 ```sql
 CREATE TABLE formation_module_statuses (
