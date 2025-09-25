@@ -8,12 +8,14 @@ import React from 'react';
     import { AuthProvider, useAuth } from '@/contexts/SupabaseAuthContext';
     import { useTheme } from '@/contexts/ThemeContext';
     import { ChatProvider } from '@/contexts/ChatContext';
+    import { AssistantProvider } from '@/contexts/AssistantContext';
     import { PermissionsProvider } from '@/contexts/PermissionsContext';
     import { ComponentStateProvider } from '@/contexts/ComponentStateContext';
     import { ResourceCreationProvider } from '@/contexts/ResourceCreationContext';
     import { BuilderCatalogProvider } from '@/contexts/BuilderCatalogContext';
     import Footer from '@/components/Footer';
     import Navigation from '@/components/Navigation';
+    import AssistantDrawer from '@/components/assistant/AssistantDrawer';
     import HomePage from '@/pages/HomePage';
     import FormationsPage from '@/pages/FormationsPage';
     import FormationDetailPage from '@/pages/FormationDetailPage';
@@ -136,6 +138,7 @@ import React from 'react';
       return (
         <MainLayout>
           {!isBuilderPage && <Navigation />}
+          <AssistantDrawer />
           <AppRoutes />
         </MainLayout>
       );
@@ -148,6 +151,7 @@ import React from 'react';
             <AuthProvider>
               <PermissionsProvider>
                 <ComponentStateProvider>
+                  <AssistantProvider>
                     <ChatProvider>
                       <ResourceCreationProvider>
                         <BuilderCatalogProvider>
@@ -158,6 +162,7 @@ import React from 'react';
                         </BuilderCatalogProvider>
                       </ResourceCreationProvider>
                     </ChatProvider>
+                  </AssistantProvider>
                 </ComponentStateProvider>
               </PermissionsProvider>
             </AuthProvider>
