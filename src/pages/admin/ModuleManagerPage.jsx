@@ -18,6 +18,7 @@ import React, { useState, useEffect, useCallback } from 'react';
     import BuilderPanel from '@/components/dashboard/modules/BuilderPanel';
     import KanbanPanel from '@/components/kanban/KanbanPanel';
     import TrainingPreferencesPanel from '@/components/dashboard/modules/TrainingPreferencesPanel';
+    import AssistantPanel from '@/components/dashboard/modules/AssistantPanel';
 
     const componentMap = {
       client_formations: FormationsPanel,
@@ -27,6 +28,7 @@ import React, { useState, useEffect, useCallback } from 'react';
       client_builder: BuilderPanel,
       client_kanban_formations: KanbanPanel,
       client_training_preferences: TrainingPreferencesPanel,
+      client_ai_assistant: AssistantPanel,
     };
 
     const PreviewDialog = ({ module, open, onOpenChange }) => {

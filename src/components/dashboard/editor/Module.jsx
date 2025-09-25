@@ -10,6 +10,7 @@ import ResourcesPanel from '@/components/dashboard/modules/ResourcesPanel';
 import PersonalDataPanel from '@/components/dashboard/modules/PersonalDataPanel';
 import BuilderPanel from '@/components/dashboard/modules/BuilderPanel';
 import KanbanPanel from '@/components/kanban/KanbanPanel';
+import AssistantPanel from '@/components/dashboard/modules/AssistantPanel';
 
 const componentMap = {
   client_formations: FormationsPanel,
@@ -18,6 +19,7 @@ const componentMap = {
   client_personal_data: PersonalDataPanel,
   client_builder: BuilderPanel,
   client_kanban_formations: KanbanPanel,
+  client_ai_assistant: AssistantPanel,
 };
 
 const DropIndicator = ({ side }) => {
