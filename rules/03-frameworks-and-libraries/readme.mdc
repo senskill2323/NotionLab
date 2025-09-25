@@ -28,6 +28,11 @@ readmeIA decrit les librairies clefs du module Formations : React 18, Vite 7 et 
   - `react-helmet` pour titres/meta des pages onboarding.
   - Navigation protégée via `ClientOnlyRoute`.
 
+- Assistant IA UI: le drawer s'appuie sur les composants shadcn (Button, Badge, Tooltip) + Tailwind pour la layout; les icones Lucide (Bot, PhoneCall, etc.) indiquent l'etat.
+  - Video/audio: balises `<video>` natives gerent remote/local streams; maintenir playsInline/muted pour eviter les warnings.
+  - Action "Montrez-lui": upload via `<input type="file">` + helper `readFileAsBase64`; les images partent sur le DataChannel vers OpenAI Realtime.
+  - Bouton nav: `Navigation.jsx` affiche `Assistant` via `ManagedComponent` (rules `component_rules`); conserver la pulse `animate-pulse` pour l'etat connected.
+
 <!-- ANCHOR:WORKFLOWS -->
 - Le builder ReactFlow exploite CustomNode.jsx et StartNode.jsx pour modeliser le parcours et utiliser ModuleCatalog.jsx pour le drag and drop.
 - Le Kanban temps reel combine formation_module_statuses et supabase.channel pour synchroniser l'avancement utilisateur.

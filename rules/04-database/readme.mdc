@@ -24,6 +24,14 @@ Supabase pilote la couche donnees du module Formations : tables courses et forma
   - RLS: lecture pour tous (auth), écriture limitée (propre utilisateur) sur `training_onboarding_responses` et `training_onboarding_nps`; gestion admin (owner/admin/prof) sur sections/questions/options via policies dédiées.
   - Seeds: sections (10), questions/options conformes au brief, modules/permissions client (`modules_registry`, `role_permissions`) et entrée admin (`admin_modules_registry`).
 
+<!-- ANCHOR:ASSISTANT -->
+- Assistant IA (Supabase):
+  - `assistant_settings`: enregistrement unique (is_active = true) contenant `model`, `voice`, `realtime_url`, `session_config`, flags/quota par defaut, `ice_servers` et delais de reconnexion. Modifier ce record pour changer de modele ou de voix.
+  - `assistant_limits`: quotas par utilisateur (`minutes_per_day`, `concurrent_sessions`, `images_per_session`, compteurs `seconds_used_today`, `images_sent_today`, etc.). Les colonnes `scope` et `last_reset_at` evitent les conflits multi-tenants; reset via UPDATE ou job planifie.
+  - `assistant_metrics`: journal par session (uuid, started_at/ended_at, `duration_seconds`, `images_sent`, `bytes_up/down`, `error_code`). RLS strict (`auth.uid() = user_id`).
+  - Edge Function `assistant-mint-key`: lit `assistant_settings`, verifie l'utilisateur via `auth.getUser()`, appelle OpenAI Realtime `/sessions` et renvoie `secret`, `session`, `iceServers`, `flags`, `reconnect`. Autoriser `POST/OPTIONS` en CORS et garder la cle OPENAI cote serveur.
+  - Permissions/UI: role permission `assistant:use`, enregistrement `modules_registry` (`client_ai_assistant`) et `component_rules` (`nav:assistant`) seeds dans la migration `2025-09-25_assistant_realtime_module.sql`.
+
 <!-- ANCHOR:WORKFLOWS -->
 - RPC client : get_user_courses_and_parcours(p_user_id uuid) retourne les formations inscrites et parcours custom.
 - RPC admin : get_admin_formations_and_submissions() rassemble formations et soumissions avec displayId unique.

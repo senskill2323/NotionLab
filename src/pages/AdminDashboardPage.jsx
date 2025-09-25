@@ -26,6 +26,7 @@ import FormationManagementPanel from '@/components/admin/FormationManagementPane
 import UserFormationSubmissionsPanel from '@/components/admin/UserFormationSubmissionsPanel';
 import OnboardingQuestionsAdminPanel from '@/components/admin/formation-live/OnboardingQuestionsAdminPanel';
 import AdminLiveChatPanel from '@/components/admin/AdminLiveChatPanel';
+import AssistantSettingsPanel from '@/components/admin/AssistantSettingsPanel';
 
 const adminComponentMap = {
   UserManagementPanel,
@@ -45,6 +46,7 @@ const adminComponentMap = {
   UserFormationSubmissionsPanel,
   OnboardingQuestionsAdminPanel,
   AdminLiveChatPage: AdminLiveChatPanel,
+  AssistantSettingsPanel,
 };
 
 const KpiCard = ({ title, value, subValue, loading }) => (
