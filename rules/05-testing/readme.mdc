@@ -17,6 +17,13 @@ readmeIA ne documente pas de strategie de tests automatisee pour le module Forma
   - Accessibilité: focus visible sur cartes/boutons, `aria-live="polite"` pour l'état d'enregistrement, `fieldset/legend` et labels.
   - Résumé client/admin: cohérence des valeurs formatées (y compris « Autre » + texte libre), pictogrammes présents.
   - RLS: le client ne peut lire/écrire que ses propres réponses; l'admin a lecture seule.
+- Standards Assistant IA:
+  - Tests manuels drawer: bouton nav (ou module dashboard) ouvre/ferme le panneau, changement d'etat Appeler/Raccrocher/Webcam.
+  - Edge Function: verifier que `assistant-mint-key` renvoie bien un 200 (secret, session, iceServers) et que les preflight OPTIONS passent.
+  - WebRTC: lancer un appel avec/ sans video, confirmer la presence des flux remote/local et le fallback quand aucun ice server n'est fourni.
+  - Quotas: ajuster `assistant_limits` pour tester limites minutes/session/images; confirmer le message user-friendly et la mise a jour `assistant_metrics`.
+  - Observabilite: regarder `assistant_metrics` (duree/images/bytes) apres chaque appel et logs edge (erreurs OpenAI).
+
 <!-- ANCHOR:WORKFLOWS -->
 - Journaux/Observabilité:
   - Supabase Dashboard → Logs → Edge Functions: observer la fenêtre d’1 minute après soumission.

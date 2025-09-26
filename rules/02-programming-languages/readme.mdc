@@ -11,6 +11,10 @@ description: Bonnes pratiques TS/JS (React/Vite), Edge Functions Deno (TypeScrip
 Le code du module Formations utilise majoritairement JavaScript/TypeScript côté client (React 18 + Vite 7) et TypeScript pour les fonctions Edge (Deno). Les migrations et RPC s'écrivent en SQL Postgres.
 
 <!-- ANCHOR:STANDARDS_JS_TS -->
+- Assistant IA: `src/contexts/AssistantContext.jsx` fournit le contexte unique `useAssistant()`; toute logique UI doit rester declarative en consommant cet hook.
+  - Helpers: utiliser `src/lib/assistantApi.js` pour lire/mettre a jour `assistant_settings`, `assistant_limits`, `assistant_metrics`. Reponses { data, error } standard.
+  - WebRTC: ne pas instancier `RTCPeerConnection` directement; passer par `usePerfectNegotiation()` (`src/hooks/usePerfectNegotiation.js`) et respecter les flags `makingOffer/ignoreOffer`. Ajouter les handlers via `setHandlers`.
+  - Edge call: `assistant-mint-key` attend un body JSON (`session_id`, options futures); reponse contient `secret`, `session`, `iceServers`, `flags`, `reconnect`.
 - Utiliser l'alias Vite `@` pour les imports internes (`@/lib/customSupabaseClient`).
 - Préférer des helpers purs et des hooks dédiés; composants fonctionnels, déclaratifs, sans effets latéraux non maîtrisés.
 - Requêtes réseau via React Query (`@tanstack/react-query`) avec `queryKey` stables; `invalidateQueries` après mutation.

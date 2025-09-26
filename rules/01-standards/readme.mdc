@@ -37,6 +37,14 @@ Les regles extraites de readmeIA encadrent les interventions IA, les conventions
 - Permissions: seul un `owner` peut supprimer un `owner`; `owner`/`admin` peuvent supprimer d'autres comptes; un utilisateur peut se supprimer luiâ€‘mÃªme.
 - PrÃ©â€‘vÃ©rification d'email d'inscription: privilÃ©gier `public.check_email_available(p_email text)` (security definer) ou dÃ©sactiver via `VITE_SIGNUP_EMAIL_PRECHECK=false` si la RPC n'est pas en place.
 
+- Assistant IA (client):
+  - React: consommer `useAssistant()` (contexte global) pour ouvrir le drawer ou afficher l'etat dans le dashboard; ne jamais by-passer les gardes `callState`, `quotaError`, `configLoading`.
+  - WebRTC: laisser `AssistantProvider` piloter `usePerfectNegotiation()` (pas de creation directe de `RTCPeerConnection`). Ajouter uniquement des handlers via `setHandlers`.
+  - Edge/API: toute session passe par `supabase.functions.invoke('assistant-mint-key', {...})`. Respecter les entetes CORS (`POST, OPTIONS`) et ne jamais stocker la cle OpenAI cote client.
+  - Quotas: utiliser `ensureAssistantLimits()` et `updateAssistantLimits()` pour initialiser/mettre a jour les compteurs (minutes/jour, sessions, images). Les surcharges se gerent via SQL (`assistant_limits`).
+  - Metrics: ecrire via `insertAssistantMetric` puis `updateAssistantMetric` (bytes up/down, duree, erreurs). Pas de tracking cote client hors Supabase.
+  - UI: `AssistantDrawer` et `AssistantPanel` doivent rester les points d'entree; tout nouveau composant doit consommer l'etat via `useAssistant()` plutot que dupliqer la logique.
+
 <!-- ANCHOR:WORKFLOWS -->
 - Invalider les caches critiques avec emitSessionRefresh ou queryClient.invalidateQueries() apres toute mise a jour de profil, permissions ou layout.
 - Routage : ProtectedRoute, ClientOnlyRoute et PublicOnlyRoute se basent sur allowedUserTypes, requiredPermission et le bypass owner.

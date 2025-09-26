@@ -5,7 +5,7 @@ date: "2025-01-18"
 owner: "NEEDS-VERIFY Provide owner or primary contact."
 contenu: Objectifs, SLA, contraintes, architecture, dÃ©coupage, auth, Ã©tat, logs, config, flags, i18n, accessibilitÃ©, ADR, glossaire.
 
-â€¢	Workspace lives in C:\dev\notionlab; operate only inside this Vite/React (18) project via Windsurf, keeping readmeIA (file in the root of the project) as the canonical reference.
+â€¢	Workspace lives in C:\dev\notionlab; operate only inside this Vite/React (18) project via VSCode, keeping /rules (folder with files in the root of the project) as the canonical reference.
 â€¢	Favor functional, declarative React; stay modular (component â†’ subcomponents â†’ hooks/helpers â†’ static data); centralize Supabase access and keep helpers pure.
 â€¢	Always source env values (e.g., VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY) through @/lib/customSupabaseClient; warn if missing; never hard-code keys or expose service-role secrets client-side.
 â€¢	Manage auth exclusively via SupabaseAuthContext/useAuth(); respect authReady/authLoading; on critical auth failures sign out and redirect /connexion.
@@ -40,7 +40,14 @@ Le module Formations gere des parcours standard publies et des parcours custom c
  - Notifications onboarding: fonction Edge `notify-training-onboarding` (Deno) conserve le mÃ©canisme actuel (Resend). Secrets requis: `RESEND_API_KEY`, `ONBOARDING_NOTIFICATION_EMAIL` (fallback `OWNER_EMAIL`), `ONBOARDING_EMAIL_FROM` (fallback `SENDER_EMAIL`). CORS: `POST, OPTIONS`.
  - VisibilitÃ©: routes protÃ©gÃ©es par `ClientOnlyRoute`; accÃ¨s rÃ©servÃ© aux utilisateurs `client`/`vip` avec `profile.status === 'active'`. Les admins sont redirigÃ©s vers `/admin/dashboard`.
  - FranÃ§ais uniquement, tutoiement, disclaimer minimal sous le bouton Â« Valider Â» interdisant les donnÃ©es sensibles.
- <!-- ANCHOR:WORKFLOWS -->
+ <!-- ANCHOR:ASSISTANT -->
+- Module assistant IA: drawer lateral accessible via le bouton nav `Assistant` (component_key `nav:assistant`) et via le module dashboard `client_ai_assistant`.
+  - Contexte React: `AssistantProvider` (wrap dans `App.jsx`) expose `useAssistant()` pour le drawer, le module dashboard et la nav; il encapsule `usePerfectNegotiation()` et la logique WebRTC Perfect Negotiation (polite peer).
+  - Backend Supabase: tables `assistant_settings` (config), `assistant_limits` (quotas par utilisateur) et `assistant_metrics` (journal des sessions). Edge Function `assistant-mint-key` mint une session OpenAI Realtime (clé éphémère + ice_servers + flags).
+  - Quotas & metrics: garde locale (minutes/jour, sessions concurrentes, images/session) synchronisée avec les lignes `assistant_limits`; chaque session met à jour `assistant_metrics` (durée, images, bytes up/down, erreurs) et rafraîchit les compteurs.
+  - UX: `AssistantDrawer.jsx` gère Appeler/Raccrocher/Webcam/Montrez-lui (envoi d'images via DataChannel) sans stocker de secrets côté client; `AssistantPanel.jsx` résume l'état et ouvre le drawer depuis le dashboard.
+
+<!-- ANCHOR:WORKFLOWS -->
 - Cycle parcours : brouillon client -> soumission -> validation admin -> Kanban live synchronise.
 - Gardes de routes : ProtectedRoute, ClientOnlyRoute et PublicOnlyRoute utilisent authReady, allowedUserTypes et requiredPermission.
  - Flux Onboarding: (1) chargement des sections/questions actives; (2) autosauvegarde du brouillon (toast Ã  l'Ã©chec); (3) soumission = upsert de `training_onboarding_responses`, mise Ã  jour Ã©ventuelle de `profiles.profession` (depuis `metier_activite`); (4) envoi de notification via `notify-training-onboarding`; (5) premier envoi: mini NPS (Oui/Non + commentaire);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Helmet } from 'react-helmet';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -26,6 +26,7 @@ import FormationManagementPanel from '@/components/admin/FormationManagementPane
 import UserFormationSubmissionsPanel from '@/components/admin/UserFormationSubmissionsPanel';
 import OnboardingQuestionsAdminPanel from '@/components/admin/formation-live/OnboardingQuestionsAdminPanel';
 import AdminLiveChatPanel from '@/components/admin/AdminLiveChatPanel';
+import AssistantSettingsPanel from '@/components/admin/AssistantSettingsPanel';
 
 const adminComponentMap = {
   UserManagementPanel,
@@ -319,6 +320,20 @@ const AdminDashboardPage = () => {
     .filter(tab => tab.label !== 'Builder Settings')
     .filter(tab => tab.label !== 'Parcours');
 
+  const assistantTabIds = useMemo(() => {
+    if (!Array.isArray(accessibleTabs)) return [];
+    const idMatches = ['ia_assistant', 'ia-assistant', 'iassistant', 'assistant', 'assistant_ia', 'assistantia'];
+    return Array.from(new Set(accessibleTabs
+      .filter((tab) => {
+        const label = (tab?.label || '').toLowerCase();
+        const tabId = (tab?.tab_id || '').toLowerCase();
+        if (label === 'iassistant' || label === 'assistant ia' || label === 'assistant') return true;
+        return idMatches.includes(tabId);
+      })
+      .map((tab) => tab.tab_id)
+      .filter(Boolean)));
+  }, [accessibleTabs]);
+
   const tabsByRow = accessibleTabs.reduce((acc, tab) => {
     const row = tab.row_order || 0;
     if (!acc[row]) acc[row] = [];
@@ -363,6 +378,14 @@ const AdminDashboardPage = () => {
   };
 
   const renderTabContent = (tabId) => {
+    if (assistantTabIds.includes(tabId)) {
+      return (
+        <div className="space-y-6">
+          <AssistantSettingsPanel />
+        </div>
+      );
+    }
+
     if (modulesLoading) {
       return <div className="flex justify-center items-center h-64"><Icons.Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
     }
