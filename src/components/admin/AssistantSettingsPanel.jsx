@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+﻿import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
@@ -11,6 +11,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Save, RotateCcw, Bot } from 'lucide-react';
+
+const PREVIEW_AUDIO_FORMAT = 'mp3';
+const REALTIME_OUTPUT_AUDIO_FORMAT = 'opus-48khz';
 const TONE_OPTIONS = [
   { value: 'neutral', label: 'Neutre' },
   { value: 'friendly', label: 'Chaleureux' },
@@ -44,14 +47,6 @@ const VOICE_OPTIONS = [
   { value: 'sage', label: 'Sage' },
 ];
 
-const OUTPUT_AUDIO_FORMAT_OPTIONS = [
-  { value: 'none', label: 'Aucun' },
-  { value: 'wav', label: 'WAV' },
-  { value: 'mp3', label: 'MP3' },
-  { value: 'ogg', label: 'OGG' },
-  { value: 'pcm16', label: 'PCM16' },
-];
-
 const TOOL_OPTIONS = [
   { value: 'knowledge_base', label: 'Base de connaissances' },
   { value: 'code_interpreter', label: 'Interpréteur de code' },
@@ -75,7 +70,6 @@ const DEFAULT_VALUES = {
   json_mode: false,
   modalities: { text: true, audio_in: true, audio_out: true, vision: false },
   voice: 'verse',
-  output_audio_format: 'none',
   vad_enabled: true,
   vad_sensitivity: 0.45,
   vad_prefix_silence_ms: 120,
@@ -135,6 +129,15 @@ const AssistantSettingsPanel = () => {
   const [saving, setSaving] = useState(false);
   const [settingsRow, setSettingsRow] = useState(null);
   const [initialValues, setInitialValues] = useState(DEFAULT_VALUES);
+  const [settingsReady, setSettingsReady] = useState(false);
+  const [autoPreviewVoices, setAutoPreviewVoices] = useState(true);
+  const previewTimeoutRef = useRef(null);
+  const previewAudioRef = useRef(null);
+  const isPreviewingRef = useRef(false);
+  const pendingPreviewRef = useRef(null);
+  const lastPreviewedVoiceRef = useRef(null);
+  const hasSyncedInitialVoiceRef = useRef(false);
+
 
   const form = useForm({
     defaultValues: DEFAULT_VALUES,
@@ -143,9 +146,136 @@ const AssistantSettingsPanel = () => {
 
   const { control, register, reset, handleSubmit, watch, formState } = form;
   const isDirty = formState.isDirty;
+  const watchedVoice = watch('voice');
+
+  const stopVoicePreview = useCallback(() => {
+    const currentAudio = previewAudioRef.current;
+    if (currentAudio) {
+      try { currentAudio.pause(); } catch (_) {}
+      previewAudioRef.current = null;
+    }
+    isPreviewingRef.current = false;
+  }, []);
+
+  const handleVoicePreview = useCallback(async (voiceValue) => {
+    if (!autoPreviewVoices) return;
+    if (!voiceValue) return;
+    if (isPreviewingRef.current) return;
+
+    const normalizedFormat = PREVIEW_AUDIO_FORMAT;
+
+    try {
+      isPreviewingRef.current = true;
+      stopVoicePreview();
+      pendingPreviewRef.current = null;
+      const { data, error } = await supabase.functions.invoke('assistant-voice-preview', {
+        body: { voice: voiceValue, format: normalizedFormat },
+      });
+      if (error) throw error;
+      if (!data || !data.audio_base64) throw new Error('Aucun apercu audio.');
+
+      const mimeType =
+        data.mime ||
+        (normalizedFormat === 'wav'
+          ? 'audio/wav'
+          : normalizedFormat === 'ogg'
+            ? 'audio/ogg'
+            : normalizedFormat === 'pcm16'
+              ? 'audio/wave'
+              : 'audio/mpeg');
+      const audio = new Audio(`data:${mimeType};base64,${data.audio_base64}`);
+      previewAudioRef.current = audio;
+      audio.onended = () => {
+        isPreviewingRef.current = false;
+        previewAudioRef.current = null;
+        const pendingVoice = pendingPreviewRef.current;
+        pendingPreviewRef.current = null;
+        if (pendingVoice && autoPreviewVoices) {
+          handleVoicePreview(pendingVoice);
+        }
+      };
+      audio.onerror = () => {
+        isPreviewingRef.current = false;
+        previewAudioRef.current = null;
+        toast({ title: 'Assistant IA', description: 'Apercu vocal indisponible.', variant: 'destructive' });
+        pendingPreviewRef.current = null;
+      };
+      await audio.play();
+    } catch (err) {
+      console.error('assistant voice preview failed', err);
+      toast({ title: 'Assistant IA', description: "Impossible de jouer l'apercu vocal.", variant: 'destructive' });
+      isPreviewingRef.current = false;
+      previewAudioRef.current = null;
+      pendingPreviewRef.current = null;
+    }
+  }, [autoPreviewVoices, stopVoicePreview, toast]);
+
+  useEffect(() => {
+    if (!settingsReady) return;
+
+    const voice = watchedVoice;
+    if (!voice) return;
+
+    if (!hasSyncedInitialVoiceRef.current) {
+      hasSyncedInitialVoiceRef.current = true;
+      lastPreviewedVoiceRef.current = voice;
+      return;
+    }
+
+    if (!autoPreviewVoices) {
+      lastPreviewedVoiceRef.current = voice;
+      return;
+    }
+
+    if (voice === lastPreviewedVoiceRef.current) {
+      return;
+    }
+
+    if (isPreviewingRef.current) {
+      pendingPreviewRef.current = voice;
+      lastPreviewedVoiceRef.current = voice;
+      return;
+    }
+
+    if (previewTimeoutRef.current) {
+      clearTimeout(previewTimeoutRef.current);
+    }
+
+    lastPreviewedVoiceRef.current = voice;
+    const scheduledVoice = voice;
+    previewTimeoutRef.current = setTimeout(() => {
+      if (lastPreviewedVoiceRef.current !== scheduledVoice) return;
+      handleVoicePreview(scheduledVoice);
+    }, 400);
+
+    return () => {
+      if (previewTimeoutRef.current) {
+        clearTimeout(previewTimeoutRef.current);
+      }
+    };
+  }, [settingsReady, watchedVoice, autoPreviewVoices, handleVoicePreview]);
+
+  useEffect(() => () => {
+    if (previewTimeoutRef.current) clearTimeout(previewTimeoutRef.current);
+    stopVoicePreview();
+  }, [stopVoicePreview]);
+
+  useEffect(() => {
+    if (!autoPreviewVoices) {
+      if (previewTimeoutRef.current) clearTimeout(previewTimeoutRef.current);
+      pendingPreviewRef.current = null;
+      stopVoicePreview();
+    }
+  }, [autoPreviewVoices, stopVoicePreview]);
 
   const fetchSettings = async () => {
     setLoading(true);
+    setSettingsReady(false);
+    hasSyncedInitialVoiceRef.current = false;
+    lastPreviewedVoiceRef.current = null;
+    if (previewTimeoutRef.current) clearTimeout(previewTimeoutRef.current);
+    pendingPreviewRef.current = null;
+    stopVoicePreview();
     const { data, error } = await supabase
       .from('assistant_settings')
       .select('*')
@@ -179,7 +309,6 @@ const AssistantSettingsPanel = () => {
       json_mode: Boolean(flags.json_mode),
       modalities: modalitiesDetail,
       voice: data.voice || DEFAULT_VALUES.voice,
-      output_audio_format: sessionConfig.output_audio_format || DEFAULT_VALUES.output_audio_format,
       vad_enabled: flags.vad?.enabled ?? DEFAULT_VALUES.vad_enabled,
       vad_sensitivity: typeof flags.vad?.sensitivity === 'number' ? flags.vad.sensitivity : DEFAULT_VALUES.vad_sensitivity,
       vad_prefix_silence_ms: typeof flags.vad?.prefix_silence_ms === 'number' ? flags.vad.prefix_silence_ms : DEFAULT_VALUES.vad_prefix_silence_ms,
@@ -203,6 +332,7 @@ const AssistantSettingsPanel = () => {
     reset(parsedValues);
     setInitialValues(JSON.parse(JSON.stringify(parsedValues)));
     setSettingsRow(data);
+    setSettingsReady(true);
     setLoading(false);
   };
 
@@ -231,11 +361,7 @@ const AssistantSettingsPanel = () => {
         modalities: buildModalitiesArray(modalitiesDetail),
       };
 
-      if (values.output_audio_format && values.output_audio_format !== 'none') {
-        sessionConfig.output_audio_format = values.output_audio_format;
-      } else {
-        delete sessionConfig.output_audio_format;
-      }
+      sessionConfig.output_audio_format = REALTIME_OUTPUT_AUDIO_FORMAT;
 
       const denylistKeywords = sanitizeList(values.denylist_keywords);
       const fallbackChain = sanitizeList(values.fallback_model_chain);
@@ -283,7 +409,7 @@ const AssistantSettingsPanel = () => {
 
       const payload = {
         voice: values.voice || null,
-        session_config,
+        session_config: sessionConfig,
         flags: flagsPayload,
       };
 
@@ -462,23 +588,14 @@ const AssistantSettingsPanel = () => {
                         )}
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label>Format audio de sortie</Label>
-                      <Controller
-                        control={control}
-                        name="output_audio_format"
-                        render={({ field }) => (
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              {OUTPUT_AUDIO_FORMAT_OPTIONS.map((opt) => (
-                                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
+                    <div className="flex items-center justify-between rounded-md border border-border/60 bg-background px-3 py-2">
+                      <div>
+                        <p className="text-sm font-medium">Apercu auto des voix</p>
+                        <p className="text-xs text-muted-foreground">Lit un extrait lors du changement de voix.</p>
+                      </div>
+                      <Switch checked={autoPreviewVoices} onCheckedChange={(checked) => setAutoPreviewVoices(Boolean(checked))} />
                     </div>
+                    <p className="text-xs text-muted-foreground">Sortie audio : PCM16 (fixe).</p>
                     <div className="space-y-3">
                       <p className="text-sm font-medium">Modalités</p>
                       <div className="grid gap-2 sm:grid-cols-2">
