@@ -128,7 +128,7 @@ import React, { useState, useRef, useEffect } from 'react';
             style={{ backgroundColor: 'hsl(var(--colors-chat-surface))' }}
           >
             <div className="w-full px-4">
-              <div className="py-3 w-full">
+              <div className="py-3 w-full space-y-2">
                 <form onSubmit={handleSendMessage} className="relative">
                   <Input
                     value={input}
@@ -197,6 +197,9 @@ import React, { useState, useRef, useEffect } from 'react';
                     <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="application/pdf,image/*" />
                   </div>
                 </form>
+                <p className="text-xs leading-snug font-semibold text-white bg-yellow-500/30 border border-yellow-500/50 rounded-md px-3 py-2">
+                  Rappel – <span className="underline">Ressourcez une explication</span> : sélectionnez un passage dans le chat et utilisez le menu contextuel pour l’enregistrer comme ressource, accessible ensuite dans votre dashboard.
+                </p>
               </div>
             </div>
           </footer>
