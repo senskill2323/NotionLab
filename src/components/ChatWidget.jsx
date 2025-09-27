@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -13,6 +13,7 @@ import ChatHeader from '@/components/chat/ChatHeader';
 import MessageList from '@/components/chat/MessageList';
 import MessageInput from '@/components/chat/MessageInput';
 import CloseConfirmDialog from '@/components/chat/CloseConfirmDialog';
+import { groupMessagesByMinute } from '@/lib/chatUtils';
 
 const ChatWidget = () => {
   const [messages, setMessages] = useState([]);
@@ -298,13 +299,11 @@ const ChatWidget = () => {
                 onMinimize={minimizeChat}
                 onClose={handleCloseChat}
               />
-              <MessageList
-                messages={messages}
-                user={user}
-                conversation={conversation}
-                guestName={guestName}
-                setGuestName={setGuestName}
-              />
+              <MessageList onMouseUp={() => {}}>
+                {groupedMessages.map((group) => (
+                  <MessageList.Item key={group.id || group.messages[0]?.id} message={group} user={user} />
+                ))}
+              </MessageList>
               <MessageInput
                 input={input}
                 setInput={setInput}
@@ -342,3 +341,4 @@ const ChatWidget = () => {
 };
 
 export default ChatWidget;
+  const groupedMessages = useMemo(() => groupMessagesByMinute(messages), [messages]);

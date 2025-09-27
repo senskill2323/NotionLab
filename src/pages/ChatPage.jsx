@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Helmet } from 'react-helmet';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { getOrCreateConversation, fetchMessages, sendMessage, sendFile, sendResource, clearChatHistory } from '@/lib/chatApi';
+import { groupMessagesByMinute } from '@/lib/chatUtils';
 import ChatHeader from '@/components/chat/ChatHeader';
 import MessageList from '@/components/chat/MessageList';
 import ChatInput from '@/components/chat/ChatInput';
@@ -19,6 +20,7 @@ const ChatPage = () => {
   const [selectionState, setSelectionState] = useState(null);
   const { openResourceDialog } = useResourceCreation();
   const isAdmin = user && ['admin', 'prof', 'owner'].includes(user.profile?.user_type);
+  const groupedMessages = useMemo(() => groupMessagesByMinute(messages), [messages]);
 
   useEffect(() => {
     const initializeChat = async () => {
@@ -211,8 +213,10 @@ const ChatPage = () => {
               <div className="flex items-center justify-center h-full pt-10">
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
               </div>
-            ) : messages.length > 0 ? (
-              messages.map(msg => <MessageList.Item key={msg.id} message={msg} user={user} />)
+            ) : groupedMessages.length > 0 ? (
+              groupedMessages.map(group => (
+                <MessageList.Item key={group.id || group.messages[0]?.id} message={group} user={user} />
+              ))
             ) : (
               <div className="flex flex-col items-center justify-center h-full pt-10 text-center text-muted-foreground">
                  <Info className="w-12 h-12 mb-4" />
