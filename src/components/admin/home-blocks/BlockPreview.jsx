@@ -13,6 +13,7 @@ import CozySpaceSection from '@/components/home/CozySpaceSection';
 import PersonalQuoteSection from '@/components/home/PersonalQuoteSection';
 import FinalCTA from '@/components/home/FinalCTA';
 import LaunchCTA from '@/components/home/LaunchCTA';
+import TubesCursorSection from '@/components/home/TubesCursorSection';
 import Footer from '@/components/Footer';
 
 const BlockPreview = ({ block, isOpen, onOpenChange }) => {
@@ -34,7 +35,7 @@ const BlockPreview = ({ block, isOpen, onOpenChange }) => {
       );
     }
 
-    const props = { content: block.content };
+    const props = { content: block.content, isPreview: true };
 
     switch (block.layout) {
       case 'home.main_hero':
@@ -57,6 +58,8 @@ const BlockPreview = ({ block, isOpen, onOpenChange }) => {
         return <FinalCTA {...props} />;
       case 'home.launch_cta':
         return <LaunchCTA {...props} />;
+      case 'home.tubes_cursor':
+        return <TubesCursorSection {...props} />;
       case 'global.footer':
         return <Footer {...props} isPreview={true} />;
       default:
