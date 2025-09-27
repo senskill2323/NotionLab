@@ -227,7 +227,7 @@ const ChatPage = () => {
         <ChatHeader messages={messages} user={user} />
 
         <main
-          className="flex-grow flex flex-col w-full pt-16 pb-24 overflow-hidden min-h-0"
+          className="flex-grow flex flex-col w-full pt-28 pb-24 overflow-hidden min-h-0"
           style={{ backgroundColor: 'hsl(var(--colors-chat-surface))' }}
         >
           <MessageList onMouseUp={handleMouseUp}>
