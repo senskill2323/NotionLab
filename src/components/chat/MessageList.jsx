@@ -81,19 +81,40 @@ import React, { useRef, useEffect } from 'react';
     const MessageList = ({ children, onMouseUp }) => {
         const scrollAreaRef = useRef(null);
         const viewportRef = useRef(null);
-    
+        const autoScrollRef = useRef(true);
+        const lastChildrenCountRef = useRef(0);
+
         useEffect(() => {
-            if (viewportRef.current) {
-                const isScrolledToBottom = viewportRef.current.scrollHeight - viewportRef.current.clientHeight <= viewportRef.current.scrollTop + 1;
-                if (isScrolledToBottom) {
-                    viewportRef.current.scrollTop = viewportRef.current.scrollHeight;
-                }
-            }
+          if (!viewportRef.current) return;
+
+          const viewportEl = viewportRef.current;
+          const hasNewMessages = React.Children.count(children) !== lastChildrenCountRef.current;
+
+          if (autoScrollRef.current || hasNewMessages) {
+            viewportEl.scrollTop = viewportEl.scrollHeight;
+            autoScrollRef.current = true;
+          }
+
+          lastChildrenCountRef.current = React.Children.count(children);
         }, [children]);
+
+        useEffect(() => {
+          if (!viewportRef.current) return;
+
+          const viewportEl = viewportRef.current;
+          const handleScroll = () => {
+            const { scrollTop, scrollHeight, clientHeight } = viewportEl;
+            const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
+            autoScrollRef.current = distanceFromBottom < 80;
+          };
+
+          viewportEl.addEventListener('scroll', handleScroll);
+          return () => viewportEl.removeEventListener('scroll', handleScroll);
+        }, []);
 
       return (
         <ScrollArea 
-          className="flex-grow w-full" 
+          className="flex-grow w-full h-full" 
           ref={scrollAreaRef} 
           viewportRef={viewportRef}
           onMouseUp={onMouseUp}
