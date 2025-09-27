@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Helmet } from 'react-helmet';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/components/ui/use-toast';
+import { useClientChatIndicator } from '@/hooks/useClientChatIndicator.jsx';
 import { getOrCreateConversation, fetchMessages, sendMessage, sendFile, sendResource, clearChatHistory } from '@/lib/chatApi';
 import { groupMessagesByMinute } from '@/lib/chatUtils';
 import ChatHeader from '@/components/chat/ChatHeader';
@@ -14,6 +15,7 @@ import { Loader2, Info } from 'lucide-react';
 const ChatPage = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { markAsRead } = useClientChatIndicator();
   const [messages, setMessages] = useState([]);
   const [conversation, setConversation] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -60,6 +62,23 @@ const ChatPage = () => {
       }
     };
   }, [conversation]);
+
+  useEffect(() => {
+    if (!conversation?.id || isAdmin) return;
+    markAsRead(conversation.id).catch((error) => {
+      console.error('Failed to mark chat conversation as viewed by client:', error);
+    });
+  }, [conversation?.id, isAdmin, markAsRead]);
+
+  useEffect(() => {
+    if (!conversation?.id || isAdmin) return;
+    if (!messages || messages.length === 0) return;
+    const latestMessage = messages[messages.length - 1];
+    if (latestMessage?.sender !== 'admin') return;
+    markAsRead(conversation.id).catch((error) => {
+      console.error('Failed to refresh chat read status after admin message:', error);
+    });
+  }, [conversation?.id, isAdmin, markAsRead, messages]);
 
   const handleSendMessage = async (input) => {
     if (!input.trim() || !conversation) return;

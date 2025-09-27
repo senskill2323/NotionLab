@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useChat } from '@/contexts/ChatContext';
+import { useClientChatIndicator } from '@/hooks/useClientChatIndicator.jsx';
 import { useToast } from '@/components/ui/use-toast';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -28,6 +29,7 @@ const ChatWidget = () => {
 
   const { user } = useAuth();
   const { toast } = useToast();
+  const { markAsRead } = useClientChatIndicator();
   const { isOpen, isMinimized, closeChat, minimizeChat, toggleChat, prefilledMessage, setPrefilledMessage } = useChat();
 
   const isClientOrVip = user && (user.profile?.role === 'client' || user.profile?.role === 'vip');
@@ -156,6 +158,25 @@ const ChatWidget = () => {
       supabase.removeChannel(channel);
     };
   }, [isOpen, conversation, isMinimized]);
+
+  useEffect(() => {
+    if (!conversation?.id) return;
+    if (!isOpen || isMinimized) return;
+    markAsRead(conversation.id).catch((error) => {
+      console.error('Failed to mark widget chat as viewed:', error);
+    });
+  }, [conversation?.id, isMinimized, isOpen, markAsRead]);
+
+  useEffect(() => {
+    if (!conversation?.id) return;
+    if (!isOpen || isMinimized) return;
+    if (!messages || messages.length === 0) return;
+    const latestMessage = messages[messages.length - 1];
+    if (latestMessage?.sender !== 'admin') return;
+    markAsRead(conversation.id).catch((error) => {
+      console.error('Failed to refresh widget chat read status after admin message:', error);
+    });
+  }, [conversation?.id, isMinimized, isOpen, markAsRead, messages]);
 
   useEffect(() => {
     if(isOpen && !isMinimized) {

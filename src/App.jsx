@@ -5,7 +5,8 @@ import React from 'react';
     import { queryClient } from '@/lib/reactQueryClient';
 
     import { Toaster } from '@/components/ui/toaster';
-    import { AuthProvider } from '@/contexts/SupabaseAuthContext';
+    import { AuthProvider, useAuth } from '@/contexts/SupabaseAuthContext';
+import { ClientChatIndicatorProvider } from '@/hooks/useClientChatIndicator.jsx';
     import { ChatProvider } from '@/contexts/ChatContext';
     import { AssistantProvider } from '@/contexts/AssistantContext';
     import { PermissionsProvider } from '@/contexts/PermissionsContext';
@@ -16,6 +17,7 @@ import React from 'react';
     import Footer from '@/components/Footer';
     import Navigation from '@/components/Navigation';
     import AssistantDrawer from '@/components/assistant/AssistantDrawer';
+    import ChatUnreadNotification from '@/components/ChatUnreadNotification';
     import HomePage from '@/pages/HomePage';
     import FormationsPage from '@/pages/FormationsPage';
     import FormationDetailPage from '@/pages/FormationDetailPage';
@@ -134,14 +136,21 @@ import React from 'react';
 
     const AppContent = () => {
       const location = useLocation();
+      const { user } = useAuth();
       const isBuilderPage = location.pathname.startsWith('/formation-builder');
+
+      const clientChatGuestId = user?.profile?.chat_guest_id || null;
+      const clientChatEmail = user?.email || null;
 
       return (
         <LayoutPreferencesProvider>
           <MainLayout>
-            {!isBuilderPage && <Navigation />}
-            <AssistantDrawer />
-            <AppRoutes />
+            <ClientChatIndicatorProvider guestId={clientChatGuestId} guestEmail={clientChatEmail}>
+              {!isBuilderPage && <Navigation />}
+              <AssistantDrawer />
+              <ChatUnreadNotification />
+              <AppRoutes />
+            </ClientChatIndicatorProvider>
           </MainLayout>
         </LayoutPreferencesProvider>
       );

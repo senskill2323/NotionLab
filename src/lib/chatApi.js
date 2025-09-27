@@ -50,6 +50,132 @@ getOrCreateConversation.subscribeToMessages = (conversationId, callback) => {
   return channel;
 };
 
+export const getClientChatStatus = async ({ guestId, guestEmail }) => {
+  if (!guestId && !guestEmail) throw new Error("Identifiant client manquant.");
+
+  let query = supabase
+    .from('chat_conversations')
+    .select(`
+      id,
+      status,
+      client_last_viewed_at,
+      chat_messages(
+        sender,
+        created_at
+      )
+    `)
+    .neq('status', 'resolu')
+    .neq('status', 'abandonne');
+
+  if (guestId) {
+    query = query.eq('guest_id', guestId);
+  }
+
+  if (guestEmail) {
+    query = query.eq('guest_email', guestEmail);
+  }
+
+  query = query.order('created_at', { foreignTable: 'chat_messages', ascending: false });
+  query = query.limit(1, { foreignTable: 'chat_messages' });
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error('getClientChatStatus failed', error);
+    throw new Error("Impossible de récupérer le statut du chat.");
+  }
+
+  const conversations = (data || []).map((conversation) => {
+    const latestMessage = Array.isArray(conversation.chat_messages) ? conversation.chat_messages[0] : null;
+    return {
+      id: conversation.id,
+      status: conversation.status,
+      clientLastViewedAt: conversation.client_last_viewed_at,
+      latestMessageAt: latestMessage?.created_at || null,
+      latestMessageSender: latestMessage?.sender || null,
+    };
+  });
+
+  const hasUnread = conversations.some((conversation) => {
+    if (conversation.latestMessageSender !== 'admin') return false;
+    if (!conversation.latestMessageAt || !conversation.clientLastViewedAt) return false;
+    try {
+      return new Date(conversation.latestMessageAt).getTime() > new Date(conversation.clientLastViewedAt).getTime();
+    } catch (_) {
+      return false;
+    }
+  });
+
+  return { conversations, hasUnread };
+};
+
+export const markConversationViewedByClient = async (conversationId) => {
+  if (!conversationId) throw new Error("ID de conversation non fourni.");
+
+  const { error } = await supabase
+    .from('chat_conversations')
+    .update({ client_last_viewed_at: new Date().toISOString() })
+    .eq('id', conversationId);
+
+  if (error) {
+    throw new Error("Impossible de mettre à jour le statut de lecture du chat.");
+  }
+};
+
+export const subscribeToClientChatMessages = (conversationId, callback) => {
+  if (!conversationId) return null;
+
+  const channel = supabase
+    .channel(`client-chat-messages-${conversationId}`)
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `conversation_id=eq.${conversationId}` },
+      (payload) => {
+        if (typeof callback === 'function') {
+          callback(payload);
+        }
+      }
+    )
+    .subscribe();
+
+  return channel;
+};
+
+export const subscribeToClientConversations = (params, callback) => {
+  const filters = [];
+  const nameParts = ['client-chat-conversations'];
+
+  if (params?.guestId) {
+    filters.push({ type: 'guest_id', value: params.guestId });
+    nameParts.push(params.guestId);
+  }
+
+  if (params?.guestEmail) {
+    filters.push({ type: 'guest_email', value: params.guestEmail });
+    nameParts.push(params.guestEmail);
+  }
+
+  if (filters.length === 0) return null;
+
+  const channel = supabase.channel(nameParts.join('-'));
+
+  filters.forEach(({ type, value }) => {
+    channel.on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'chat_conversations', filter: `${type}=eq.${value}` },
+      (payload) => {
+        if (typeof callback === 'function') {
+          callback(payload);
+        }
+      }
+    );
+  });
+
+  channel.subscribe();
+
+  return channel;
+};
+
 export const fetchMessages = async (conversationId) => {
   const { data, error } = await supabase
     .from('chat_messages')
