@@ -13,6 +13,11 @@ Supabase pilote la couche donnees du module Formations : tables courses et forma
 <!-- ANCHOR:STANDARDS -->
 - Tables clefs : courses, user_courses, builder_families/subfamilies/modules, modules_registry, admin_dashboard_tabs, resources, formation_module_statuses.
 - role_permissions et user_types alimentent PermissionsContext pour appliquer les gardes de routes.
+- Gestion des droits :
+  - La table `role_permissions` est la source d'autorite; la colonne `family` segmente les usages (`dashboard` pour les modules client, `admin` pour les interfaces back-office).
+  - Chaque entree `admin_modules_registry` doit pointer vers une permission `admin:*` via `admin_dashboard_tabs.permission_required`. Ajouter la permission et son seed dans une migration Supabase avant d'activer le module.
+  - Toute modification doit rester synchronisee avec le cache du frontend (PermissionsContext) et etre documentee dans `rules/01-standards/readme.mdc`.
+
 - Les policies RLS sur formation_module_statuses isolent les utilisateurs au niveau Kanban.
 - Thèmes UI : table `public.themes` (id uuid, name, tokens jsonb, is_default bool, timestamps) versionnee via `Supabase/migrations/2025-09-18_themes_and_rpcs.sql`.
 - RPCs thèmes: `get_active_theme_tokens()` (lecture tokens jsonb) et `set_active_theme(p_theme_id uuid)` (active un thème). `set_active_theme` est restreint aux admins/owners.
@@ -30,7 +35,7 @@ Supabase pilote la couche donnees du module Formations : tables courses et forma
   - `assistant_limits`: quotas par utilisateur (`minutes_per_day`, `concurrent_sessions`, `images_per_session`, compteurs `seconds_used_today`, `images_sent_today`, etc.). Les colonnes `scope` et `last_reset_at` evitent les conflits multi-tenants; reset via UPDATE ou job planifie.
   - `assistant_metrics`: journal par session (uuid, started_at/ended_at, `duration_seconds`, `images_sent`, `bytes_up/down`, `error_code`). RLS strict (`auth.uid() = user_id`).
   - Edge Function `assistant-mint-key`: lit `assistant_settings`, verifie l'utilisateur via `auth.getUser()`, appelle OpenAI Realtime `/sessions` et renvoie `secret`, `session`, `iceServers`, `flags`, `reconnect`. Autoriser `POST/OPTIONS` en CORS et garder la cle OPENAI cote serveur.
-  - Permissions/UI: role permission `assistant:use`, enregistrement `modules_registry` (`client_ai_assistant`) et `component_rules` (`nav:assistant`) seeds dans la migration `2025-09-25_assistant_realtime_module.sql`.
+  - Permissions/UI: role permission `assistant:use`, enregistrement `modules_registry` (`client_ai_assistant`) et `component_rules` (`nav:assistant`) seeds dans la migration `2025-09-25_assistant_realtime_module.sql`. Le panneau admin est protege par `admin:manage_assistant_settings` (migration `2025-09-27_admin_assistant_permissions.sql`) et doit rester aligne avec `admin_dashboard_tabs.permission_required`.
 
 <!-- ANCHOR:WORKFLOWS -->
 - RPC client : get_user_courses_and_parcours(p_user_id uuid) retourne les formations inscrites et parcours custom.

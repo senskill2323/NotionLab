@@ -18,7 +18,10 @@ Les regles extraites de readmeIA encadrent les interventions IA, les conventions
   - Secrets requis cote Edge : SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (optionnel INVITE_REDIRECT_URL).
 
 - Respecter authReady et authLoading avant redirection afin d'eviter un spinner permanent ou des redirections prematures.
-- Verifier les droits via usePermissions().hasPermission et mettre a jour role_permissions ou modules_registry.required_permission si besoin.
+- Verifier les droits via usePermissions().hasPermission et garder role_permissions/modules_registry/admin_dashboard_tabs synchronises :
+  - Toute nouveaute client passe par une permission de type *:view_module referencee dans modules_registry.required_permission.
+  - Pour un module admin, creer une permission de type admin:*, l'inserer via migration Supabase et la lier a admin_dashboard_tabs.permission_required avant exposition UI.
+  - Documenter la permission (rules/04-database) et invalider les caches apres migration (emitSessionRefresh, PermissionsContext).
 - Conserver le nommage snake_case et les prefixes get_/set_/search_ pour toute nouvelle fonction SQL ou migration dans Supabase/migrations/.
 - Ne jamais exposer SUPABASE_SERVICE_ROLE dans le code client et limiter la diffusion du fichier .env.local.
 - TheÌ€mes UI: versionner les changements dans `Supabase/migrations/<date>_themes_and_rpcs.sql` en conservant les noms RPC `get_active_theme_tokens` et `set_active_theme`. Restreindre `set_active_theme` aux admins/owners via RLS/policies et/ou gardes dans la fonction.
