@@ -40,7 +40,7 @@ import React, { useState, useEffect, useCallback } from 'react';
         status: 'draft',
         options: {
           show_title: true,
-          show_right_column: true,
+          show_right_column: false,
           visible_offline: false,
           show_footer: true,
         },
@@ -66,7 +66,7 @@ import React, { useState, useEffect, useCallback } from 'react';
             ...data,
             options: {
               show_title: true,
-              show_right_column: true,
+              show_right_column: false,
               visible_offline: false,
               show_footer: true,
               ...(data.options || {}),
@@ -169,15 +169,17 @@ import React, { useState, useEffect, useCallback } from 'react';
               </header>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 space-y-6">
-                  <Card>
-                    <CardContent className="p-6">
+                <div className="lg:col-span-2 space-y-4">
+                  <Card className="border border-border/60 shadow-none">
+                    <CardContent className="p-4 space-y-2">
+                      <Label htmlFor="page_title">Titre de la page</Label>
                       <Input
+                        id="page_title"
                         name="title"
                         placeholder="Titre de la page"
                         value={page.title}
                         onChange={handleInputChange}
-                        className="text-2xl font-bold border-none shadow-none focus-visible:ring-0 p-0 h-auto"
+                        className="h-11 text-base"
                         maxLength={255}
                       />
                     </CardContent>
@@ -217,7 +219,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                   </Card>
                 </div>
 
-                <div className="lg:col-span-1 space-y-6">
+                <div className="lg:col-span-1 space-y-4">
                   <Card>
                     <CardHeader>
                       <CardTitle>Publication</CardTitle>
@@ -244,24 +246,10 @@ import React, { useState, useEffect, useCallback } from 'react';
                         </RadioGroup>
                       </div>
                       <div>
-                        <Label>Afficher la colonne de droite</Label>
-                        <RadioGroup value={String(page.options.show_right_column)} onValueChange={(v) => handleOptionChange('show_right_column', v)} className="flex gap-4 mt-2">
-                          <div className="flex items-center space-x-2"><RadioGroupItem value="true" id="show_col_yes" /><Label htmlFor="show_col_yes">Oui</Label></div>
-                          <div className="flex items-center space-x-2"><RadioGroupItem value="false" id="show_col_no" /><Label htmlFor="show_col_no">Non</Label></div>
-                        </RadioGroup>
-                      </div>
-                      <div>
                         <Label>Afficher le pied de page</Label>
                         <RadioGroup value={String(page.options.show_footer)} onValueChange={(v) => handleOptionChange('show_footer', v)} className="flex gap-4 mt-2">
                           <div className="flex items-center space-x-2"><RadioGroupItem value="true" id="show_footer_yes" /><Label htmlFor="show_footer_yes">Oui</Label></div>
                           <div className="flex items-center space-x-2"><RadioGroupItem value="false" id="show_footer_no" /><Label htmlFor="show_footer_no">Non</Label></div>
-                        </RadioGroup>
-                      </div>
-                      <div>
-                        <Label>Visible hors connexion</Label>
-                        <RadioGroup value={String(page.options.visible_offline)} onValueChange={(v) => handleOptionChange('visible_offline', v)} className="flex gap-4 mt-2">
-                          <div className="flex items-center space-x-2"><RadioGroupItem value="true" id="visible_offline_yes" /><Label htmlFor="visible_offline_yes">Oui</Label></div>
-                          <div className="flex items-center space-x-2"><RadioGroupItem value="false" id="visible_offline_no" /><Label htmlFor="visible_offline_no">Non</Label></div>
                         </RadioGroup>
                       </div>
                     </CardContent>

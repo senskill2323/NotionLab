@@ -129,7 +129,8 @@ const StaticPage = () => {
   }
 
   const showTitle = page?.options?.show_title !== false;
-  const showRightColumn = page?.options?.show_right_column !== false;
+  const showMetaBadges = isPreview;
+  const showRightColumn = isPreview && page?.options?.show_right_column !== false;
   const visibleOffline = page?.options?.visible_offline === true;
 
   return (
@@ -139,15 +140,17 @@ const StaticPage = () => {
         {metaDescription && <meta name="description" content={metaDescription} />}
       </Helmet>
       <div className="container mx-auto px-4 py-10 lg:py-16">
-        <div className="flex items-center gap-3 mb-8">
-          {page.status === 'published' ? (
-            <Badge variant="default">Publie</Badge>
-          ) : (
-            <Badge variant="secondary">Brouillon</Badge>
-          )}
-          {visibleOffline && <Badge variant="outline">Disponible hors connexion</Badge>}
-          {isPreview && <Badge variant="destructive">Previsualisation admin</Badge>}
-        </div>
+        {showMetaBadges && (
+          <div className="flex items-center gap-3 mb-8">
+            {page.status === 'published' ? (
+              <Badge variant="default">Publie</Badge>
+            ) : (
+              <Badge variant="secondary">Brouillon</Badge>
+            )}
+            {visibleOffline && <Badge variant="outline">Disponible hors connexion</Badge>}
+            <Badge variant="destructive">Previsualisation admin</Badge>
+          </div>
+        )}
         <div className={`grid gap-8 ${showRightColumn ? 'lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]' : ''}`}>
           <article>
             {showTitle && (

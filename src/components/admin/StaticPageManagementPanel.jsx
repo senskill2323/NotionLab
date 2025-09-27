@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MoreHorizontal, Plus, Search, Loader2, ExternalLink, Edit, Trash2, EyeOff, Eye } from 'lucide-react';
+import { MoreHorizontal, Plus, Search, Loader2, ExternalLink, Edit, Trash2, EyeOff, Eye, Copy } from 'lucide-react';
+import { v4 as uuidv4 } from 'uuid';
 
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
@@ -96,6 +97,50 @@ const StaticPageManagementPanel = () => {
     navigate(`/admin/pages/${pageId}`);
   };
 
+  const handleDuplicate = async (page) => {
+    if (!page) return;
+    const baseTitle = page.title || 'Page statique';
+    const duplicatedTitle = `${baseTitle} (copie)`;
+    const baseSlug = page.slug ? `${page.slug}-copie` : `page-${uuidv4().slice(0, 6)}`;
+    const newSlug = `${baseSlug}-${uuidv4().slice(0, 6)}`;
+
+    try {
+      const { data, error } = await supabase
+        .from('static_pages')
+        .insert({
+          title: duplicatedTitle.slice(0, 255),
+          slug: newSlug,
+          content: page.content || '',
+          seo_description: page.seo_description || null,
+          status: 'draft',
+          options: page.options || {},
+        })
+        .select('id')
+        .single();
+
+      if (error) throw error;
+
+      toast({
+        title: 'Page dupliquee',
+        description: `"${baseTitle}" a ete dupliquee en brouillon.`,
+        className: 'bg-green-500 text-white',
+      });
+
+      fetchPages();
+      if (data?.id) {
+        navigate(`/admin/pages/${data.id}`);
+      }
+    } catch (dupError) {
+      console.error('Error duplicating static page:', dupError);
+      const details = dupError?.message ? ` ${dupError.message}` : '';
+      toast({
+        title: 'Erreur',
+        description: `Impossible de dupliquer la page.${details}`,
+        variant: 'destructive',
+      });
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
@@ -162,6 +207,10 @@ const StaticPageManagementPanel = () => {
                         <DropdownMenuItem onClick={() => handleEdit(page.id)}>
                           <Edit className="mr-2 h-4 w-4" />
                           <span>Modifier</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleDuplicate(page)}>
+                          <Copy className="mr-2 h-4 w-4" />
+                          <span>Dupliquer</span>
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleStatusToggle(page)}>
                           {page.status === 'published' ? (
