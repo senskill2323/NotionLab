@@ -42,7 +42,10 @@ const ChatHeader = ({ messages, user }) => {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-10 bg-background/80 backdrop-blur-md border-b">
+    <header
+      className="fixed top-0 left-0 right-0 z-10 backdrop-blur-md border-b border-border"
+      style={{ backgroundColor: 'hsl(var(--colors-chat-surface))' }}
+    >
       <div className="flex justify-between items-center h-16 px-4 w-full">
         <div className="flex items-center gap-4">
           {user && (

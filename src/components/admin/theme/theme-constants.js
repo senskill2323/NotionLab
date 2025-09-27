@@ -18,4 +18,7 @@ export const initialTranslations = {
   border: { label: 'Bordures', description: 'La couleur des bordures des composants (cartes, champs de saisie, etc.).' },
   input: { label: 'Fond des Champs de Saisie', description: 'La couleur de fond pour les champs de formulaire (input, textarea).' },
   ring: { label: 'Anneau de Focus', description: 'La couleur de la bordure qui apparaît autour d\'un élément sélectionné (focus).' },
+  'chat-surface': { label: 'Fond du chat', description: 'Couleur principale de la zone de conversation (arriere-plan du module chat).' },
+  'chat-bubble-user': { label: 'Bulles utilisateurs', description: 'Couleur de fond utilisee pour vos messages dans le chat client.' },
+  'chat-bubble-staff': { label: 'Bulles support', description: 'Couleur de fond utilisee pour les reponses de NotionLab / staff.' },
 };

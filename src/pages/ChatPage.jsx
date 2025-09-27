@@ -202,10 +202,10 @@ const ChatPage = () => {
         <link rel="icon" type="image/png" href="https://horizons-cdn.hostinger.com/33d72ce2-b6b0-4274-b8ce-63300e44633e/78b000f735753ad0c3a19a5789970ddc.png" />
       </Helmet>
       
-      <div className="h-screen flex flex-col bg-background text-foreground">
+      <div className="h-screen flex flex-col text-foreground" style={{ backgroundColor: 'hsl(var(--colors-chat-surface))' }}>
         <ChatHeader messages={messages} user={user} />
 
-        <main className="flex-grow flex flex-col w-full pt-16 pb-24">
+        <main className="flex-grow flex flex-col w-full pt-16 pb-24" style={{ backgroundColor: 'hsl(var(--colors-chat-surface))' }}>
           <MessageList onMouseUp={handleMouseUp}>
             {loading ? (
               <div className="flex items-center justify-center h-full pt-10">

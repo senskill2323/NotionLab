@@ -51,6 +51,9 @@
     --colors-border: var(--border);
     --colors-input: var(--input);
     --colors-ring: var(--ring);
+    --colors-chat-surface: var(--background);
+    --colors-chat-bubble-user: var(--muted);
+    --colors-chat-bubble-staff: var(--primary);
   }
 }
   
@@ -165,4 +168,15 @@
     -webkit-backdrop-filter: var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);
     backdrop-filter: var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);
   }
+}
+.theme-color-picker > .flexbox-fix:nth-of-type(3) > div:not(:first-child) {
+  display: none !important;
+}
+
+.theme-color-picker > .flexbox-fix:nth-of-type(3) > div:first-child .rc-editable-input-input {
+  width: 100% !important;
+}
+
+.theme-color-picker > .flexbox-fix:nth-of-type(3) > div:first-child {
+  padding-left: 0 !important;
 }

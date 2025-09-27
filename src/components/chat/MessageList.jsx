@@ -7,23 +7,24 @@ import React, { useRef, useEffect } from 'react';
     import remarkGfm from 'remark-gfm';
 
     const MessageItem = ({ message, user }) => {
-      const isProf = ['admin', 'prof', 'owner'].includes(message.sender);
-      const isUser = !isProf;
-      const senderName = isProf ? 'NotionLab' : (user?.profile?.first_name || 'Vous');
+      const isStaffMessage = ['admin', 'prof', 'owner'].includes(message.sender);
+      const senderName = isStaffMessage ? 'NotionLab' : (user?.profile?.first_name || 'Vous');
 
       const bubbleClasses = cn(
-        "message-bubble p-3 rounded-lg max-w-md md:max-w-lg lg:max-w-2xl break-words relative",
-        isUser ? "bg-primary/10 text-foreground rounded-br-none self-end" : "bg-muted text-foreground rounded-bl-none self-start"
+        "message-bubble p-3 rounded-lg max-w-md md:max-w-lg lg:max-w-2xl break-words relative text-foreground rounded-bl-none self-start border border-border/40"
       );
+      const bubbleStyle = {
+        backgroundColor: `hsl(var(--colors-chat-bubble-${isStaffMessage ? 'staff' : 'user'}))`,
+      };
 
       return (
         <div 
-          className={cn("flex flex-col w-full my-2", isUser ? "items-end" : "items-start")}
+          className={cn("flex flex-col w-full my-2 items-start")}
           data-author={senderName}
         >
-          <div className={bubbleClasses}>
+          <div className={bubbleClasses} style={bubbleStyle}>
             <div className="flex justify-between items-center mb-1">
-              <p className={`font-semibold text-sm ${isProf ? 'text-primary' : 'text-foreground'}`}>{senderName}</p>
+              <p className={`font-semibold text-sm ${isStaffMessage ? 'text-primary' : 'text-foreground'}`}>{senderName}</p>
               <p className="text-xs text-muted-foreground ml-4">
                 {new Date(message.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
               </p>

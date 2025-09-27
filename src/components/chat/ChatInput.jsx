@@ -123,7 +123,10 @@ import React, { useState, useRef, useEffect } from 'react';
 
       return (
         <>
-          <footer className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-md border-t">
+          <footer
+            className="fixed bottom-0 left-0 right-0 backdrop-blur-md border-t border-border"
+            style={{ backgroundColor: 'hsl(var(--colors-chat-surface))' }}
+          >
             <div className="w-full px-4">
               <div className="py-3 w-full">
                 <form onSubmit={handleSendMessage} className="relative">

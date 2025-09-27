@@ -111,7 +111,8 @@ export const ThemeEditor = ({ theme, onUpdateTheme, translations }) => {
                   onChangeComplete={(color) => handleColorChange(color, `colors.${key}`)}
                   presetColors={[]}
                   width="100%"
-                  className="!bg-card !shadow-lg"
+                  disableAlpha
+                  className="theme-color-picker !bg-card !shadow-lg"
                 />
               </div>
             </div>
