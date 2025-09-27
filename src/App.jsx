@@ -5,14 +5,14 @@ import React from 'react';
     import { queryClient } from '@/lib/reactQueryClient';
 
     import { Toaster } from '@/components/ui/toaster';
-    import { AuthProvider, useAuth } from '@/contexts/SupabaseAuthContext';
-    import { useTheme } from '@/contexts/ThemeContext';
+    import { AuthProvider } from '@/contexts/SupabaseAuthContext';
     import { ChatProvider } from '@/contexts/ChatContext';
     import { AssistantProvider } from '@/contexts/AssistantContext';
     import { PermissionsProvider } from '@/contexts/PermissionsContext';
     import { ComponentStateProvider } from '@/contexts/ComponentStateContext';
     import { ResourceCreationProvider } from '@/contexts/ResourceCreationContext';
     import { BuilderCatalogProvider } from '@/contexts/BuilderCatalogContext';
+    import { LayoutPreferencesProvider, useLayoutPreferences } from '@/contexts/LayoutPreferencesContext';
     import Footer from '@/components/Footer';
     import Navigation from '@/components/Navigation';
     import AssistantDrawer from '@/components/assistant/AssistantDrawer';
@@ -52,25 +52,25 @@ import React from 'react';
     import DashboardEditorPage from '@/pages/admin/DashboardEditorPage';
     import ClientOnlyRoute from '@/components/ClientOnlyRoute';
     import EditStaticPage from '@/pages/admin/EditStaticPage';
-    import { Loader2 } from 'lucide-react';
+    import StaticPage from '@/pages/StaticPage';
     import ModuleManagerPage from '@/pages/admin/ModuleManagerPage';
     import TabsEditorPage from '@/pages/admin/TabsEditorPage';
     import AdminLiveChatPage from '@/pages/admin/AdminLiveChatPage';
 
     const MainLayout = ({ children }) => {
       const location = useLocation();
-      const { user } = useAuth();
-      const { loading: themeLoading } = useTheme();
-
       const isBuilderPage = location.pathname.startsWith('/formation-builder');
       const isDashboardRoute = location.pathname.startsWith('/dashboard');
       const isAdminRoute = location.pathname.startsWith('/admin');
       const isDemoDashboard = location.pathname.startsWith('/demo-dashboard');
       const isChatPage = location.pathname.startsWith('/chat');
       const isFormationDetailPage = location.pathname.match(/^\/formation\/[^/]+$/);
+      const { footerVisible } = useLayoutPreferences();
+
       const isHomePage = location.pathname === '/';
       
-      const showFooter = !isAdminRoute && !isDashboardRoute && !isBuilderPage && !isDemoDashboard && !isChatPage && !isFormationDetailPage && !isHomePage;
+      const baseFooterVisible = !isAdminRoute && !isDashboardRoute && !isBuilderPage && !isDemoDashboard && !isChatPage && !isFormationDetailPage && !isHomePage;
+      const showFooter = baseFooterVisible && footerVisible;
 
       // Do not block rendering on theme loading; a fallback theme is applied immediately.
 
@@ -92,6 +92,7 @@ import React from 'react';
         <Route path="/qui-suis-je" element={<AboutPage />} />
         <Route path="/mes-systemes" element={<SystemsPage />} />
         <Route path="/contact" element={<ContactPage />} />
+        <Route path="/page/:slug" element={<StaticPage />} />
         <Route path="/confirmation" element={<ConfirmationPage />} />
         <Route path="/assistance-a-distance" element={<AssistancePage />} />
         <Route path="/demo-dashboard" element={<DemoDashboardPage />} />
@@ -136,11 +137,13 @@ import React from 'react';
       const isBuilderPage = location.pathname.startsWith('/formation-builder');
 
       return (
-        <MainLayout>
-          {!isBuilderPage && <Navigation />}
-          <AssistantDrawer />
-          <AppRoutes />
-        </MainLayout>
+        <LayoutPreferencesProvider>
+          <MainLayout>
+            {!isBuilderPage && <Navigation />}
+            <AssistantDrawer />
+            <AppRoutes />
+          </MainLayout>
+        </LayoutPreferencesProvider>
       );
     };
 
