@@ -37,6 +37,7 @@ import PromiseSection from '@/components/home/PromiseSection';
 import PersonalQuoteSection from '@/components/home/PersonalQuoteSection';
 import FinalCTA from '@/components/home/FinalCTA';
 import LaunchCTA from '@/components/home/LaunchCTA';
+import TubesCursorSection, { DEFAULT_TUBES_TITLES, sanitizeTubesTitles } from '@/components/home/TubesCursorSection';
 import Footer from '@/components/Footer';
 
 const BlockSamplesPanel = ({ onBlockCreated }) => {
@@ -95,6 +96,10 @@ const BlockSamplesPanel = ({ onBlockCreated }) => {
     pr_backgroundImage: '',
     pr_useBackgroundImage: false,
     pr_backgroundOpacity: 0.5,
+    // Tubes cursor fields
+    tc_title1: DEFAULT_TUBES_TITLES.title1,
+    tc_title2: DEFAULT_TUBES_TITLES.title2,
+    tc_title3: DEFAULT_TUBES_TITLES.title3,
   });
 
   // Explicit cancel/close handler to clear URL + storage and close editor
@@ -285,6 +290,19 @@ const BlockSamplesPanel = ({ onBlockCreated }) => {
       layout: 'home.launch_cta',
       created_at: new Date().toISOString(),
       content: {}
+    },
+    {
+      id: 'builtin-tubes-cursor',
+      title: 'Accueil - Tubes Cursor',
+      description: 'Animation WebGPU/WebGL avec titres modifiables',
+      block_type: 'dynamic',
+      layout: 'home.tubes_cursor',
+      created_at: new Date().toISOString(),
+      content: {
+        title1: DEFAULT_TUBES_TITLES.title1,
+        title2: DEFAULT_TUBES_TITLES.title2,
+        title3: DEFAULT_TUBES_TITLES.title3,
+      },
     },
     {
       id: 'builtin-footer',
@@ -582,13 +600,16 @@ const BlockSamplesPanel = ({ onBlockCreated }) => {
     try {
       // Ensure all content properties are preserved, including new background color fields
       const sampleContent = sample.content || {};
+      const normalizedContent = sample.layout === 'home.tubes_cursor'
+        ? { ...sampleContent, ...sanitizeTubesTitles(sampleContent) }
+        : sampleContent;
       const blockData = {
         title: `${sample.title} (Copie)`,
         content: {
-          ...sampleContent,
+          ...normalizedContent,
           // Ensure background color properties are included
-          backgroundColor: sampleContent.backgroundColor || '',
-          useDefaultBackground: sampleContent.useDefaultBackground !== false,
+          backgroundColor: normalizedContent.backgroundColor || '',
+          useDefaultBackground: normalizedContent.useDefaultBackground !== false,
         },
         status: 'draft',
         type: 'hero',
@@ -655,6 +676,11 @@ const BlockSamplesPanel = ({ onBlockCreated }) => {
 
     // Populate form with sample data
     const c = sample?.content || {};
+    const tubesTitles = sanitizeTubesTitles({
+      title1: c.title1,
+      title2: c.title2,
+      title3: c.title3,
+    });
     // Determine default title override for "Gallerie 'Full screen' design" (handle common variants)
     const normalizedSampleTitle = (sample?.title || '').trim().toLowerCase();
     const isGalleryFullscreenDesign =
@@ -678,7 +704,11 @@ const BlockSamplesPanel = ({ onBlockCreated }) => {
       showCta: c.showCta || false,
       backgroundColor: c.backgroundColor || '',
       useDefaultBackground: c.useDefaultBackground !== false,
-      contentJsonText: JSON.stringify(c, null, 2),
+      contentJsonText: JSON.stringify(
+        sample?.layout === 'home.tubes_cursor' ? { ...c, ...tubesTitles } : c,
+        null,
+        2
+      ),
       // Systems showcase fields
       ss_title: c.title || '',
       ss_titleSuffix: c.titleSuffix ?? '',
@@ -728,6 +758,10 @@ const BlockSamplesPanel = ({ onBlockCreated }) => {
       lcta_gradStart: '#ff6b35',
       lcta_gradEnd: '#f7931e',
       lcta_gradAngle: 135,
+      // Tubes cursor fields
+      tc_title1: tubesTitles.title1,
+      tc_title2: tubesTitles.title2,
+      tc_title3: tubesTitles.title3,
     });
 
     // Persist editor state (sessionStorage) so a remount or tab switch restores it
@@ -836,6 +870,13 @@ const BlockSamplesPanel = ({ onBlockCreated }) => {
         pr_backgroundOpacity: form.pr_backgroundOpacity,
       };
     }
+    if (layout === 'home.tubes_cursor') {
+      return sanitizeTubesTitles({
+        title1: form.tc_title1,
+        title2: form.tc_title2,
+        title3: form.tc_title3,
+      });
+    }
     try {
       return JSON.parse(form.contentJsonText || '{}');
     } catch (e) {
@@ -872,6 +913,8 @@ const BlockSamplesPanel = ({ onBlockCreated }) => {
         return <FinalCTA content={getPreviewContent()} />;
       case 'home.launch_cta':
         return <LaunchCTA content={getPreviewContent()} />;
+      case 'home.tubes_cursor':
+        return <TubesCursorSection content={getPreviewContent()} isPreview />;
       case 'global.footer':
         return <Footer isPreview={true} content={getPreviewContent()} />;
       default:
@@ -951,6 +994,12 @@ const BlockSamplesPanel = ({ onBlockCreated }) => {
           backgroundGradient: form.lcta_backgroundGradient,
           useDefaultGradient: form.lcta_useDefaultGradient,
         };
+      } else if (layout === 'home.tubes_cursor') {
+        contentPayload = sanitizeTubesTitles({
+          title1: form.tc_title1,
+          title2: form.tc_title2,
+          title3: form.tc_title3,
+        });
       } else {
         try {
           contentPayload = JSON.parse(form.contentJsonText || '{}');
@@ -1594,6 +1643,24 @@ const BlockSamplesPanel = ({ onBlockCreated }) => {
                   </div>
                 </div>
               )}
+              {editingSample?.layout === 'home.tubes_cursor' && (
+                <div className="space-y-4">
+                  <div>
+                    <Label>Titre 1</Label>
+                    <Input value={form.tc_title1 || ''} onChange={handleChange('tc_title1')} placeholder="Tubes" />
+                  </div>
+                  <div>
+                    <Label>Titre 2</Label>
+                    <Input value={form.tc_title2 || ''} onChange={handleChange('tc_title2')} placeholder="Cursor" />
+                  </div>
+                  <div>
+                    <Label>Titre 3</Label>
+                    <Input value={form.tc_title3 || ''} onChange={handleChange('tc_title3')} placeholder="WebGPU / WebGL" />
+                  </div>
+                  <p className="text-xs text-muted-foreground">Ces titres apparaissent sur l'animation Tubes Cursor.</p>
+                </div>
+              )}
+
               {editingSample?.layout === 'home.launch_cta' && (
                 <div className="space-y-4">
                   {/* Menu 1: Contenu principal */}

@@ -30,6 +30,7 @@ import PromiseSection from '@/components/home/PromiseSection';
 import PersonalQuoteSection from '@/components/home/PersonalQuoteSection';
 import FinalCTA from '@/components/home/FinalCTA';
 import LaunchCTA from '@/components/home/LaunchCTA';
+import TubesCursorSection, { DEFAULT_TUBES_TITLES, sanitizeTubesTitles } from '@/components/home/TubesCursorSection';
 import Footer from '@/components/Footer';
 
 const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
@@ -148,6 +149,10 @@ const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
     foot_phone: '079 576 52 24',
     foot_mapEmbedUrl: 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d1151.3494205839254!2d6.516213008580243!3d46.658642866494915!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x478dcb21dc82f31b%3A0x4d82dcf171487de7!2sLa%20Sarraz!5e0!3m2!1sfr!2sch!4v1757538158313!5m2!1sfr!2sch',
     foot_mapLink: 'https://www.google.com/maps/place/La+Sarraz/@46.658643,6.516213,17z',
+    // tubes cursor
+    tc_title1: DEFAULT_TUBES_TITLES.title1,
+    tc_title2: DEFAULT_TUBES_TITLES.title2,
+    tc_title3: DEFAULT_TUBES_TITLES.title3,
     // formations
     form_title: 'Mes ',
     form_titleSuffix: 'formations',
@@ -221,6 +226,7 @@ const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
           });
           if (data.block_type === 'dynamic') {
             const c = data.content || {};
+            const tubes = sanitizeTubesTitles(c);
             setDyn(prev => ({
               ...prev,
               // cozy
@@ -312,6 +318,10 @@ const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
               foot_phone: c.phone ?? prev.foot_phone,
               foot_mapEmbedUrl: c.mapEmbedUrl ?? prev.foot_mapEmbedUrl,
               foot_mapLink: c.mapLink ?? prev.foot_mapLink,
+              // tubes cursor
+              tc_title1: tubes.title1,
+              tc_title2: tubes.title2,
+              tc_title3: tubes.title3,
             }));
           }
         }
@@ -383,6 +393,12 @@ const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
             useDefaultGradient: dyn.lcta_useDefaultGradient,
             backgroundGradient: dyn.lcta_bgMode === 'gradient' ? (dyn.lcta_backgroundGradient || `linear-gradient(${dyn.lcta_gradAngle}deg, ${dyn.lcta_gradStart} 0%, ${dyn.lcta_gradEnd} 100%)`) : dyn.lcta_backgroundGradient
           };
+        case 'home.tubes_cursor':
+          return sanitizeTubesTitles({
+            title1: dyn.tc_title1,
+            title2: dyn.tc_title2,
+            title3: dyn.tc_title3,
+          });
         case 'global.footer':
           return { logoUrl: dyn.foot_logoUrl, address: dyn.foot_address, email: dyn.foot_email, phone: dyn.foot_phone, mapEmbedUrl: dyn.foot_mapEmbedUrl, mapLink: dyn.foot_mapLink };
         case 'home.cozy_space':
@@ -530,6 +546,8 @@ const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
             ? (dyn.lcta_backgroundGradient || `linear-gradient(${dyn.lcta_gradAngle}deg, ${dyn.lcta_gradStart} 0%, ${dyn.lcta_gradEnd} 100%)`) 
             : dyn.lcta_backgroundGradient,
         }} />;
+      case 'home.tubes_cursor':
+        return <TubesCursorSection content={{ title1: dyn.tc_title1, title2: dyn.tc_title2, title3: dyn.tc_title3 }} isPreview />;
       case 'global.footer':
         return <Footer isPreview={true} content={{ logoUrl: dyn.foot_logoUrl, address: dyn.foot_address, email: dyn.foot_email, phone: dyn.foot_phone, mapEmbedUrl: dyn.foot_mapEmbedUrl, mapLink: dyn.foot_mapLink }} />;
       default:
@@ -1195,6 +1213,24 @@ const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
                                         </div>
                                       </div>
                                     </>
+                                  )}
+
+                                  {layout === 'home.tubes_cursor' && (
+                                    <div className="space-y-4">
+                                      <div>
+                                        <Label>Titre 1</Label>
+                                        <Input value={dyn.tc_title1} onChange={handleDynChange('tc_title1')} placeholder="Tubes" />
+                                      </div>
+                                      <div>
+                                        <Label>Titre 2</Label>
+                                        <Input value={dyn.tc_title2} onChange={handleDynChange('tc_title2')} placeholder="Cursor" />
+                                      </div>
+                                      <div>
+                                        <Label>Titre 3</Label>
+                                        <Input value={dyn.tc_title3} onChange={handleDynChange('tc_title3')} placeholder="WebGPU / WebGL" />
+                                      </div>
+                                      <p className="text-xs text-muted-foreground">Ces titres apparaissent sur l'animation Tubes Cursor.</p>
+                                    </div>
                                   )}
 
                                   {layout === 'home.launch_cta' && (

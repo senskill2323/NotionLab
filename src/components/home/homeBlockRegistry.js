@@ -8,6 +8,7 @@ import CozySpaceSection from '@/components/home/CozySpaceSection';
 import PersonalQuoteSection from '@/components/home/PersonalQuoteSection';
 import FinalCTA from '@/components/home/FinalCTA';
 import LaunchCTA from '@/components/home/LaunchCTA';
+import TubesCursorSection from '@/components/home/TubesCursorSection';
 import Footer from '@/components/Footer';
 
 // Central registry of homepage blocks used by both the public HomePage and admin previews
@@ -22,6 +23,7 @@ const homeBlockRegistry = {
   'home.personal_quote': PersonalQuoteSection,
   'home.final_cta': FinalCTA,
   'home.launch_cta': LaunchCTA,
+  'home.tubes_cursor': TubesCursorSection,
   // Footer is managed as a regular content block when published
   'global.footer': Footer,
 };
