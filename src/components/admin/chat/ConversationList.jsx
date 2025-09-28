@@ -4,13 +4,15 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
-import { Search, Archive, ArchiveRestore } from 'lucide-react';
+import { Search, Archive, ArchiveRestore, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useDebounce } from 'use-debounce';
+
+const AUTO_ARCHIVED_STATUSES = new Set(['resolu', 'abandonne']);
 
 const getInitials = (email) => {
   if (!email) return '..';
@@ -27,10 +29,10 @@ const statusVariantMap = {
 };
 
 const statusLabelMap = {
-  'a_traiter': 'À traiter',
+  'a_traiter': 'A traiter',
   'en_cours': 'En cours',
-  'resolu': 'Résolu',
-  'abandonne': 'Abandonné',
+  'resolu': 'Resolu',
+  'abandonne': 'Abandonne',
   'ouvert': 'Ouvert'
 };
 
@@ -68,7 +70,7 @@ const ConversationItem = ({ conversation, isSelected, onSelect, canArchive, onTo
               <Button
                 variant="ghost"
                 size="icon"
-                title={archived ? 'Désarchiver' : 'Archiver'}
+                title={archived ? 'Desarchiver' : 'Archiver'}
                 className="h-7 w-7"
                 onClick={(e) => { e.stopPropagation(); onToggleArchive?.(conversation); }}
               >
@@ -86,7 +88,7 @@ const ConversationItem = ({ conversation, isSelected, onSelect, canArchive, onTo
   );
 };
 
-const ConversationList = ({ conversations, selectedConversation, onSelectConversation, view = 'active', onViewChange }) => {
+const ConversationList = ({ conversations, selectedConversation, onSelectConversation, view = 'active', onViewChange, onRequestNewConversation, newConversationDisabled = false }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm] = useDebounce(searchTerm, 300);
   const { toast } = useToast();
@@ -103,52 +105,89 @@ const ConversationList = ({ conversations, selectedConversation, onSelectConvers
       const { error } = await supabase.rpc('admin_chat_set_archived', { p_id: conversation.id, p_archived: nextArchived });
       if (error) throw error;
       setArchOverrides((prev) => ({ ...prev, [conversation.id]: nextArchived }));
-      toast({ title: 'Succès', description: nextArchived ? 'Conversation archivée.' : 'Conversation désarchivée.' });
+      toast({ title: 'Succes', description: nextArchived ? 'Conversation archivee.' : 'Conversation desarchivee.' });
     } catch (err) {
       console.error('Toggle archive failed:', err);
-      toast({ title: 'Erreur', description: `Impossible de mettre à jour l'archivage. ${err?.message || ''}`, variant: 'destructive' });
+      toast({ title: 'Erreur', description: `Impossible de mettre a jour l'archivage. ${err?.message || ''}`, variant: 'destructive' });
     }
   };
 
   const filteredConversations = useMemo(() => {
-    const isArchived = (c) => Object.prototype.hasOwnProperty.call(archOverrides, c.id)
-      ? !!archOverrides[c.id]
-      : (c.admin_archived === true);
+    const computeArchived = (conversation) => {
+      if (Object.prototype.hasOwnProperty.call(archOverrides, conversation.id)) {
+        return !!archOverrides[conversation.id];
+      }
+      const status = (conversation.status || '').toLowerCase();
+      const autoArchived = AUTO_ARCHIVED_STATUSES.has(status);
+      return conversation.admin_archived === true || autoArchived;
+    };
 
     let listByView = conversations;
-    if (view === 'archived') listByView = conversations.filter((c) => isArchived(c));
-    else listByView = conversations.filter((c) => !isArchived(c));
+    if (view === 'archived') {
+      listByView = conversations.filter((conversation) => computeArchived(conversation));
+    } else {
+      listByView = conversations.filter((conversation) => {
+        if (computeArchived(conversation)) return false;
+        const status = (conversation.status || '').toLowerCase();
+        return status === 'ouvert';
+      });
+    }
 
     if (!debouncedSearchTerm) return listByView;
-    return listByView.filter(c => 
-      (c.guest_email && c.guest_email.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
-      (c.summary && c.summary.toLowerCase().includes(debouncedSearchTerm.toLowerCase()))
+    const lowered = debouncedSearchTerm.toLowerCase();
+    return listByView.filter((conversation) =>
+      (conversation.guest_email && conversation.guest_email.toLowerCase().includes(lowered)) ||
+      (conversation.summary && conversation.summary.toLowerCase().includes(lowered))
     );
-  }, [conversations, debouncedSearchTerm, view, archOverrides]);
-
+  }, [archOverrides, conversations, debouncedSearchTerm, view]);
   return (
     <div className="h-full w-full flex flex-col">
-      <div className="p-3 border-b">
-        <div className="flex items-center gap-2 mb-2">
+      <div className="p-3 border-b space-y-3">
+        <div className="flex items-center gap-2">
           <h2 className="text-lg font-semibold">Conversations</h2>
+          {typeof onRequestNewConversation === 'function' && (
+            <Button
+              type="button"
+              size="sm"
+              className="gap-2"
+              onClick={onRequestNewConversation}
+              disabled={newConversationDisabled}
+            >
+              <Plus className="h-4 w-4" />
+              <span>Nouvelle conversation</span>
+            </Button>
+          )}
         </div>
         <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-                type="search"
-                placeholder="Rechercher..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full rounded-lg bg-muted pl-8"
-            />
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="search"
+            placeholder="Rechercher..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full rounded-lg bg-muted pl-8"
+          />
         </div>
+        {canArchive && onViewChange && (
+          <Tabs value={view} onValueChange={onViewChange} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="active">Actives</TabsTrigger>
+              <TabsTrigger value="archived">Archivees</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        )}
       </div>
       <ScrollArea className="flex-grow">
         <div className="p-2 space-y-1">
-          {filteredConversations.length > 0 ? filteredConversations.map(conversation => {
-            const effectiveArchived = Object.prototype.hasOwnProperty.call(archOverrides, conversation.id)
-              ? !!archOverrides[conversation.id]
-              : (conversation.admin_archived === true);
+          {filteredConversations.length > 0 ? filteredConversations.map((conversation) => {
+            const effectiveArchived = (() => {
+              if (Object.prototype.hasOwnProperty.call(archOverrides, conversation.id)) {
+                return !!archOverrides[conversation.id];
+              }
+              const status = (conversation.status || '').toLowerCase();
+              if (AUTO_ARCHIVED_STATUSES.has(status)) return true;
+              return conversation.admin_archived === true;
+            })();
             return (
               <ConversationItem
                 key={conversation.id}
@@ -161,26 +200,12 @@ const ConversationList = ({ conversations, selectedConversation, onSelectConvers
               />
             );
           }) : (
-            <p className="p-4 text-sm text-center text-muted-foreground">Aucune conversation trouvée.</p>
+            <p className="p-4 text-sm text-center text-muted-foreground">Aucune conversation trouvee.</p>
           )}
         </div>
       </ScrollArea>
-      {canArchive && onViewChange && (
-        <div className="p-3 border-t">
-          <Select value={view} onValueChange={onViewChange}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Filtrer" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="active">Conversations actives</SelectItem>
-              <SelectItem value="archived">Conversations archivées</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      )}
     </div>
   );
 };
 
 export default ConversationList;
-

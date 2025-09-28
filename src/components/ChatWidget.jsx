@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -52,13 +52,13 @@ const ChatWidget = () => {
     if (conversation) {
       const { error } = await supabase
         .from('chat_conversations')
-        .update({ status: 'abandonne' })
+        .update({ status: 'resolu' })
         .eq('id', conversation.id);
 
       if (error) {
         toast({
           title: "Erreur",
-          description: "Impossible de fermer la conversation. Veuillez réessayer.",
+          description: "Impossible de fermer la conversation. Veuillez rÃ©essayer.",
           variant: "destructive",
         });
         return;
@@ -106,7 +106,7 @@ const ChatWidget = () => {
     const { data, error } = await query;
   
     if (error) {
-      toast({ title: "Erreur", description: "Impossible de récupérer la conversation.", variant: "destructive" });
+      toast({ title: "Erreur", description: "Impossible de rÃ©cupÃ©rer la conversation.", variant: "destructive" });
       return null;
     }
   
@@ -189,7 +189,7 @@ const ChatWidget = () => {
     if (!input.trim()) return;
 
     if (!guestName.trim() && messages.length === 0) {
-      toast({ title: "Attention", description: "Veuillez entrer votre prénom pour commencer le chat.", variant: "default" });
+      toast({ title: "Attention", description: "Veuillez entrer votre prÃ©nom pour commencer le chat.", variant: "default" });
       return;
     }
 
@@ -211,7 +211,7 @@ const ChatWidget = () => {
           .single();
         
         if (newConvError) {
-          toast({ title: "Erreur", description: `Impossible de démarrer le chat: ${newConvError.message}`, variant: "destructive" });
+          toast({ title: "Erreur", description: `Impossible de dÃ©marrer le chat: ${newConvError.message}`, variant: "destructive" });
           return;
         }
         currentConversation = newConvData;
@@ -246,7 +246,7 @@ const ChatWidget = () => {
       .single();
 
     if (error) {
-      toast({ title: "Erreur", description: `Votre message n'a pas pu être envoyé: ${error.message}`, variant: "destructive" });
+      toast({ title: "Erreur", description: `Votre message n'a pas pu Ãªtre envoyÃ©: ${error.message}`, variant: "destructive" });
       setInput(messageContent);
       setMessages(prev => prev.filter(msg => msg.id !== tempId));
     } else {
@@ -285,7 +285,7 @@ const ChatWidget = () => {
       if (messageError) throw messageError;
 
     } catch (error) {
-      toast({ title: "Erreur", description: `Échec de l'envoi du fichier: ${error.message}`, variant: "destructive" });
+      toast({ title: "Erreur", description: `Ã‰chec de l'envoi du fichier: ${error.message}`, variant: "destructive" });
     } finally {
       setUploading(false);
       e.target.value = null;
@@ -363,3 +363,4 @@ const ChatWidget = () => {
 
 export default ChatWidget;
   const groupedMessages = useMemo(() => groupMessagesByMinute(messages), [messages]);
+

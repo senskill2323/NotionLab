@@ -1,0 +1,16 @@
+  const filteredConversations = useMemo(() => {
+    const isArchived = (c) => Object.prototype.hasOwnProperty.call(archOverrides, c.id)
+      ? !!archOverrides[c.id]
+      : (c.admin_archived === true);
+
+    let listByView = conversations;
+    if (view === 'archived') listByView = conversations.filter((c) => isArchived(c));
+    else listByView = conversations.filter((c) => !isArchived(c));
+
+    if (!debouncedSearchTerm) return listByView;
+    return listByView.filter(c => 
+      (c.guest_email && c.guest_email.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
+      (c.summary && c.summary.toLowerCase().includes(debouncedSearchTerm.toLowerCase()))
+    );
+  }, [conversations, debouncedSearchTerm, view, archOverrides]);
+

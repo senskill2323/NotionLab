@@ -26,8 +26,13 @@ const ChatUnreadNotification = () => {
   };
 
   const handleNavigate = () => {
+    const targetConversation = unreadNotification?.conversationId;
     handleClose();
-    navigate('/chat');
+    if (targetConversation) {
+      navigate(`/chat?conversation=${targetConversation}`);
+    } else {
+      navigate('/chat');
+    }
   };
 
   return (
@@ -55,3 +60,4 @@ const ChatUnreadNotification = () => {
 };
 
 export default ChatUnreadNotification;
+

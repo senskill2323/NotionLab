@@ -130,9 +130,29 @@ export const subscribeToClientChatMessages = (conversationId, callback) => {
     .on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `conversation_id=eq.${conversationId}` },
-      (payload) => {
+      async (payload) => {
+        let enrichedPayload = payload;
+        const messageId = payload?.new?.id;
+
+        if (messageId) {
+          const { data, error } = await supabase
+            .from('chat_messages')
+            .select('*, resource:resources(id, name, url, file_path)')
+            .eq('id', messageId)
+            .single();
+
+          if (!error && data) {
+            enrichedPayload = {
+              ...payload,
+              new: data,
+            };
+          } else if (error) {
+            console.error('subscribeToClientChatMessages enrichment failed', error);
+          }
+        }
+
         if (typeof callback === 'function') {
-          callback(payload);
+          callback(enrichedPayload);
         }
       }
     )
@@ -245,3 +265,4 @@ export const clearChatHistory = async (conversationId) => {
     throw new Error("Impossible de vider l'historique du chat.");
   }
 };
+

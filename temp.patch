@@ -1,0 +1,233 @@
+*** Begin Patch
+*** Update File: src/modules/client-live-chat/components/ConversationsSidebar.jsx
+@@
+-import React, { useMemo, useState } from 'react';
+-import { ScrollArea } from '@/components/ui/scroll-area';
+-import { Input } from '@/components/ui/input';
+-import { Badge } from '@/components/ui/badge';
+-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+-import { Button } from '@/components/ui/button';
+-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
+-import { Archive, ArchiveRestore, Search, Loader2, Plus, UserPlus } from 'lucide-react';
+-import { cn } from '@/lib/utils';
++import React, { useMemo, useState } from 'react';
++import { ScrollArea } from '@/components/ui/scroll-area';
++import { Input } from '@/components/ui/input';
++import { Badge } from '@/components/ui/badge';
++import { Avatar, AvatarFallback } from '@/components/ui/avatar';
++import { Button } from '@/components/ui/button';
++import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
++import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
++import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
++import { Archive, ArchiveRestore, Search, Loader2, Plus } from 'lucide-react';
++import { cn } from '@/lib/utils';
+@@
+-const NewConversationButton = ({ staffRecipients, onStartConversation, isLoading }) => {
+-  const [open, setOpen] = useState(false);
+-  const [search, setSearch] = useState('');
+-  const [isStarting, setIsStarting] = useState(false);
+-
+-  const filteredStaff = useMemo(() => {
+-    if (!Array.isArray(staffRecipients) || staffRecipients.length === 0) return [];
+-    if (!search.trim()) return staffRecipients;
+-    const lowered = search.trim().toLowerCase();
+-    return staffRecipients.filter((staff) => {
+-      const fullName = `${staff.first_name || ''} ${staff.last_name || ''}`.trim().toLowerCase();
+-      const role = staff.user_type ? staff.user_type.toLowerCase() : '';
+-      return fullName.includes(lowered) || role.includes(lowered);
+-    });
+-  }, [staffRecipients, search]);
+-
+-  const handleStart = async (staffUserId) => {
+-    if (isStarting || typeof onStartConversation !== 'function') return;
+-    setIsStarting(true);
+-    try {
+-      await onStartConversation(staffUserId || null);
+-      setOpen(false);
+-    } finally {
+-      setIsStarting(false);
+-    }
+-  };
+-
+-  if (typeof onStartConversation !== 'function') {
+-    return null;
+-  }
+-
+-  return (
+-    <div className="flex items-center gap-2">
+-      <Button
+-        type="button"
+-        variant="default"
+-        size="sm"
+-        className="flex-1 justify-center gap-2"
+-        onClick={() => handleStart(null)}
+-        disabled={isStarting || isLoading}
+-      >
+-        {isStarting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+-        <span>Nouvelle conversation</span>
+-      </Button>
+-      <Popover open={open} onOpenChange={setOpen}>
+-        <PopoverTrigger asChild>
+-          <Button type="button" variant="outline" size="icon" disabled={isLoading || isStarting}>
+-            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+-          </Button>
+-        </PopoverTrigger>
+-        <PopoverContent className="w-64 p-0" align="start">
+-          <Command>
+-            <CommandInput placeholder="Chercher un membre..." value={search} onValueChange={setSearch} />
+-            <CommandEmpty>{isLoading ? 'Chargement...' : 'Aucun membre'}</CommandEmpty>
+-            <CommandGroup>
+-              {filteredStaff.map((staff) => {
+-                const fullName = `${staff.first_name || ''} ${staff.last_name || ''}`.trim() || 'Sans nom';
+-                return (
+-                  <CommandItem
+-                    key={staff.id}
+-                    value={fullName}
+-                    onSelect={() => handleStart(staff.id)}
+-                  >
+-                    <div className="flex flex-col">
+-                      <span className="font-medium">{fullName}</span>
+-                      <span className="text-xs uppercase text-muted-foreground">{staff.user_type}</span>
+-                    </div>
+-                  </CommandItem>
+-                );
+-              })}
+-            </CommandGroup>
+-          </Command>
+-        </PopoverContent>
+-      </Popover>
+-    </div>
+-  );
+-};
++const NewConversationButton = ({ staffRecipients, onStartConversation, isLoading }) => {
++  const [dialogOpen, setDialogOpen] = useState(false);
++  const [selectedStaffId, setSelectedStaffId] = useState('');
++  const [isStarting, setIsStarting] = useState(false);
++  const [formError, setFormError] = useState('');
++
++  const staffOptions = useMemo(() => {
++    if (!Array.isArray(staffRecipients)) return [];
++    return staffRecipients.map((staff) => {
++      const fullName = `${staff.first_name || ''} ${staff.last_name || ''}`.trim();
++      return {
++        id: staff.id,
++        label: fullName || 'Sans nom',
++        role: staff.user_type || '',
++      };
++    });
++  }, [staffRecipients]);
++
++  const resetDialogState = () => {
++    setSelectedStaffId('');
++    setFormError('');
++  };
++
++  const openDialog = () => {
++    if (typeof onStartConversation !== 'function') return;
++    resetDialogState();
++    setDialogOpen(true);
++  };
++
++  const handleConfirm = async () => {
++    if (!selectedStaffId) {
++      setFormError('Sélectionne un destinataire.');
++      return;
++    }
++    if (isStarting || typeof onStartConversation !== 'function') return;
++    setIsStarting(true);
++    setFormError('');
++    try {
++      await onStartConversation(selectedStaffId);
++      setDialogOpen(false);
++      resetDialogState();
++    } finally {
++      setIsStarting(false);
++    }
++  };
++
++  if (typeof onStartConversation !== 'function') {
++    return null;
++  }
++
++  const isConfirmDisabled = isLoading || isStarting || staffOptions.length === 0;
++
++  return (
++    <>
++      <Button
++        type="button"
++        variant='default'
++        size='sm'
++        className='flex-1 justify-center gap-2'
++        onClick={openDialog}
++        disabled={isLoading}
++      >
++        {isLoading ? <Loader2 className='h-4 w-4 animate-spin' /> : <Plus className='h-4 w-4' />}
++        <span>Nouvelle conversation</span>
++      </Button>
++
++      <Dialog
++        open={dialogOpen}
++        onOpenChange={(open) => {
++          setDialogOpen(open);
++          if (!open) {
++            resetDialogState();
++          }
++        }}
++      >
++        <DialogContent className='sm:max-w-md'>
++          <DialogHeader>
++            <DialogTitle>Choisir un destinataire</DialogTitle>
++            <DialogDescription>
++              Sélectionne l'administrateur ou le membre de l'équipe avec qui démarrer la conversation.
++            </DialogDescription>
++          </DialogHeader>
++
++          <div className='space-y-3'>
++            <Select
++              value={selectedStaffId}
++              onValueChange={(value) => {
++                setSelectedStaffId(value);
++                setFormError('');
++              }}
++              disabled={isLoading || staffOptions.length === 0}
++            >
++              <SelectTrigger>
++                <SelectValue placeholder={isLoading ? 'Chargement...' : 'Choisis un destinataire'} />
++              </SelectTrigger>
++              <SelectContent>
++                {staffOptions.map((staff) => (
++                  <SelectItem key={staff.id} value={staff.id}>
++                    <div className='flex flex-col'>
++                      <span>{staff.label}</span>
++                      {staff.role && (
++                        <span className='text-xs uppercase text-muted-foreground'>{staff.role}</span>
++                      )}
++                    </div>
++                  </SelectItem>
++                ))}
++              </SelectContent>
++            </Select>
++            {staffOptions.length === 0 && !isLoading && (
++              <p className='text-sm text-muted-foreground'>
++                Aucun destinataire disponible. Contacte un administrateur.
++              </p>
++            )}
++            {formError && <p className='text-sm text-destructive'>{formError}</p>}
++          </div>
++
++          <DialogFooter className='pt-4'>
++            <Button type='button' variant='outline' onClick={() => setDialogOpen(false)} disabled={isStarting}>
++              Annuler
++            </Button>
++            <Button type='button' onClick={handleConfirm} disabled={isConfirmDisabled}>
++              {isStarting ? <Loader2 className='h-4 w-4 animate-spin' /> : 'Commencer'}
++            </Button>
++          </DialogFooter>
++        </DialogContent>
++      </Dialog>
++    </>
++  );
++};
+*** End Patch

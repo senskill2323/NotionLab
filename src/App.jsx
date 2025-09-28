@@ -49,7 +49,7 @@ import { ClientChatIndicatorProvider } from '@/hooks/useClientChatIndicator.jsx'
     import TrainingPreferencesWizardPage from '@/pages/TrainingPreferencesWizardPage';
     import ForumTopicPage from '@/pages/ForumTopicPage';
     import CreateForumTopicPage from '@/pages/CreateForumTopicPage';
-    import ChatPage from '@/pages/ChatPage';
+    import ClientLiveChatPage from '@/modules/client-live-chat/ClientLiveChatPage';
     import { TooltipProvider } from '@/components/ui/tooltip';
     import DashboardEditorPage from '@/pages/admin/DashboardEditorPage';
     import ClientOnlyRoute from '@/components/ClientOnlyRoute';
@@ -111,7 +111,7 @@ import { ClientChatIndicatorProvider } from '@/hooks/useClientChatIndicator.jsx'
         <Route path="/mes-preferences-formation/editer" element={<ClientOnlyRoute><TrainingPreferencesWizardPage /></ClientOnlyRoute>} />
         <Route path="/dashboard" element={<ClientOnlyRoute><DashboardPage /></ClientOnlyRoute>} />
         <Route path="/compte-client" element={<ClientOnlyRoute><ClientAccountPage /></ClientOnlyRoute>} />
-        <Route path="/chat" element={<ProtectedRoute requiredPermission="chat:view"><ChatPage /></ProtectedRoute>} />
+        <Route path="/chat" element={<ProtectedRoute requiredPermission="chat:view"><ClientLiveChatPage /></ProtectedRoute>} />
         <Route path="/nouveau-ticket" element={<ProtectedRoute requiredPermission="tickets:create"><CreateTicketPage /></ProtectedRoute>} />
         <Route path="/ticket/:id" element={<ProtectedRoute requiredPermission="tickets:view_own"><TicketDetailPage /></ProtectedRoute>} />
         <Route path="/tickets" element={<ProtectedRoute requiredPermission="tickets:view_own"><TicketsPage /></ProtectedRoute>} />

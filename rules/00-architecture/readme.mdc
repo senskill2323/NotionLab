@@ -30,6 +30,7 @@ contenu: Objectifs, SLA, contraintes, architecture, dÃ©coupage, auth, Ã©tat,
 <!-- AUTO:BEGIN -->
 <!-- ANCHOR:OVERVIEW -->
 Le module Formations gere des parcours standard publies et des parcours custom construits par les clients. L'architecture assemble React 18 et Vite 7 pour le frontend avec Supabase pour l'authentification, les donnees et le temps reel.
+Attention, ne pas confondre "Le Chat" pour les clients, et le nouveau module en "Chat Live CLient" en cours de conception. ce n'est pas du tout la même chose! 
 
 <!-- ANCHOR:STANDARDS -->
 - React 18 + Vite 7 pilotent le catalogue, le builder et les interfaces admin.

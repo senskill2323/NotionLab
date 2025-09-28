@@ -277,7 +277,28 @@ const AdminDashboardPage = () => {
 
     const kpiChannel = supabase.channel('admin-dashboard-kpis')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, () => fetchKpis())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_conversations' }, () => fetchKpis())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_conversations' }, (payload) => {
+        const eventType = payload?.eventType;
+        const newRecord = payload?.new;
+        const oldRecord = payload?.old;
+
+        if (eventType === 'INSERT' || eventType === 'DELETE') {
+          fetchKpis();
+          return;
+        }
+
+        if (!newRecord || !oldRecord) {
+          return;
+        }
+
+        const statusChanged = newRecord.status !== oldRecord.status;
+        const archivedChanged = newRecord.admin_archived !== oldRecord.admin_archived;
+        const staffChanged = newRecord.staff_user_id !== oldRecord.staff_user_id;
+
+        if (statusChanged || archivedChanged || staffChanged) {
+          fetchKpis();
+        }
+      })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'courses', filter: 'course_type=eq.custom' }, () => fetchKpis())
       .subscribe();
       

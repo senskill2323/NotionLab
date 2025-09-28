@@ -1,0 +1,5 @@
+filteredConversations.length > 0 ? filteredConversations.map(conversation => {
+            const effectiveArchived = Object.prototype.hasOwnProperty.call(archOverrides, conversation.id)
+              ? !!archOverrides[conversation.id]
+              : (conversation.admin_archived === true);
+     

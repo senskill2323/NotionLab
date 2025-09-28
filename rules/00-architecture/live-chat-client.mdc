@@ -1,0 +1,31 @@
+---
+title: "Live Chat - Architecture"
+version: "2"
+date: "2025-10-09"
+owner: "NEEDS-VERIFY Provide owner or primary contact."
+description: Architecture, flows, security and differences between client and admin live chat surfaces.
+---
+
+<!-- AUTO:BEGIN -->
+<!-- ANCHOR:LIVE_CHAT_ARCHI -->
+- Surfaces
+  - Client: `ClientLiveChatPage.jsx`, `modules/client-live-chat/useClientLiveChat.js`, `modules/client-live-chat/components/*`, helpers `src/lib/chatApi.js`
+  - Admin: `components/admin/AdminLiveChatPanel.jsx`, `components/admin/chat/ConversationList.jsx`, `components/admin/AdminChatView.jsx`
+- Creation workflow (client)
+  - Button "Nouvelle conversation" (Radix Dialog) -> select staff user (`client_list_chat_staff_users`)
+  - `client_start_chat_conversation(p_staff_user_id)` reuse existing open thread or reopens archived (`status='ouvert'`, `client_archived=false`)
+- Archivage
+  - Client toggle: passes through `client_chat_set_archived`; UI uses `toggleArchive` from `useClientLiveChat`
+  - Admin toggle: passes through `admin_chat_set_archived`; `ConversationList` filters active vs archived using RPC result plus `AUTO_ARCHIVED_STATUSES`
+- Status values: `ouvert`, `en_cours`, `a_traiter`, `resolu`, `abandonne`; admin lists treat `resolu|abandonne` as archived by default
+- Realtime subscriptions
+  - Client: `subscribeToClientChatMessages` (per conversation) and `subscribeToClientConversations` (identity channel)
+  - Admin: Supabase channel `public:chat_live_admin` watching `chat_conversations`
+- Performance: throttle refresh of conversations (~250 ms) and prefer cache updates (`queryClient.setQueryData`) instead of massive invalidations
+- Security
+  - Client RLS: `client_update_chat_last_viewed` policy + column grant on `client_archived`; status transitions require RPC
+  - Admin actions rely on security definer RPCs for archive toggle; direct SQL updates should be avoided
+<!-- ANCHOR:DIFFS_WITH_WIDGET -->
+- Widget "Le Chat" reste un canal autonome (pas de selection staff)
+- Live Chat impose la selection du staff, la reouverture des fils et un archivage coherant client/admin
+<!-- AUTO:END -->
