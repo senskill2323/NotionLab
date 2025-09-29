@@ -1,16 +1,4 @@
-﻿---
-title: "NotionLab Guide IA - Module Formations"
-version: "2"
-date: "2025-01-18"
-owner: "NEEDS-VERIFY Provide owner or primary contact."
-description: Guides de style, conventions commits, branches, PR, commentaires, README, licences, RFC internes, dÃ©prÃ©ciation.
----
-
-<!-- AUTO:BEGIN -->
-<!-- ANCHOR:OVERVIEW -->
-Les regles extraites de readmeIA encadrent les interventions IA, les conventions de nommage et l'usage de Supabase dans le module Formations.
-
-<!-- ANCHOR:STANDARDS -->
+﻿<!-- ANCHOR:STANDARDS -->
 - Reutiliser le client Supabase fourni par src/lib/customSupabaseClient pour beneficier du timeout et du singleton GoTrue.
 - Invitations admin :
   - Utiliser supabase.functions.invoke('invite-user', ...) depuis l'UI admin ; pas de service-role cote client.
@@ -24,7 +12,7 @@ Les regles extraites de readmeIA encadrent les interventions IA, les conventions
   - Documenter la permission (rules/04-database) et invalider les caches apres migration (emitSessionRefresh, PermissionsContext).
 - Conserver le nommage snake_case et les prefixes get_/set_/search_ pour toute nouvelle fonction SQL ou migration dans Supabase/migrations/.
 - Ne jamais exposer SUPABASE_SERVICE_ROLE dans le code client et limiter la diffusion du fichier .env.local.
-- TheÌ€mes UI: versionner les changements dans `Supabase/migrations/<date>_themes_and_rpcs.sql` en conservant les noms RPC `get_active_theme_tokens` et `set_active_theme`. Restreindre `set_active_theme` aux admins/owners via RLS/policies et/ou gardes dans la fonction.
+- Themes UI: versionner les changements dans `Supabase/migrations/<date>_themes_and_rpcs.sql` en conservant les noms RPC `get_active_theme_tokens` et `set_active_theme`. Restreindre `set_active_theme` aux admins/owners via RLS/policies et/ou gardes dans la fonction.
  - Onboarding formation (standards UI):
    - Cartes cliquables pour single/multi, sliders 1â€“5 avec ancres, aucune question obligatoire.
    - FR uniquement (tutoiement), disclaimer minimal sous Â« Valider Â» interdisant les donnÃ©es sensibles.
@@ -80,13 +68,3 @@ const { data, error } = await supabase.rpc('get_user_courses_and_parcours', {
 const { data: tokens } = await supabase.rpc('get_active_theme_tokens');
 if (tokens) applyTheme(tokens);
 ```
-
-<!-- ANCHOR:LIMITS -->
-- NEEDS-VERIFY : confirmer la presence d'automatisation de tests pour les formations.
-- NEEDS-VERIFY : valider l'encodage des fichiers contenant des caracteres etendus avant edition.
- - Ã‰tapes: brief cible 4â€“6 Ã©tapes; seed en 10 sections. RÃ©duire en dÃ©sactivant des sections/questions cÃ´tÃ© admin (le wizard masque automatiquement les sections vides) ou regrouper cÃ´tÃ© UI (Ã©volution).
- - Encodage FR: prÃ©voir une migration de correction dâ€™accents sur titres/libellÃ©s `training_onboarding_*` sans toucher aux `slug`/`value`.
-<!-- AUTO:END -->
-
-
-

@@ -15,6 +15,10 @@ const ClientLiveChatPage = () => {
   const { toast } = useToast();
   const conversationParam = searchParams.get('conversation');
 
+  useEffect(() => {
+    console.debug('client-live-chat user', user);
+  }, [user]);
+
   const liveChat = useClientLiveChat({ user, initialConversationId: conversationParam });
   const {
     identifiersReady,

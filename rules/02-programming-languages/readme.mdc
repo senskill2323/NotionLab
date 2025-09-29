@@ -67,8 +67,3 @@ const configQuery = useQuery({
 create index if not exists training_onboarding_question_options_question_order_idx
   on public.training_onboarding_question_options(question_id, sort_order);
 ```
-
-<!-- ANCHOR:LIMITS -->
-- Les imports Deno (`std@0.168.0`, `npm:resend@3.4.0`) peuvent générer de faux lint errors dans l'IDE; exécution correcte dans le runtime Supabase.
-- Encodage FR: corriger les libellés/titres seedés affichant « ? » via une migration d’UPDATE.
-<!-- AUTO:END -->

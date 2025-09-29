@@ -314,7 +314,7 @@ const AdminLiveChatPanel = ({
     setNewConversationError('');
 
     try {
-      const conversation = await startAdminConversation({ staffUserId, recipient });
+      const conversation = await startAdminConversation({ staffUserId, recipient, forceNew: true });
       if (!conversation?.id) {
         throw new Error('Conversation introuvable apres creation.');
       }

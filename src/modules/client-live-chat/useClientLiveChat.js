@@ -96,6 +96,7 @@ export const useClientLiveChat = ({ user, initialConversationId = null } = {}) =
   const { toast } = useToast();
   const { guestId, guestEmail, guestKey } = getClientGuestIdentifiers(user);
   const normalizedGuestKey = guestKey || guestEmail || guestId || 'anonymous';
+  console.debug('client-live-chat identifiers', { guestId, guestEmail, guestKey, normalizedGuestKey });
   const [view, setView] = useState('active');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedConversationId, setSelectedConversationId] = useState(initialConversationId);
@@ -347,7 +348,12 @@ export const useClientLiveChat = ({ user, initialConversationId = null } = {}) =
 
   useEffect(() => {
     if (!selectedConversationId) return;
+    console.debug('client-live-chat subscribe:start', {
+      selectedConversationId,
+      messageCount: messages?.length ?? 0,
+    });
     const subscription = subscribeToClientChatMessages(selectedConversationId, (payload) => {
+      console.debug('client-live-chat realtime payload', payload);
       const message = payload?.new;
       if (!message?.conversation_id) {
         return;
@@ -376,6 +382,7 @@ export const useClientLiveChat = ({ user, initialConversationId = null } = {}) =
       });
     });
     return () => {
+      console.debug('client-live-chat subscribe:cleanup', { selectedConversationId });
       subscription?.unsubscribe?.();
     };
   }, [patchConversationInCache, queryClient, selectedConversationId]);

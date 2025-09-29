@@ -1,4 +1,4 @@
----
+﻿---
 title: "Live Chat - Database Notes"
 version: "2"
 date: "2025-10-09"
@@ -17,6 +17,7 @@ description: Live Chat tables, RPCs and grants for client and admin surfaces.
     - `status text` in { `ouvert`,`en_cours`,`a_traiter`,`resolu`,`abandonne` }
     - `client_archived boolean default false`
     - `admin_archived boolean default false`
+    - Aucun index unique sur (guest_id, guest_email) pour permettre plusieurs fils admin sur un meme guest
     - `client_last_viewed_at timestamptz`
     - `admin_last_viewed_at timestamptz`
   - `public.chat_messages`
@@ -26,15 +27,15 @@ description: Live Chat tables, RPCs and grants for client and admin surfaces.
   - `get_chat_conversations_with_details()` -> list conversations scoped by auth identity, exposes staff metadata and `has_unread`
   - `client_list_chat_staff_users()` -> returns active staff (`owner|admin|prof`)
   - `client_start_chat_conversation(p_staff_user_id uuid)` -> reuse open thread or create one; reopens `resolu|abandonne` by forcing `status='ouvert'` and `client_archived=false`
+  - `startAdminConversation({ staffUserId, recipient, forceNew })` (helper JS) insere/rouvre des fils via `chat_conversations`; `forceNew=true` force un nouveau fil, `forceNew=false` reouvre le dernier en retirant l''archivage et en remettant `status='ouvert'`
   - `client_chat_set_archived(p_conversation_id uuid, p_archived boolean)` -> only allowed path for the client toggle; checks ownership (`guest_id`, `profiles.chat_guest_id`, `guest_email`), flips `client_archived`, aligns `status` (`resolu`<->`ouvert`) and refreshes `updated_at`
   - `admin_chat_set_archived(p_id uuid, p_archived boolean)` -> admin toggle RPC (see `Supabase/migrations/2025-10-08_admin_chat_set_archived.sql`); updates `admin_archived`, aligns `status` and refreshes `updated_at`
   - `admin_get_chat_conversations_with_details(p_archived boolean default null, p_limit integer default 50, p_offset integer default 0)` -> staff listing RPC (see `Supabase/migrations/2025-10-10_admin_get_chat_conversations_with_details.sql`); checks role (owner/admin/prof), applies pagination and exposes `has_unread` based on `admin_last_viewed_at`
   - Other mutations (messages, resources, file uploads) must keep `sender` aligned with the caller role (`user` for clients, `admin|owner|prof` for staff)
-
 - Grants and RLS
   - Clients: policy `client_update_chat_last_viewed` allows updating `client_last_viewed_at`; column-level grant lets `authenticated` update `client_archived`, but status changes must go through `client_chat_set_archived`
   - Staff: `admin_chat_set_archived` runs as security definer; direct updates to `admin_archived` or `status` should avoid bypassing the RPC
 
 - Maintenance
   - Legacy status alignment: `update public.chat_conversations set status='ouvert' where status='open';` (see `Supabase/migrations/2025-10-07_align_chat_statuses.sql`)
-<!-- AUTO:END -->
+<!-- AUTO:END -->`r`n
