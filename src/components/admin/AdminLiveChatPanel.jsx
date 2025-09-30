@@ -18,6 +18,10 @@ const RECIPIENT_ROLE_LABELS = {
   client: 'Client',
 };
 
+const ADMIN_CHANNEL_TOPIC = 'chat-live-admin';
+const ADMIN_CONVERSATION_EVENT = 'conversation';
+const ADMIN_MESSAGE_EVENT = 'message';
+
 /**
  * @param {Object} props
  * @param {'active' | 'archived'} [props.initialView='active'] Initial view to render.
@@ -182,72 +186,96 @@ const AdminLiveChatPanel = ({
   }, [selectedConversation, markConversationAsViewed, onConversationSelected]);
 
   useEffect(() => {
-    const channel = supabase
-      .channel('public:chat_live_admin')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_conversations' }, (payload) => {
-        const eventType = payload?.eventType;
-        const newRecord = payload?.new;
-        const oldRecord = payload?.old;
+    const channel = supabase.channel(ADMIN_CHANNEL_TOPIC, { config: { broadcast: { self: true, ack: true } } });
 
-        if (eventType === 'INSERT') {
+    const handleConversationEvent = (event) => {
+      const payload = event?.payload;
+      if (!payload) {
+        fetchConversations({ background: true });
+        return;
+      }
+
+      const eventType = payload.eventType;
+      const newRecord = payload.new;
+      const oldRecord = payload.old;
+
+      if (eventType === 'INSERT') {
+        fetchConversations({ background: true });
+        return;
+      }
+
+      if (eventType === 'DELETE') {
+        if (oldRecord?.id) {
+          setConversations((prev) => (Array.isArray(prev) ? prev.filter((conversation) => conversation.id !== oldRecord.id) : []));
+        }
+        return;
+      }
+
+      if (eventType === 'UPDATE') {
+        if (!newRecord) {
           fetchConversations({ background: true });
           return;
         }
 
-        if (eventType === 'DELETE') {
-          if (oldRecord?.id) {
-            setConversations((prev) => (Array.isArray(prev) ? prev.filter((conversation) => conversation.id !== oldRecord.id) : []));
-          }
+        const requiresRefetch =
+          newRecord.staff_user_id !== oldRecord?.staff_user_id ||
+          newRecord.status !== oldRecord?.status ||
+          newRecord.admin_archived !== oldRecord?.admin_archived;
+
+        if (requiresRefetch) {
+          fetchConversations({ background: true });
           return;
         }
 
-        if (eventType === 'UPDATE') {
-          if (!newRecord) {
-            fetchConversations({ background: true });
-            return;
-          }
-
-          const requiresRefetch =
-            newRecord.staff_user_id !== oldRecord?.staff_user_id ||
-            newRecord.status !== oldRecord?.status ||
-            newRecord.admin_archived !== oldRecord?.admin_archived;
-
-          if (requiresRefetch) {
-            fetchConversations({ background: true });
-            return;
-          }
-
-          setConversations((prev) => {
-            if (!Array.isArray(prev)) return prev;
-            return prev.map((conversation) =>
-              conversation.id === newRecord.id
-                ? { ...conversation, updated_at: newRecord.updated_at }
-                : conversation
-            );
-          });
-        }
-      })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, (payload) => {
         setConversations((prev) => {
-          const updated = prev.map((conversation) => {
-            if (conversation.id === payload.new.conversation_id) {
-              return {
-                ...conversation,
-                summary: payload.new.content?.substring(0, 45),
-                updated_at: payload.new.created_at,
-              };
-            }
-            return conversation;
-          });
-          return updated.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+          if (!Array.isArray(prev)) return prev;
+          return prev.map((conversation) =>
+            conversation.id === newRecord.id
+              ? { ...conversation, updated_at: newRecord.updated_at }
+              : conversation
+          );
         });
-      })
-      .subscribe();
+      }
+    };
+
+    const handleMessageEvent = (event) => {
+      const payload = event?.payload;
+      const message = payload?.new;
+      if (!message?.conversation_id) return;
+
+      setConversations((prev) => {
+        if (!Array.isArray(prev)) return prev;
+        const updated = prev.map((conversation) => {
+          if (conversation.id === message.conversation_id) {
+            return {
+              ...conversation,
+              summary: message.content?.substring(0, 45) || conversation.summary || '',
+              updated_at: message.created_at,
+            };
+          }
+          return conversation;
+        });
+        return updated.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+      });
+    };
+
+    channel.on('broadcast', { event: ADMIN_CONVERSATION_EVENT }, handleConversationEvent);
+    channel.on('broadcast', { event: ADMIN_MESSAGE_EVENT }, handleMessageEvent);
+
+    channel.subscribe((status) => {
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        console.error('admin live chat channel issue', { status });
+      }
+    });
 
     return () => {
+      if (typeof channel.unsubscribe === 'function') {
+        channel.unsubscribe();
+      }
       supabase.removeChannel(channel);
     };
   }, [fetchConversations]);
+
 
   const handleSelectConversation = useCallback((conversation) => {
     setSelectedConversation(conversation);

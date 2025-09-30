@@ -4,10 +4,10 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
+import { setAdminConversationArchived } from '@/lib/chatApi';
 import { Search, Archive, ArchiveRestore, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useDebounce } from 'use-debounce';
@@ -100,10 +100,9 @@ const ConversationList = ({ conversations, selectedConversation, onSelectConvers
     try {
       const currentArchived = Object.prototype.hasOwnProperty.call(archOverrides, conversation.id)
         ? !!archOverrides[conversation.id]
-        : (conversation.admin_archived === true);
+        : conversation.admin_archived === true;
       const nextArchived = !currentArchived;
-      const { error } = await supabase.rpc('admin_chat_set_archived', { p_id: conversation.id, p_archived: nextArchived });
-      if (error) throw error;
+      await setAdminConversationArchived(conversation.id, nextArchived);
       setArchOverrides((prev) => ({ ...prev, [conversation.id]: nextArchived }));
       toast({ title: 'Succes', description: nextArchived ? 'Conversation archivee.' : 'Conversation desarchivee.' });
     } catch (err) {

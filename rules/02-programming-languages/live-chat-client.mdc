@@ -1,4 +1,4 @@
----
+﻿---
 title: "Live Chat - Code Patterns"
 version: "2"
 date: "2025-10-09"
@@ -19,14 +19,15 @@ description: Hooks, helpers and Supabase usage for client/admin live chat module
   - `listClientConversations()` -> RPC `get_chat_conversations_with_details`
   - `listChatStaffUsers()` -> RPC `client_list_chat_staff_users`
   - `startClientConversation({ staffUserId, initialMessage? })` -> RPC `client_start_chat_conversation`; normalize booleans (`client_archived`, `has_unread`)
-  - `archiveClientConversation(conversationId, archived)` -> RPC `client_chat_set_archived`; do not issue direct table updates from the client
-  - `sendMessage` / `sendFile` / `sendResource` write to `chat_messages` with `sender` derived from caller (`user` for client, staff role otherwise)
+  - `archiveClientConversation(conversationId, archived)` -> RPC `client_chat_set_archived`; emits `conversation` broadcast events via chatApi helpers
+  - `sendMessage` / `sendFile` / `sendResource` -> insert `chat_messages` puis `broadcastMessageChange` pour propager l'evenement `message`
+  - `subscribeToClientChatMessages`, `subscribeToClientConversations`, `getOrCreateConversation.subscribeToMessages` s'appuient sur Supabase broadcast (topics `client-chat-messages-*`, `client-chat-conversations-*`) avec acquittement et auto-cleanup
 
 - Admin panel specifics
-  - `AdminLiveChatPanel` fetches active vs archived using Supabase RPC + filters; view change resets `selectedConversation`
-  - `ConversationList` uses `admin_chat_set_archived` for toggles and maintains overrides while Supabase realtime catches up
-  - Mark as read uses direct update of `admin_last_viewed_at` (allowed for staff)
+  - `AdminLiveChatPanel` fetches active vs archived via RPC `admin_get_chat_conversations_with_details`; broadcast `conversation` et `message` alimentent les mises a jour locales
+  - `ConversationList` utilise le helper `setAdminConversationArchived` (RPC `admin_chat_set_archived`) qui publie l'evenement `conversation`
+  - Mark as read: update `admin_last_viewed_at` via supabase.from(...).update + toast en cas d'echec
 
-- Supabase client: always use `@/lib/customSupabaseClient` (handles timeouts and auth)
-- Never expose service role or secrets; privileged logic must stay in SQL RPCs or Edge functions
+- Supabase client: toujours passer par `@/lib/customSupabaseClient` (timeouts + auth)
+- Ne jamais exposer la service role; toute logique privilegiee reste dans les RPCs ou Edge functions
 <!-- AUTO:END -->

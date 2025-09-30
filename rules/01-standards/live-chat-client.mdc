@@ -1,4 +1,4 @@
----
+﻿---
 title: "Live Chat - UI Standards"
 version: "2"
 date: "2025-10-09"
@@ -14,6 +14,6 @@ description: UX conventions, status badges and cache behaviour for Live Chat cli
   - Client: icone corbeille -> `client_chat_set_archived` (status aligne `resolu` <-> `ouvert`); la liste "Archivees" ne doit afficher que les conversations archivables
   - Admin: `ConversationList` traite `resolu|abandonne` comme archive par defaut et s'appuie sur `admin_chat_set_archived`
 - Navigation entre vues: bascule Active/Archivee doit reinitialiser la conversation selectionnee si elle n'appartient plus a la vue courante
-- Realtime & reseau: regrouper les rafraichissements via scheduler/throttle (~250 ms); privilegier `queryClient.setQueryData` pour les mises a jour optimistes
+- Realtime & reseau: rely on Supabase broadcast payloads (events `conversation`/`message`); regrouper les rafraichissements via scheduler/throttle (~250 ms) et privilegier `queryClient.setQueryData` pour les mises a jour optimistes
 - Accessibilite: Dialog annonce titre/description, desactive le CTA tant qu'aucun destinataire n'est choisi et affiche un message d'erreur concis
 <!-- AUTO:END -->

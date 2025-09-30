@@ -3,6 +3,176 @@ import { v4 as uuidv4 } from 'uuid';
 const STAFF_USER_TYPES = ['owner', 'admin', 'prof'];
 const ADMIN_RECIPIENT_TYPES = new Set([...STAFF_USER_TYPES, 'client']);
 
+const BROADCAST_MESSAGE_EVENT = 'message';
+const BROADCAST_CONVERSATION_EVENT = 'conversation';
+const ADMIN_BROADCAST_TOPIC = 'chat-live-admin';
+const BROADCAST_SUBSCRIBE_TIMEOUT_MS = 5000;
+
+const createBroadcastChannel = (topic) =>
+  supabase.channel(topic, { config: { broadcast: { self: true, ack: true } } });
+
+const broadcastChannelRegistry = new Map();
+
+const acquireBroadcastChannel = (topic) => {
+  if (!topic) return null;
+  const existing = broadcastChannelRegistry.get(topic);
+  if (existing) {
+    existing.refCount += 1;
+    return existing.channel;
+  }
+  const channel = createBroadcastChannel(topic);
+  broadcastChannelRegistry.set(topic, { channel, refCount: 1 });
+  return channel;
+};
+
+const releaseBroadcastChannel = (channel) => {
+  if (!channel) return;
+  const topic = channel.topic;
+  if (!topic) return;
+  const entry = broadcastChannelRegistry.get(topic);
+  if (!entry) {
+    try {
+      supabase.removeChannel(channel);
+    } catch (releaseError) {
+      console.warn('Broadcast channel cleanup failed', { topic, error: releaseError });
+    }
+    return;
+  }
+  entry.refCount -= 1;
+  if (entry.refCount <= 0) {
+    broadcastChannelRegistry.delete(topic);
+    try {
+      if (typeof channel.unsubscribe === 'function') {
+        channel.unsubscribe();
+      }
+    } catch (unsubscribeError) {
+      console.warn('Broadcast channel unsubscribe failed', { topic, error: unsubscribeError });
+    }
+    try {
+      supabase.removeChannel(channel);
+    } catch (removeError) {
+      console.warn('Broadcast channel remove failed', { topic, error: removeError });
+    }
+  }
+};
+
+const ensureChannelSubscribed = async (channel) => {
+  if (!channel) return null;
+  if (channel.state === 'joined') return channel;
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      resolve(channel);
+    };
+
+    const timeoutId = setTimeout(() => {
+      console.warn('Broadcast channel subscribe timeout', { topic: channel.topic });
+      finish();
+    }, BROADCAST_SUBSCRIBE_TIMEOUT_MS);
+
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        clearTimeout(timeoutId);
+        finish();
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        clearTimeout(timeoutId);
+        console.warn('Broadcast channel subscribe issue', { topic: channel.topic, status });
+        finish();
+      }
+    });
+  });
+};
+
+const sendBroadcastToTopic = async (topic, event, payload) => {
+  if (!topic) return;
+  const channel = acquireBroadcastChannel(topic);
+  if (!channel) return;
+  try {
+    await ensureChannelSubscribed(channel);
+    const result = await channel.send({ type: 'broadcast', event, payload });
+    if (result?.error) {
+      console.error('Broadcast send failed', { topic, event, error: result.error });
+    }
+  } catch (error) {
+    console.error('Broadcast send threw', { topic, event, error });
+  } finally {
+    releaseBroadcastChannel(channel);
+  }
+};
+
+const getMessageChannelTopic = (conversationId) => (conversationId ? `client-chat-messages-${conversationId}` : null);
+
+const getClientConversationChannelTopic = ({ guestId, guestEmail }) => {
+  const parts = ['client-chat-conversations'];
+  if (guestId) parts.push(guestId);
+  if (guestEmail) parts.push(guestEmail);
+  return parts.length > 1 ? parts.join('-') : null;
+};
+
+const normalizeConversationForBroadcast = (conversation) => {
+  if (!conversation) return null;
+  return {
+    ...conversation,
+    client_archived:
+      typeof conversation.client_archived === 'boolean'
+        ? conversation.client_archived
+        : Boolean(conversation.client_archived),
+    admin_archived:
+      typeof conversation.admin_archived === 'boolean'
+        ? conversation.admin_archived
+        : conversation.admin_archived === null
+          ? null
+          : Boolean(conversation.admin_archived),
+    has_unread:
+      typeof conversation.has_unread === 'boolean'
+        ? conversation.has_unread
+        : conversation.has_unread === null || typeof conversation.has_unread === 'undefined'
+          ? conversation.has_unread ?? null
+          : Boolean(conversation.has_unread),
+  };
+};
+
+const broadcastMessageChange = async ({ eventType, record, previous = null }) => {
+  const payload = {
+    eventType,
+    new: record || null,
+    old: previous || null,
+  };
+  const conversationId = record?.conversation_id || previous?.conversation_id;
+  if (!conversationId) return;
+  await Promise.all([
+    sendBroadcastToTopic(getMessageChannelTopic(conversationId), BROADCAST_MESSAGE_EVENT, payload),
+    sendBroadcastToTopic(ADMIN_BROADCAST_TOPIC, BROADCAST_MESSAGE_EVENT, payload),
+  ]);
+};
+
+const broadcastConversationChange = async ({ eventType, record, previous = null }) => {
+  const normalizedNew = normalizeConversationForBroadcast(record);
+  const normalizedOld = normalizeConversationForBroadcast(previous);
+  if (!normalizedNew && !normalizedOld) return;
+
+  const payload = {
+    eventType,
+    new: normalizedNew,
+    old: normalizedOld,
+  };
+
+  const targets = new Set([ADMIN_BROADCAST_TOPIC]);
+  const reference = normalizedNew || normalizedOld;
+  const clientTopic = getClientConversationChannelTopic({
+    guestId: reference?.guest_id || null,
+    guestEmail: reference?.guest_email || null,
+  });
+  if (clientTopic) targets.add(clientTopic);
+
+  await Promise.all(
+    Array.from(targets).map((topic) => sendBroadcastToTopic(topic, BROADCAST_CONVERSATION_EVENT, payload))
+  );
+};
+
 const normalizeAdminConversation = (conversation) => {
   if (!conversation) return conversation;
   return {
@@ -99,8 +269,12 @@ export const archiveClientConversation = async (conversationId, archived) => {
     throw new Error("Impossible de mettre a jour l'archivage de la conversation.");
   }
 
-  return normalizeClientConversation(data);
+  const normalized = normalizeClientConversation(data);
+  await broadcastConversationChange({ eventType: 'UPDATE', record: normalized });
+
+  return normalized;
 };
+
 export const getOrCreateConversation = async (user) => {
   if (!user) throw new Error("Utilisateur non authentifiÃƒÂ©.");
 
@@ -129,25 +303,58 @@ export const getOrCreateConversation = async (user) => {
 };
 
 getOrCreateConversation.subscribeToMessages = (conversationId, callback) => {
-  const channel = supabase
-    .channel(`chat_messages:conversation_id=eq.${conversationId}`)
-    .on(
-      'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `conversation_id=eq.${conversationId}` },
-      async (payload) => {
+  if (!conversationId) return null;
+
+  const topic = getMessageChannelTopic(conversationId);
+  if (!topic) return null;
+
+  const channel = acquireBroadcastChannel(topic);
+  if (!channel) return null;
+
+  let active = true;
+
+  const handlePayload = async (payload) => {
+    if (!active) return;
+    if (!payload) return;
+
+    let message = payload.new;
+    const messageId = payload?.new?.id;
+
+    if (messageId) {
+      try {
         const { data, error } = await supabase
           .from('chat_messages')
           .select('*, resource:resources(id, name, url, file_path)')
-          .eq('id', payload.new.id)
+          .eq('id', messageId)
           .single();
+
         if (!error && data) {
-          callback(data);
+          message = data;
         }
+      } catch (error) {
+        console.error('subscribeToMessages enrichment failed', error);
       }
-    )
-    .subscribe();
-  
-  return channel;
+    }
+
+    if (message && typeof callback === 'function') {
+      callback(message);
+    }
+  };
+
+  channel.on('broadcast', { event: BROADCAST_MESSAGE_EVENT }, (event) => {
+    handlePayload(event?.payload ?? null);
+  });
+
+  ensureChannelSubscribed(channel).catch((error) => {
+    console.error('subscribeToMessages subscribe failed', { topic, error });
+  });
+
+  return {
+    unsubscribe: () => {
+      active = false;
+      releaseBroadcastChannel(channel);
+    },
+  };
 };
 
 export const getClientChatStatus = async ({ guestId, guestEmail }) => {
@@ -225,23 +432,35 @@ export const markConversationViewedByClient = async (conversationId) => {
 export const subscribeToClientChatMessages = (conversationId, callback) => {
   if (!conversationId) return null;
 
-  const channel = supabase.channel(`client-chat-messages-${conversationId}`);
+  const topic = getMessageChannelTopic(conversationId);
+  if (!topic) return null;
+
+  const channel = acquireBroadcastChannel(topic);
+  if (!channel) return null;
+
+  let active = true;
 
   const handlePayload = async (payload) => {
+    if (!active) return;
+    if (!payload) return;
     let enrichedPayload = payload;
     const messageId = payload?.new?.id;
 
     if (messageId) {
-      const { data, error } = await supabase
-        .from('chat_messages')
-        .select('*, resource:resources(id, name, url, file_path)')
-        .eq('id', messageId)
-        .single();
+      try {
+        const { data, error } = await supabase
+          .from('chat_messages')
+          .select('*, resource:resources(id, name, url, file_path)')
+          .eq('id', messageId)
+          .single();
 
-      if (!error && data) {
-        enrichedPayload = { ...payload, new: data };
-      } else if (error) {
-        console.error('subscribeToClientChatMessages enrichment failed', error);
+        if (!error && data) {
+          enrichedPayload = { ...payload, new: data };
+        } else if (error) {
+          console.error('subscribeToClientChatMessages enrichment failed', error);
+        }
+      } catch (error) {
+        console.error('subscribeToClientChatMessages enrichment threw', error);
       }
     }
 
@@ -250,71 +469,51 @@ export const subscribeToClientChatMessages = (conversationId, callback) => {
     }
   };
 
- channel
-    .on(
-      'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `conversation_id=eq.${conversationId}` },
-      handlePayload
-    )
-    .on(
-      'postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'chat_messages', filter: `conversation_id=eq.${conversationId}` },
-      handlePayload
-    )
-    .on(
-      'postgres_changes',
-      { event: 'DELETE', schema: 'public', table: 'chat_messages', filter: `conversation_id=eq.${conversationId}` },
-      (payload) => {
-        if (typeof callback === 'function') {
-          callback(payload);
-        }
-      }
-    );
-
-  channel.subscribe((status, err) => {
-    console.debug('client-live-chat channel status', { conversationId, status, error: err });
+  channel.on('broadcast', { event: BROADCAST_MESSAGE_EVENT }, (event) => {
+    if (!active) return;
+    handlePayload(event?.payload ?? null);
   });
 
-  // Provide a consistent unsubscribe interface that fully removes the channel
+  ensureChannelSubscribed(channel).catch((error) => {
+    console.error('subscribeToClientChatMessages subscribe failed', { topic, error });
+  });
+
   return {
-    unsubscribe: () => supabase.removeChannel(channel),
+    unsubscribe: () => {
+      active = false;
+      releaseBroadcastChannel(channel);
+    },
   };
 };
 
 export const subscribeToClientConversations = (params, callback) => {
-  const filters = [];
-  const nameParts = ['client-chat-conversations'];
+  const guestId = params?.guestId || null;
+  const guestEmail = params?.guestEmail || null;
+  const topic = getClientConversationChannelTopic({ guestId, guestEmail });
+  if (!topic) return null;
 
-  if (params?.guestId) {
-    filters.push({ type: 'guest_id', value: params.guestId });
-    nameParts.push(params.guestId);
-  }
+  const channel = acquireBroadcastChannel(topic);
+  if (!channel) return null;
 
-  if (params?.guestEmail) {
-    filters.push({ type: 'guest_email', value: params.guestEmail });
-    nameParts.push(params.guestEmail);
-  }
+  let active = true;
 
-  if (filters.length === 0) return null;
-
-  const channel = supabase.channel(nameParts.join('-'));
-
-  filters.forEach(({ type, value }) => {
-    channel.on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'chat_conversations', filter: `${type}=eq.${value}` },
-      (payload) => {
-        if (typeof callback === 'function') {
-          callback(payload);
-        }
-      }
-    );
+  channel.on('broadcast', { event: BROADCAST_CONVERSATION_EVENT }, (event) => {
+    if (!active) return;
+    const payload = event?.payload ?? null;
+    if (typeof callback === 'function') {
+      callback(payload);
+    }
   });
 
-  channel.subscribe();
+  ensureChannelSubscribed(channel).catch((error) => {
+    console.error('subscribeToClientConversations subscribe failed', { topic, error });
+  });
 
   return {
-    unsubscribe: () => supabase.removeChannel(channel),
+    unsubscribe: () => {
+      active = false;
+      releaseBroadcastChannel(channel);
+    },
   };
 };
 
@@ -332,15 +531,21 @@ export const fetchMessages = async (conversationId) => {
 const getSenderRole = (isAdmin) => (isAdmin ? 'admin' : 'user');
 
 export const sendMessage = async (conversationId, content, isAdmin) => {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('chat_messages')
     .insert({
       conversation_id: conversationId,
       sender: getSenderRole(isAdmin),
-      content: content,
-    });
+      content,
+    })
+    .select('*')
+    .single();
 
-  if (error) throw new Error(`Votre message n'a pas pu ÃƒÂªtre envoyÃƒÂ©: ${error.message}`);
+  if (error) throw new Error(`Votre message n'a pas pu etre envoye: ${error.message}`);
+
+  await broadcastMessageChange({ eventType: 'INSERT', record: data });
+
+  return data;
 };
 
 export const sendFile = async (file, conversation, isAdmin) => {
@@ -348,30 +553,48 @@ export const sendFile = async (file, conversation, isAdmin) => {
   const filePath = `${conversation.guest_id}/${fileName}`;
 
   const { error: uploadError } = await supabase.storage.from('chat_attachments').upload(filePath, file);
-  if (uploadError) throw new Error(`Ãƒâ€°chec de l'envoi du fichier: ${uploadError.message}`);
+  if (uploadError) throw new Error(`Echec de l'envoi du fichier: ${uploadError.message}`);
 
-  const { data: { publicUrl } } = supabase.storage.from('chat_attachments').getPublicUrl(filePath);
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from('chat_attachments').getPublicUrl(filePath);
 
-  const { error: messageError } = await supabase.from('chat_messages').insert({
-    conversation_id: conversation.id,
-    sender: getSenderRole(isAdmin),
-    content: file.type.startsWith('image/') ? '' : file.name,
-    file_url: publicUrl,
-    file_type: file.type,
-  });
+  const { data: message, error: messageError } = await supabase
+    .from('chat_messages')
+    .insert({
+      conversation_id: conversation.id,
+      sender: getSenderRole(isAdmin),
+      content: file.type.startsWith('image/') ? '' : file.name,
+      file_url: publicUrl,
+      file_type: file.type,
+    })
+    .select('*')
+    .single();
 
-  if (messageError) throw new Error(`Ãƒâ€°chec de l'enregistrement du message: ${messageError.message}`);
+  if (messageError) throw new Error(`Echec de l'enregistrement du message: ${messageError.message}`);
+
+  await broadcastMessageChange({ eventType: 'INSERT', record: message });
+
+  return message;
 };
 
 export const sendResource = async (resource, conversationId, isAdmin) => {
-  const { error } = await supabase.from('chat_messages').insert({
-    conversation_id: conversationId,
-    sender: getSenderRole(isAdmin),
-    content: `Ressource partagÃƒÂ©e : ${resource.name}`,
-    resource_id: resource.id,
-  });
+  const { data, error } = await supabase
+    .from('chat_messages')
+    .insert({
+      conversation_id: conversationId,
+      sender: getSenderRole(isAdmin),
+      content: `Ressource partagee : ${resource.name}`,
+      resource_id: resource.id,
+    })
+    .select('*')
+    .single();
 
-  if (error) throw new Error("Impossible de partager la ressource.");
+  if (error) throw new Error('Impossible de partager la ressource.');
+
+  await broadcastMessageChange({ eventType: 'INSERT', record: data });
+
+  return data;
 };
 
 export const startClientConversation = async ({ staffUserId = null, initialMessage = '' } = {}) => {
@@ -385,6 +608,7 @@ export const startClientConversation = async ({ staffUserId = null, initialMessa
   }
 
   const conversation = normalizeClientConversation(data);
+  await broadcastConversationChange({ eventType: 'INSERT', record: conversation });
 
   const trimmedInitialMessage = initialMessage?.trim();
   if (trimmedInitialMessage) {
@@ -398,6 +622,7 @@ export const startClientConversation = async ({ staffUserId = null, initialMessa
 
   return conversation;
 };
+
 export const listAdminChatRecipients = async () => {
   const { data, error } = await supabase.rpc('admin_list_chat_recipients');
   if (error) {
@@ -443,66 +668,74 @@ export const startAdminConversation = async ({ staffUserId, recipient, forceNew 
     throw new Error('Impossible de determiner le destinataire.');
   }
 
-  const reuseExistingConversation = async () => {
-    const existing = await findLatestConversationForRecipient({ guestId, guestEmail });
-    if (!existing) return null;
+const reuseExistingConversation = async () => {
+  const existing = await findLatestConversationForRecipient({ guestId, guestEmail });
+  if (!existing) return null;
 
-    const shouldResetStatus = ['resolu', 'abandonne'].includes(existing.status || '');
-    const updates = {
-      staff_user_id: staffUserId,
-      admin_archived: false,
-      client_archived: false,
-      updated_at: new Date().toISOString(),
-    };
+  const previousNormalized = normalizeConversationForBroadcast(existing);
 
-    if (shouldResetStatus) {
-      updates.status = 'ouvert';
-    }
-    if (guestId && existing.guest_id !== guestId) {
-      updates.guest_id = guestId;
-    }
-    if (guestEmail && existing.guest_email !== guestEmail) {
-      updates.guest_email = guestEmail;
-    }
-
-    const { data: updated, error: updateError } = await supabase
-      .from('chat_conversations')
-      .update(updates)
-      .eq('id', existing.id)
-      .select('*')
-      .single();
-
-    if (updateError) {
-      throw updateError;
-    }
-
-    return normalizeAdminConversation(updated);
+  const shouldResetStatus = ['resolu', 'abandonne'].includes(existing.status || '');
+  const updates = {
+    staff_user_id: staffUserId,
+    admin_archived: false,
+    client_archived: false,
+    updated_at: new Date().toISOString(),
   };
 
-  const createFreshConversation = async () => {
-    const nowIso = new Date().toISOString();
-    const payload = {
-      guest_id: guestId,
-      guest_email: guestEmail,
-      staff_user_id: staffUserId,
-      status: 'ouvert',
-      admin_archived: false,
-      client_archived: false,
-      updated_at: nowIso,
-    };
+  if (shouldResetStatus) {
+    updates.status = 'ouvert';
+  }
+  if (guestId && existing.guest_id !== guestId) {
+    updates.guest_id = guestId;
+  }
+  if (guestEmail && existing.guest_email !== guestEmail) {
+    updates.guest_email = guestEmail;
+  }
 
-    const { data: inserted, error: insertError } = await supabase
-      .from('chat_conversations')
-      .insert(payload)
-      .select('*')
-      .single();
+  const { data: updated, error: updateError } = await supabase
+    .from('chat_conversations')
+    .update(updates)
+    .eq('id', existing.id)
+    .select('*')
+    .single();
 
-    if (insertError) {
-      throw insertError;
-    }
+  if (updateError) {
+    throw updateError;
+  }
 
-    return normalizeAdminConversation(inserted);
+  const broadcastRecord = normalizeConversationForBroadcast(updated);
+  await broadcastConversationChange({ eventType: 'UPDATE', record: broadcastRecord, previous: previousNormalized });
+
+  return normalizeAdminConversation(updated);
+};
+
+const createFreshConversation = async () => {
+  const nowIso = new Date().toISOString();
+  const payload = {
+    guest_id: guestId,
+    guest_email: guestEmail,
+    staff_user_id: staffUserId,
+    status: 'ouvert',
+    admin_archived: false,
+    client_archived: false,
+    updated_at: nowIso,
   };
+
+  const { data: inserted, error: insertError } = await supabase
+    .from('chat_conversations')
+    .insert(payload)
+    .select('*')
+    .single();
+
+  if (insertError) {
+    throw insertError;
+  }
+
+  const broadcastRecord = normalizeConversationForBroadcast(inserted);
+  await broadcastConversationChange({ eventType: 'INSERT', record: broadcastRecord });
+
+  return normalizeAdminConversation(inserted);
+};
 
   try {
     if (forceNew) {
@@ -532,6 +765,28 @@ export const startAdminConversation = async ({ staffUserId, recipient, forceNew 
     throw new Error('Impossible de creer la conversation.');
   }
 };
+export const setAdminConversationArchived = async (conversationId, archived) => {
+  if (!conversationId) throw new Error('ID de conversation manquant.');
+
+  const { data, error } = await supabase.rpc('admin_chat_set_archived', {
+    p_id: conversationId,
+    p_archived: !!archived,
+  });
+
+  if (error) {
+    console.error('setAdminConversationArchived failed', error);
+    throw error;
+  }
+
+  if (data) {
+    const broadcastRecord = normalizeConversationForBroadcast(data);
+    await broadcastConversationChange({ eventType: 'UPDATE', record: broadcastRecord });
+    return normalizeAdminConversation(data);
+  }
+
+  return null;
+};
+
 export const clearChatHistory = async (conversationId) => {
   if (!conversationId) throw new Error("ID de conversation non fourni.");
 
