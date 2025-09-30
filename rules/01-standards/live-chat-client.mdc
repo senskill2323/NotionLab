@@ -14,7 +14,8 @@ description: UX conventions, status badges and cache behaviour for Live Chat cli
   - Client: icone corbeille -> `client_chat_set_archived` (status aligne `resolu` <-> `ouvert`); la liste "Archivees" ne doit afficher que les conversations archivables
   - Admin: `ConversationList` traite `resolu|abandonne` comme archive par defaut et s'appuie sur `admin_chat_set_archived`
 - Navigation entre vues: bascule Active/Archivee doit reinitialiser la conversation selectionnee si elle n'appartient plus a la vue courante
-- Realtime & reseau: `ClientLiveChatPage` gere directement les canaux Supabase (`client-chat-conversations-*`, `client-chat-messages-*`), hydrate chaque payload avant tri et met a jour le state local; conserver le marquage `client_last_viewed_at` des qu'un message staff est recu sur la conversation ouverte
+- Realtime & reseau: `ClientLiveChatPage` s'adosse a `subscribeToClientChatMessages` (chatApi) qui combine broadcasts `client-chat-messages-*` **et** fallback `postgres_changes` sur `chat_messages`; tout payload est hydrate avant tri et `client_last_viewed_at` reste aligne des qu'un message staff arrive sur la conversation ouverte
 - Accessibilite: Dialog annonce titre/description, desactive le CTA tant qu'aucun destinataire n'est choisi et affiche un message d'erreur concis
 <!-- AUTO:END -->
+
 

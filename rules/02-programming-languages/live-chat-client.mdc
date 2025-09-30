@@ -10,7 +10,7 @@ description: Hooks, helpers and Supabase usage for client/admin live chat module
 <!-- ANCHOR:LIVE_CHAT_CODE -->
 - Orchestrateur client `ClientLiveChatPage.jsx`
   - Chargement initial via `supabase.rpc('get_chat_conversations_with_details')` puis tri avec `sortConversationsByUpdatedAt`
-  - Gestion des canaux `client-chat-conversations-*` / `client-chat-messages-*` au niveau du composant; chaque payload passe par `hydrateMessage()` avant insertion puis la liste est re-triee avec `sortMessagesAscending`
+  - Gestion des canaux `client-chat-conversations-*` / `client-chat-messages-*` via `subscribeToClientChatMessages` (broadcast + fallback `postgres_changes`); chaque payload passe par `hydrateMessage()` avant insertion puis la liste est re-triee avec `sortMessagesAscending`
   - Marquage lecture: des qu'une conversation active est montee ou qu'un message staff arrive sur la selection, update `client_last_viewed_at` (Supabase) et remise a `false` de `has_unread`
   - Envoi message/fichier/ressource: insert direct dans `chat_messages` (generation d'URL publique pour fichiers), hydratation du retour puis `updateConversationFromMessage()`
   - Archivage: appel `supabase.rpc('client_chat_set_archived', ...)` + normalisation locale, avec toasts d'erreur en cas d'echec
@@ -19,7 +19,7 @@ description: Hooks, helpers and Supabase usage for client/admin live chat module
   - `listChatStaffUsers()` -> RPC `client_list_chat_staff_users`
   - `startClientConversation({ staffUserId, initialMessage? })` -> RPC `client_start_chat_conversation` (diffusion broadcast garantie par le helper)
   - Helpers broadcast (`broadcastMessageChange`, `broadcastConversationChange`) restent la voie officielle pour les mutations admin ou le widget embarque
-  - `subscribeToClientChatMessages` / `subscribeToClientConversations` demeurent pour le widget (canaux preconfigures); la page client principale s'attache manuellement aux canaux Supabase
+  - `subscribeToClientChatMessages` / `subscribeToClientConversations` fournissent les flux realtime (broadcast Supabase + fallback `postgres_changes` sur `chat_messages`); le widget comme la page principale reutilisent ces helpers
 - Admin panel specifics
   - `AdminLiveChatPanel` fetches active vs archived via RPC `admin_get_chat_conversations_with_details`; broadcast `conversation` et `message` alimentent les mises a jour locales
   - `ConversationList` utilise le helper `setAdminConversationArchived` (RPC `admin_chat_set_archived`) qui publie l'evenement `conversation`
@@ -28,4 +28,6 @@ description: Hooks, helpers and Supabase usage for client/admin live chat module
 - Supabase client: toujours passer par `@/lib/customSupabaseClient` (timeouts + auth)
 - Ne jamais exposer la service role; toute logique privilegiee reste dans les RPCs ou Edge functions
 <!-- AUTO:END -->
+
+
 

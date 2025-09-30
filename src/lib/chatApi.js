@@ -316,6 +316,7 @@ getOrCreateConversation.subscribeToMessages = (conversationId, callback) => {
   if (!channel) return null;
 
   let active = true;
+  const postgresFilter = `conversation_id=eq.${conversationId}`;
 
   const handlePayload = async (payload) => {
     if (!active) return;
@@ -344,6 +345,19 @@ getOrCreateConversation.subscribeToMessages = (conversationId, callback) => {
       callback(message);
     }
   };
+
+  channel.on(
+    'postgres_changes',
+    { event: '*', schema: 'public', table: 'chat_messages', filter: postgresFilter },
+    (event) => {
+      if (!active) return;
+      const eventType = event?.eventType || event?.type || null;
+      const payload = event
+        ? { eventType, new: event.new ?? null, old: event.old ?? null }
+        : null;
+      handlePayload(payload);
+    }
+  );
 
   channel.on('broadcast', { event: BROADCAST_MESSAGE_EVENT }, (event) => {
     handlePayload(event?.payload ?? null);
@@ -443,6 +457,7 @@ export const subscribeToClientChatMessages = (conversationId, callback) => {
   if (!channel) return null;
 
   let active = true;
+  const postgresFilter = `conversation_id=eq.${conversationId}`;
 
   const handlePayload = async (payload) => {
     if (!active) return;
@@ -472,6 +487,19 @@ export const subscribeToClientChatMessages = (conversationId, callback) => {
       callback(enrichedPayload);
     }
   };
+
+  channel.on(
+    'postgres_changes',
+    { event: '*', schema: 'public', table: 'chat_messages', filter: postgresFilter },
+    (event) => {
+      if (!active) return;
+      const eventType = event?.eventType || event?.type || null;
+      const payload = event
+        ? { eventType, new: event.new ?? null, old: event.old ?? null }
+        : null;
+      handlePayload(payload);
+    }
+  );
 
   channel.on('broadcast', { event: BROADCAST_MESSAGE_EVENT }, (event) => {
     if (!active) return;
