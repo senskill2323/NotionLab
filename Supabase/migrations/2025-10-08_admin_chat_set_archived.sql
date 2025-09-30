@@ -6,6 +6,7 @@ drop function if exists public.admin_chat_set_archived(uuid, boolean);
 create function public.admin_chat_set_archived(p_id uuid, p_archived boolean)
 returns table (
   id uuid,
+  guest_id uuid,
   guest_email text,
   status text,
   admin_archived boolean,
@@ -28,7 +29,7 @@ begin
            status = v_new_status,
            updated_at = now()
      where c.id = p_id
-    returning c.id, c.guest_email, c.status, c.admin_archived, c.client_archived, c.updated_at;
+    returning c.id, c.guest_id, c.guest_email, c.status, c.admin_archived, c.client_archived, c.updated_at;
 end;
 $$;
 

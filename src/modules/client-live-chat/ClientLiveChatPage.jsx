@@ -442,7 +442,7 @@ const ClientLiveChatPage = () => {
           p_archived: !!archived,
         });
         if (error) throw error;
-        const normalized = normalizeClientConversation(data);
+        const normalized = normalizeClientConversation({ ...data, id: conversationId });
         setConversations((prev) =>
           sortConversationsByUpdatedAt(
             prev.map((conversation) =>
