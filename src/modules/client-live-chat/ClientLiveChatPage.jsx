@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -8,7 +8,8 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/components/ui/use-toast';
 import { Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/customSupabaseClient';
-import { getClientGuestIdentifiers, listChatStaffUsers, startClientConversation } from '@/lib/chatApi';
+import { useClientChatIndicator } from '@/hooks/useClientChatIndicator.jsx';
+import { getClientGuestIdentifiers, listChatStaffUsers, startClientConversation, subscribeToClientChatMessages } from '@/lib/chatApi';
 import { v4 as uuidv4 } from 'uuid';
 
 const BROADCAST_EVENT_CONVERSATION = 'conversation';
@@ -57,6 +58,7 @@ const getClientConversationTopic = ({ guestId, guestEmail }) => {
 
 const ClientLiveChatPage = () => {
   const { user, authLoading } = useAuth();
+  const { markAsRead } = useClientChatIndicator();
   const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const conversationParam = searchParams.get('conversation');
@@ -77,7 +79,7 @@ const ClientLiveChatPage = () => {
   const [isLoadingStaffRecipients, setIsLoadingStaffRecipients] = useState(false);
 
   const conversationsChannelRef = useRef(null);
-  const messagesChannelRef = useRef(null);
+  const messagesSubscriptionRef = useRef(null);
 
   const hydrateMessage = useCallback(async (message) => {
     if (!message?.id) return message;
@@ -247,89 +249,62 @@ const ClientLiveChatPage = () => {
   useEffect(() => {
     if (!selectedConversation?.id) {
       setMessages([]);
-      if (messagesChannelRef.current) {
-        supabase.removeChannel(messagesChannelRef.current);
-        messagesChannelRef.current = null;
+      if (messagesSubscriptionRef.current) {
+        messagesSubscriptionRef.current.unsubscribe?.();
+        messagesSubscriptionRef.current = null;
       }
       return;
     }
 
     const conversationId = selectedConversation.id;
     fetchMessagesForConversation(conversationId);
+    if (!isStaff && conversationId) {
+      try { markAsRead(conversationId); } catch (_) {}
+    }
 
-    const channel = supabase
-      .channel(`client-chat-messages-${conversationId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'chat_messages',
-          filter: `conversation_id=eq.${conversationId}`,
-        },
-        (payload) => {
-          const message = payload?.new;
-          if (!message) return;
-          setMessages((prev) => {
-            const exists = prev.some((item) => item.id === message.id);
-            if (exists) {
-              return prev.map((item) => (item.id === message.id ? { ...item, ...message } : item));
-            }
-            return sortMessagesAscending([...prev, message]);
-          });
-          updateConversationFromMessage(message);
-          if (!isStaff && STAFF_SENDERS.has(message.sender || '') && message.conversation_id === selectedConversationId) {
-            markConversationAsViewed(message.conversation_id).catch((error) => {
-              console.error('markConversationAsViewed on message failed', error);
-            });
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'chat_messages',
-          filter: `conversation_id=eq.${conversationId}`,
-        },
-        (payload) => {
-          const message = payload?.new;
-          if (!message) return;
-          setMessages((prev) => prev.map((item) => (item.id === message.id ? { ...item, ...message } : item)));
-          updateConversationFromMessage(message);
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'DELETE',
-          schema: 'public',
-          table: 'chat_messages',
-          filter: `conversation_id=eq.${conversationId}`,
-        },
-        (payload) => {
-          const deletedMessage = payload?.old;
-          if (!deletedMessage?.id) return;
-          setMessages((prev) => prev.filter((item) => item.id !== deletedMessage.id));
-        }
-      );
+    if (messagesSubscriptionRef.current) {
+      messagesSubscriptionRef.current.unsubscribe?.();
+      messagesSubscriptionRef.current = null;
+    }
 
-    channel.subscribe((status) => {
-      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-        console.error('client-live-chat message channel issue', { status, conversationId });
+    const subscription = subscribeToClientChatMessages(conversationId, (payload) => {
+      if (!payload) return;
+      const { eventType, new: message, old: previous } = payload;
+
+      if (eventType === 'DELETE' && previous?.id) {
+        setMessages((prev) => prev.filter((item) => item.id !== previous.id));
+        return;
+      }
+
+      if (!message?.id) return;
+
+      setMessages((prev) => {
+        const exists = prev.some((item) => item.id === message.id);
+        if (exists) {
+          return prev.map((item) => (item.id === message.id ? { ...item, ...message } : item));
+        }
+        return sortMessagesAscending([...prev, message]);
+      });
+
+      updateConversationFromMessage(message);
+
+      if (!isStaff && STAFF_SENDERS.has(message.sender || '') && message.conversation_id === selectedConversationId) {
+        try { markAsRead(message.conversation_id); } catch (_) {}
+        markConversationAsViewed(message.conversation_id).catch((error) => {
+          console.error('markConversationAsViewed on message failed', error);
+        });
       }
     });
 
-    messagesChannelRef.current = channel;
+    messagesSubscriptionRef.current = subscription;
 
     return () => {
-      if (messagesChannelRef.current) {
-        supabase.removeChannel(messagesChannelRef.current);
-        messagesChannelRef.current = null;
+      if (messagesSubscriptionRef.current) {
+        messagesSubscriptionRef.current.unsubscribe?.();
+        messagesSubscriptionRef.current = null;
       }
     };
-  }, [fetchMessagesForConversation, isStaff, markConversationAsViewed, selectedConversation, selectedConversationId, updateConversationFromMessage]);
+  }, [fetchMessagesForConversation, isStaff, markAsRead, markConversationAsViewed, selectedConversation, selectedConversationId, updateConversationFromMessage]);
 
   useEffect(() => {
     if (!identifiersReady) return;

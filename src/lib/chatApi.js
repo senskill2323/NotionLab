@@ -6,7 +6,7 @@ const ADMIN_RECIPIENT_TYPES = new Set([...STAFF_USER_TYPES, 'client']);
 const BROADCAST_MESSAGE_EVENT = 'message';
 const BROADCAST_CONVERSATION_EVENT = 'conversation';
 const ADMIN_BROADCAST_TOPIC = 'chat-live-admin';
-const BROADCAST_SUBSCRIBE_TIMEOUT_MS = 5000;
+const BROADCAST_SUBSCRIBE_TIMEOUT_MS = 15000;
 
 const createBroadcastChannel = (topic) =>
   supabase.channel(topic, { config: { broadcast: { self: true, ack: true } } });
@@ -79,7 +79,6 @@ const ensureChannelSubscribed = async (channel) => {
         finish();
       } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
         clearTimeout(timeoutId);
-        console.warn('Broadcast channel subscribe issue', { topic: channel.topic, status });
         finish();
       }
     });

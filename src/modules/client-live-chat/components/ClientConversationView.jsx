@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Papa from 'papaparse';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -118,13 +118,13 @@ const CompactMessage = ({ message, isFirstInGroup }) => {
   return (
     <div
       className={cn(
-        'flex w-full gap-3',
+        'flex w-full gap-1',
         'animate-in fade-in slide-in-from-bottom-1'
       )}
     >
-      <div className="w-9 flex-shrink-0">
+      <div className="w-7 flex-shrink-0">
         {isFirstInGroup && (
-          <Avatar className="h-9 w-9 border border-border">
+          <Avatar className="h-7 w-7 border border-border">
             <AvatarFallback
               className={cn(
                 'flex h-full w-full items-center justify-center rounded-full',
@@ -140,15 +140,15 @@ const CompactMessage = ({ message, isFirstInGroup }) => {
       </div>
       <div className="flex-1 text-sm">
         {isFirstInGroup && (
-          <div className="mb-1 flex items-baseline gap-2">
+          <div className="mb-0 flex items-baseline gap-2">
             <span className="font-semibold text-foreground" data-author={authorLabel}>
               {authorLabel}
             </span>
             <span className="text-xs text-muted-foreground">{createdAt}</span>
           </div>
         )}
-        <div className="message-bubble rounded-lg bg-card/80 px-4 py-3 text-foreground shadow-sm" data-author={authorLabel}>
-          <div className="message-content flex flex-col gap-2">
+        <div className="message-bubble rounded-lg bg-card/80 px-2 py-1 text-foreground shadow-sm" data-author={authorLabel}>
+          <div className="message-content flex flex-col gap-0">
             <Attachment message={message} />
             {message.content && !message.file_url && <RichTextRenderer content={message.content} />}
           </div>
@@ -159,7 +159,7 @@ const CompactMessage = ({ message, isFirstInGroup }) => {
 };
 
 const ConversationEmptyState = () => (
-  <div className="flex h-full flex-col items-center justify-center gap-3 text-center text-muted-foreground">
+  <div className="flex h-full flex-col items-center justify-center gap-2 text-center text-muted-foreground">
     <Bot className="h-12 w-12 text-primary/50" />
     <p className="font-medium">Selectionnez une conversation pour demarrer</p>
     <p className="text-sm">Les messages recents apparaitront ici.</p>
@@ -167,7 +167,7 @@ const ConversationEmptyState = () => (
 );
 
 const ConversationLoading = () => (
-  <div className="flex h-full flex-col items-center justify-center gap-3 text-primary/70">
+  <div className="flex h-full flex-col items-center justify-center gap-2 text-primary/70">
     <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
     <p className="text-sm font-medium">Chargement des messages...</p>
   </div>
@@ -353,16 +353,20 @@ const ClientConversationView = ({
       <ConversationHeader conversation={conversation} onExport={handleExport} exporting={exporting} isRefreshing={isRefreshing} />
       <div className="flex-1 min-h-0">
         <ScrollArea className="h-full" viewportRef={viewportRef} onMouseUp={handleMouseUp}>
-          <div className="flex flex-col gap-4 px-4 py-4">
+          <div className="flex flex-col gap-0 px-2 py-0">
             {isLoading ? (
               <ConversationLoading />
             ) : groupedMessages.length === 0 ? (
-              <p className="text-center text-sm text-muted-foreground py-12">
+              <p className="text-center text-sm text-muted-foreground py-6">
                 Aucun message pour le moment.
               </p>
             ) : (
-              groupedMessages.map(({ message, isFirstInGroup }) => (
-                <CompactMessage key={message.id || message.created_at} message={message} isFirstInGroup={isFirstInGroup} />
+              groupedMessages.map(({ message, isFirstInGroup }, index) => (
+                <CompactMessage
+                  key={message.id ?? `${message.created_at ?? 'unknown'}:${index}`}
+                  message={message}
+                  isFirstInGroup={isFirstInGroup}
+                />
               ))
             )}
           </div>
@@ -436,3 +440,4 @@ const ClientConversationView = ({
 };
 
 export default ClientConversationView;
+
