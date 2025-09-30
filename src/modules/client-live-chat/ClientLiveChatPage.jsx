@@ -450,6 +450,14 @@ const ClientLiveChatPage = () => {
             )
           )
         );
+        if (archived && selectedConversationId === conversationId) {
+          setSelectedConversationId(null);
+          setMessages([]);
+          lastLoadedConversationIdRef.current = null;
+        }
+        fetchConversations({ background: true }).catch((fetchError) => {
+          console.error('client-live-chat refresh after archive failed', fetchError);
+        });
         toast({
           title: 'Succes',
           description: archived ? 'Conversation archivee.' : 'Conversation desarchivee.',
@@ -463,7 +471,7 @@ const ClientLiveChatPage = () => {
         });
       }
     },
-    [toast]
+    [fetchConversations, selectedConversationId, toast]
   );
 
   const handleStartConversation = useCallback(
