@@ -51,9 +51,15 @@ const sortMessagesAscending = (list) => {
 
 const getClientConversationTopic = ({ guestId, guestEmail }) => {
   const parts = ['client-chat-conversations'];
-  if (guestId) parts.push(guestId);
-  if (guestEmail) parts.push(guestEmail);
-  return parts.length > 1 ? parts.join('-') : null;
+  if (guestId) {
+    parts.push(guestId);
+    return parts.join('-');
+  }
+  if (guestEmail) {
+    parts.push(String(guestEmail).trim().toLowerCase());
+    return parts.join('-');
+  }
+  return null;
 };
 
 const ClientLiveChatPage = () => {
