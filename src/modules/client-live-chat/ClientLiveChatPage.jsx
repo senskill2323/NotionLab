@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -77,6 +77,7 @@ const ClientLiveChatPage = () => {
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [staffRecipients, setStaffRecipients] = useState([]);
   const [isLoadingStaffRecipients, setIsLoadingStaffRecipients] = useState(false);
+  const [skipNextMessagesLoadFor, setSkipNextMessagesLoadFor] = useState(null);
 
   const conversationsChannelRef = useRef(null);
   const messagesSubscriptionRef = useRef(null);
@@ -193,7 +194,7 @@ const ClientLiveChatPage = () => {
         const nowIso = new Date().toISOString();
         await supabase
           .from('chat_conversations')
-          .update({ client_last_viewed_at: nowIso, has_unread: false })
+          .update({ client_last_viewed_at: nowIso })
           .eq('id', conversationId);
         setConversations((prev) =>
           prev.map((conversation) =>
@@ -210,9 +211,13 @@ const ClientLiveChatPage = () => {
   );
 
   const fetchMessagesForConversation = useCallback(
-    async (conversationId) => {
+    async (conversationId, { showSpinner = true } = {}) => {
       if (!conversationId) return;
-      setIsLoadingMessages(true);
+      if (showSpinner) {
+        setIsLoadingMessages(true);
+      }
+
+      
       try {
         const { data, error } = await supabase
           .from('chat_messages')
@@ -257,7 +262,11 @@ const ClientLiveChatPage = () => {
     }
 
     const conversationId = selectedConversation.id;
-    fetchMessagesForConversation(conversationId);
+    const skipSpinner = skipNextMessagesLoadFor === conversationId;
+    fetchMessagesForConversation(conversationId, { showSpinner: !skipSpinner });
+    if (skipSpinner) {
+      setSkipNextMessagesLoadFor(null);
+    }
     if (!isStaff && conversationId) {
       try { markAsRead(conversationId); } catch (_) {}
     }
@@ -304,7 +313,7 @@ const ClientLiveChatPage = () => {
         messagesSubscriptionRef.current = null;
       }
     };
-  }, [fetchMessagesForConversation, isStaff, markAsRead, markConversationAsViewed, selectedConversation, selectedConversationId, updateConversationFromMessage]);
+  }, [fetchMessagesForConversation, isStaff, markAsRead, markConversationAsViewed, selectedConversation, selectedConversationId, skipNextMessagesLoadFor, updateConversationFromMessage]);
 
   useEffect(() => {
     if (!identifiersReady) return;
@@ -407,7 +416,7 @@ const ClientLiveChatPage = () => {
       if (!conversationId) return;
       try {
         const { data, error } = await supabase.rpc('client_chat_set_archived', {
-          p_id: conversationId,
+          p_conversation_id: conversationId,
           p_archived: !!archived,
         });
         if (error) throw error;
@@ -446,7 +455,7 @@ const ClientLiveChatPage = () => {
           });
           return;
         }
-        const conversation = await startClientConversation({ staffUserId });
+        const conversation = await startClientConversation({ staffUserId, forceNew: true });
         const normalized = normalizeClientConversation(conversation);
         setConversations((prev) =>
           sortConversationsByUpdatedAt([
@@ -455,6 +464,9 @@ const ClientLiveChatPage = () => {
           ])
         );
         setSelectedConversationId(conversation.id);
+        setSkipNextMessagesLoadFor(conversation.id);
+        setMessages([]);
+        setIsLoadingMessages(false);
         setView('active');
         setSearchTerm('');
       } catch (error) {
@@ -664,3 +676,4 @@ const ClientLiveChatPage = () => {
 };
 
 export default ClientLiveChatPage;
+

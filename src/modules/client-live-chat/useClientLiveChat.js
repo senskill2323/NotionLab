@@ -515,7 +515,7 @@ export const useClientLiveChat = ({ user, initialConversationId = null } = {}) =
   }, [queryClient, selectedConversationId]);
 
   const startConversation = useCallback(async ({ staffUserId = null, initialMessage = '' } = {}) => {
-    const conversation = await startClientConversation({ staffUserId, initialMessage });
+    const conversation = await startClientConversation({ staffUserId, initialMessage, forceNew: true });
     const enriched = enrichConversationFromRecord(conversation, null, staffById);
     upsertConversationInCache({ ...enriched, has_unread: Boolean(conversation?.has_unread) });
 

@@ -1,4 +1,4 @@
-﻿import { supabase } from '@/lib/customSupabaseClient';
+import { supabase } from '@/lib/customSupabaseClient';
 import { v4 as uuidv4 } from 'uuid';
 const STAFF_USER_TYPES = ['owner', 'admin', 'prof'];
 const ADMIN_RECIPIENT_TYPES = new Set([...STAFF_USER_TYPES, 'client']);
@@ -9,7 +9,7 @@ const ADMIN_BROADCAST_TOPIC = 'chat-live-admin';
 const BROADCAST_SUBSCRIBE_TIMEOUT_MS = 15000;
 
 const createBroadcastChannel = (topic) =>
-  supabase.channel(topic, { config: { broadcast: { self: true, ack: true } } });
+  supabase.channel(topic, { config: { broadcast: { self: true, ack: false } } });
 
 const broadcastChannelRegistry = new Map();
 
@@ -69,9 +69,10 @@ const ensureChannelSubscribed = async (channel) => {
     };
 
     const timeoutId = setTimeout(() => {
+      // Do not block on subscribe ack; proceed anyway
       console.warn('Broadcast channel subscribe timeout', { topic: channel.topic });
       finish();
-    }, BROADCAST_SUBSCRIBE_TIMEOUT_MS);
+    }, 700);
 
     channel.subscribe((status) => {
       if (status === 'SUBSCRIBED') {
@@ -90,8 +91,12 @@ const sendBroadcastToTopic = async (topic, event, payload) => {
   const channel = acquireBroadcastChannel(topic);
   if (!channel) return;
   try {
-    await ensureChannelSubscribed(channel);
-    const result = await channel.send({ type: 'broadcast', event, payload });
+    // Try to subscribe briefly but don't block the caller
+    await Promise.race([ensureChannelSubscribed(channel), new Promise((r) => setTimeout(r, 300))]);
+    // Send with a safety timeout so UI isn't blocked by acks
+    const sendPromise = channel.send({ type: 'broadcast', event, payload });
+    const timeout = new Promise((resolve) => setTimeout(resolve, 1500));
+    const result = await Promise.race([sendPromise, timeout]);
     if (result?.error) {
       console.error('Broadcast send failed', { topic, event, error: result.error });
     }
@@ -275,7 +280,7 @@ export const archiveClientConversation = async (conversationId, archived) => {
 };
 
 export const getOrCreateConversation = async (user) => {
-  if (!user) throw new Error("Utilisateur non authentifiÃƒÂ©.");
+  if (!user) throw new Error("Utilisateur non authentifiÃ©.");
 
   let { data, error } = await supabase
     .from('chat_conversations')
@@ -284,7 +289,7 @@ export const getOrCreateConversation = async (user) => {
     .order('created_at', { ascending: false })
     .limit(1);
 
-  if (error) throw new Error("Impossible de rÃƒÂ©cupÃƒÂ©rer la conversation.");
+  if (error) throw new Error("Impossible de rÃ©cupÃ©rer la conversation.");
 
   if (data && data.length > 0 && data[0].status !== 'resolu' && data[0].status !== 'abandonne') {
     return data[0];
@@ -296,7 +301,7 @@ export const getOrCreateConversation = async (user) => {
     .select()
     .single();
 
-  if (newConvError) throw new Error(`Impossible de dÃƒÂ©marrer le chat: ${newConvError.message}`);
+  if (newConvError) throw new Error(`Impossible de dÃ©marrer le chat: ${newConvError.message}`);
   
   return newConvData;
 };
@@ -388,7 +393,7 @@ export const getClientChatStatus = async ({ guestId, guestEmail }) => {
 
   if (error) {
     console.error('getClientChatStatus failed', error);
-    throw new Error("Impossible de rÃ©cupÃ©rer le statut du chat.");
+    throw new Error("Impossible de récupérer le statut du chat.");
   }
 
   const conversations = (data || []).map((conversation) => {
@@ -424,7 +429,7 @@ export const markConversationViewedByClient = async (conversationId) => {
     .eq('id', conversationId);
 
   if (error) {
-    throw new Error("Impossible de mettre Ã  jour le statut de lecture du chat.");
+    throw new Error("Impossible de mettre à jour le statut de lecture du chat.");
   }
 };
 
@@ -596,9 +601,10 @@ export const sendResource = async (resource, conversationId, isAdmin) => {
   return data;
 };
 
-export const startClientConversation = async ({ staffUserId = null, initialMessage = '' } = {}) => {
+export const startClientConversation = async ({ staffUserId = null, initialMessage = '', forceNew = true } = {}) => {
   const { data, error } = await supabase.rpc('client_start_chat_conversation', {
     p_staff_user_id: staffUserId,
+    p_force_new: forceNew,
   });
 
   if (error) {
