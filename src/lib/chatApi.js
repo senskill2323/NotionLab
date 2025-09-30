@@ -817,10 +817,11 @@ export const setAdminConversationArchived = async (conversationId, archived) => 
     throw error;
   }
 
-  if (data) {
-    const broadcastRecord = normalizeConversationForBroadcast(data);
+  if (Array.isArray(data) ? data.length > 0 : data) {
+    const row = Array.isArray(data) ? data[0] : data;
+    const broadcastRecord = normalizeConversationForBroadcast(row);
     await broadcastConversationChange({ eventType: 'UPDATE', record: broadcastRecord });
-    return normalizeAdminConversation(data);
+    return normalizeAdminConversation(row);
   }
 
   return null;
