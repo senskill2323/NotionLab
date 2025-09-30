@@ -7,9 +7,10 @@ description: UI components and libraries leveraged by Live Chat client and admin
 ---
 
 <!-- AUTO:BEGIN -->
-<!-- ANCHOR:LIVE_CHAT_LIBS -->
-- Radix Dialog + Select: creation de conversation cote client; Select egalement reutilise pour le filtre Active/Archivee admin
+<!-- ANCHOR:LIVE_CHAT_LIBS -->- Radix Dialog + Select: creation de conversation cote client; Select egalement reutilise pour le filtre Active/Archivee admin
 - Shadcn/ui: `Button`, `Badge`, `Input`, `ScrollArea`, `Tabs`, `Dialog`, `Select`, `Avatar`
-- Lucide icons: `Loader2`, `Plus`, `Archive`, `ArchiveRestore`, `Search`
+- Lucide icons: `Loader2`, `Plus`, `Archive`, `ArchiveRestore`, `Search`, `Bot`, `User`
+- Animations: utilitaires Tailwind `animate-in` / `fade-in` / `slide-in-from-bottom-*` (framer-motion n'est plus utilise sur les flux live chat)
 - CSV export cote client: `papaparse` (messages regroupes par minute conserves)
 <!-- AUTO:END -->
+

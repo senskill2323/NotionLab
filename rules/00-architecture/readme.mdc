@@ -1,10 +1,9 @@
-﻿Contexte & objectifs
-•	Le module Formations gère des parcours standard publiés et des parcours custom construits par les clients.
+﻿Contexte
 •	Frontend React 18 / Vite 7, backend Supabase (auth, données, temps réel, stockage).
 
 Principes généraux
 •	Workspace : C:\dev\notionlab ; travailler uniquement dans ce projet Vite/React via VSCode.
-•	Source of truth : dossier /rules. Toujours mettre à jour quand de nouvelles tables / RPC / Edge Functions arrivent.
+•	Source of truth : dossier /rules. Toujours mettre à jour quand de nouvelles architectures / logiques / dépendances  / tables sur supabase / RPC / Edge Functions arrivent.
 •	Style React : fonctionnel, déclaratif, modulaire (composant → sous-composants → hooks/helpers → données statiques).
 •	Nommage : objets DB en snake_case, Edge Functions en kebab-case, alias Vite @ pour les imports.
 
@@ -112,34 +111,40 @@ o	Supprime public.profiles puis auth.admin.delete_user(p_user_id) (inclut auth.i
 "Live Chat - Architecture
 
 - Surfaces
-  - Client: `ClientLiveChatPage.jsx`, `modules/client-live-chat/useClientLiveChat.js`, `modules/client-live-chat/components/*`, helpers `src/lib/chatApi.js`
-  - Admin: `components/admin/AdminLiveChatPanel.jsx`, `components/admin/chat/ConversationList.jsx`, `components/admin/AdminChatView.jsx`
+  - Client: `modules/client-live-chat/ClientLiveChatPage.jsx` orchestre desormais le flux (fetch initial Supabase, canaux `client-chat-conversations-*` & `client-chat-messages-*`, tri local et marquage `client_last_viewed_at`) et delegue l'affichage aux composants `modules/client-live-chat/components/*`
+  - Admin: `components/admin/AdminLiveChatPanel.jsx`, `components/admin/chat/ConversationList.jsx`, `components/admin/AdminChatView.jsx` conservent le pilotage direct des canaux admin
+  - Primitifs partages: `src/lib/chatApi.js` assure la normalisation des conversations, la diffusion broadcast (`broadcastMessageChange`/`broadcastConversationChange`) et les RPC de creation/archivage cote staff
 
 - Conversation workflows
-  - Client: bouton "Nouvelle conversation" (Radix Dialog) -> selection d'un staff via `client_list_chat_staff_users` -> RPC `client_start_chat_conversation` rouvre un fil archive ou en cree un avec `status='ouvert'`
-  - Admin: dialog "Nouvelle conversation" -> destinataire via `admin_list_chat_recipients` -> `startAdminConversation({ staffUserId, recipient, forceNew })` cree ou reutilise un fil selon collision et drapeau `forceNew`
-  - Tri des listes par `updated_at` desc. pour garder l'activite recente en tete; plusieurs fils paralleles par guest cote admin sont autorises
+  - Client: le Dialog "Nouvelle conversation" charge les destinataires via `client_list_chat_staff_users`, valide la selection et invoque `client_start_chat_conversation`; la page hydrate ensuite la nouvelle conversation et la selectionne (vue Active reinitialisee, recherche videe)
+  - Admin: le flux reste inchange (`startAdminConversation({ staffUserId, recipient, forceNew })`) avec reutilisation conditionnelle et tri par `updated_at`
 
-- Broadcast topology
-  - Conversations client: topic `client-chat-conversations-{guestId|guestEmail}` emet les evenements `conversation`
-  - Messages client: topic `client-chat-messages-{conversationId}` emet les evenements `message`
-  - Hub admin: topic `chat-live-admin` relaie `conversation` et `message` pour toutes les equipes
-  - Canaux configures avec `{ broadcast: { self: true, ack: true } }`; desinscription obligatoire via les helpers `releaseBroadcastChannel`/`acquireBroadcastChannel`
+- Realtime & canaux
+  - Le client gere `supabase.channel(...)` pour `client-chat-conversations-{guest}` et `client-chat-messages-{conversationId}` (config `{ broadcast: { self: true, ack: true } }`) depuis le composant, avec cleanup systematique
+  - Les payloads `conversation`/`message` issus du hub `chat-live-admin` restent consommes cote admin via `AdminLiveChatPanel`
+
+- Hydratation & tri des messages
+  - Chaque payload client est enrichi via `hydrateMessage()` (select `chat_messages` + ressource join) avant insertion puis trie avec `sortMessagesAscending`
+  - Les listes de conversations sont reclassees via `sortConversationsByUpdatedAt()` apres mutation ou broadcast
 
 - Mutations synchronisees
-  - `startClientConversation`, `startAdminConversation`, `archiveClientConversation`, `setAdminConversationArchived`, `sendMessage|sendFile|sendResource`, `clearChatHistory` publient `conversation` ou `message` apres succes SQL
-  - Les hooks `useClientLiveChat` et `getOrCreateConversation.subscribeToMessages` consomment ces payloads pour mettre a jour React Query et l'UI sans refetch global
+  - Client: `ClientLiveChatPage` insere/supprime directement dans `chat_messages`, hydrate la reponse, met a jour le state local et marque `client_last_viewed_at` si l'utilisateur n'est pas staff
+  - Admin: conserve `startAdminConversation`, `setAdminConversationArchived`, `sendMessage|File|Resource` du `chatApi` pour garantir les diffusions broadcast et la logique de fallback
 
 - Status & archivage
-  - Etats: `ouvert`, `en_cours`, `a_traiter`, `resolu`, `abandonne`; les vues admin considerent `resolu|abandonne` comme archives
-  - Client: `toggleArchive` -> RPC `client_chat_set_archived` -> broadcast `conversation`
-  - Admin: `ConversationList` -> helper `setAdminConversationArchived` -> broadcast `conversation`
+  - Etats metier: `ouvert`, `en_cours`, `a_traiter`, `resolu`, `abandonne`; `resolu|abandonne` sont consideres comme auto-archives cote client
+  - Client: `client_chat_set_archived` met a jour `client_archived` et declenche un broadcast; la vue Active filtre les fils auto-archives et ceux explicitement archives
+  - Admin: `ConversationList` continue d'appuyer sur `setAdminConversationArchived` (RPC `admin_chat_set_archived`)
 
 - Securite & conformite
-  - Client RLS: `client_update_chat_last_viewed`, acces restreint aux colonnes `client_archived`, `client_last_viewed_at`
-  - Admin: RPCs `admin_chat_set_archived`, `admin_get_chat_conversations_with_details` en security definer; aucun update direct sur les tables publiques
+  - Client: RLS via `client_update_chat_last_viewed`; seules les colonnes `client_archived`, `client_last_viewed_at` sont modifiees depuis le front
+  - Admin: RPC `admin_chat_set_archived`, `admin_get_chat_conversations_with_details` en security definer; aucun acces direct service-role
 
 - Performance & maintenance
+  - Le client repose sur le state React : conserver `sortConversationsByUpdatedAt` / `sortMessagesAscending` pour eviter recharges reseau
+  - Deconnecter systematiquement les canaux Supabase dans les cleanup d'effets afin d'eviter les fuites multi-onglets
+  - Journaliser les erreurs Supabase avant toast (admin & client) pour diagnostiquer les pertes d'evenements
+  - Toujours liberer les canaux broadcast a l'unmount pour eviter les fuites
   - Preferer `queryClient.setQueryData` et tri local aux invalidations massives
   - Throttle scheduler (`scheduleConversationsRefetch`) pour limiter la charge
   - Toujours liberer les canaux broadcast a l'unmount pour eviter les fuites

@@ -3,14 +3,52 @@ import { Helmet } from 'react-helmet';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { useClientChatIndicator } from '@/hooks/useClientChatIndicator.jsx';
-import { getOrCreateConversation, fetchMessages, sendMessage, sendFile, sendResource, clearChatHistory } from '@/lib/chatApi';
+import {
+  getOrCreateConversation,
+  fetchMessages,
+  sendMessage,
+  sendFile,
+  sendResource,
+  clearChatHistory,
+} from '@/lib/chatApi';
 import { groupMessagesByMinute } from '@/lib/chatUtils';
 import ChatHeader from '@/components/chat/ChatHeader';
 import MessageList from '@/components/chat/MessageList';
 import ChatInput from '@/components/chat/ChatInput';
 import TextSelectionMenu from '@/components/chat/TextSelectionMenu';
 import { useResourceCreation } from '@/contexts/ResourceCreationContext';
-import { Loader2, Info } from 'lucide-react';
+import { Loader2, Info, MessageSquare } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
+
+const STATUS_CONFIG = {
+  a_traiter: { label: 'A traiter', variant: 'destructive' },
+  en_cours: { label: 'En cours', variant: 'default' },
+  resolu: { label: 'Resolu', variant: 'secondary' },
+  abandonne: { label: 'Abandonne', variant: 'outline' },
+  ouvert: { label: 'Ouvert', variant: 'default' },
+};
+
+const STAFF_ROLE_LABELS = {
+  owner: 'Owner',
+  admin: 'Admin',
+  prof: 'Prof',
+};
+
+const formatDateTime = (value) => {
+  if (!value) return null;
+  try {
+    return new Date(value).toLocaleString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch (_err) {
+    return value;
+  }
+};
 
 const ChatPage = () => {
   const { user } = useAuth();
@@ -22,7 +60,13 @@ const ChatPage = () => {
   const [selectionState, setSelectionState] = useState(null);
   const { openResourceDialog } = useResourceCreation();
   const isAdmin = user && ['admin', 'prof', 'owner'].includes(user.profile?.user_type);
+
   const groupedMessages = useMemo(() => groupMessagesByMinute(messages), [messages]);
+
+  const latestMessage = useMemo(() => {
+    if (!Array.isArray(messages) || messages.length === 0) return null;
+    return messages[messages.length - 1];
+  }, [messages]);
 
   useEffect(() => {
     const initializeChat = async () => {
@@ -39,7 +83,7 @@ const ChatPage = () => {
           setMessages(initialMessages);
         }
       } catch (error) {
-        toast({ title: "Erreur d'initialisation", description: error.message, variant: "destructive" });
+        toast({ title: "Erreur d'initialisation", description: error.message, variant: 'destructive' });
       } finally {
         setLoading(false);
       }
@@ -73,8 +117,8 @@ const ChatPage = () => {
   useEffect(() => {
     if (!conversation?.id || isAdmin) return;
     if (!messages || messages.length === 0) return;
-    const latestMessage = messages[messages.length - 1];
-    if (latestMessage?.sender !== 'admin') return;
+    const latest = messages[messages.length - 1];
+    if (latest?.sender !== 'admin') return;
     markAsRead(conversation.id).catch((error) => {
       console.error('Failed to refresh chat read status after admin message:', error);
     });
@@ -85,7 +129,7 @@ const ChatPage = () => {
     try {
       await sendMessage(conversation.id, input, isAdmin);
     } catch (error) {
-      toast({ title: "Erreur d'envoi", description: error.message, variant: "destructive" });
+      toast({ title: "Erreur d'envoi", description: error.message, variant: 'destructive' });
     }
   };
 
@@ -94,7 +138,7 @@ const ChatPage = () => {
     try {
       await sendFile(file, conversation, isAdmin);
     } catch (error) {
-      toast({ title: "Erreur d'envoi du fichier", description: error.message, variant: "destructive" });
+      toast({ title: "Erreur d'envoi du fichier", description: error.message, variant: 'destructive' });
     }
   };
 
@@ -103,7 +147,7 @@ const ChatPage = () => {
     try {
       await sendResource(resource, conversation.id, isAdmin);
     } catch (error) {
-      toast({ title: "Erreur de partage", description: error.message, variant: "destructive" });
+      toast({ title: "Erreur de partage", description: error.message, variant: 'destructive' });
     }
   };
 
@@ -113,7 +157,7 @@ const ChatPage = () => {
       await clearChatHistory(conversation.id);
       setMessages([]);
     } catch (error) {
-      toast({ title: "Erreur", description: "Impossible de vider le chat.", variant: "destructive" });
+      toast({ title: 'Erreur', description: "Impossible de vider le chat.", variant: 'destructive' });
     }
   };
 
@@ -121,25 +165,30 @@ const ChatPage = () => {
     const range = selection.getRangeAt(0);
     const fragment = range.cloneContents();
     const bubbles = new Set();
-    
+
     let currentNode = range.startContainer;
     let endNode = range.endContainer;
 
     const findParentBubble = (node) => node.nodeType === 1 ? node.closest('.message-bubble') : node.parentElement.closest('.message-bubble');
 
-    let startBubble = findParentBubble(currentNode);
-    let endBubble = findParentBubble(endNode);
+    const startBubble = findParentBubble(range.startContainer);
+    const endBubble = findParentBubble(range.endContainer);
 
     if (startBubble) bubbles.add(startBubble);
     if (endBubble) bubbles.add(endBubble);
 
-    Array.from(fragment.querySelectorAll('.message-bubble')).forEach(bubble => bubbles.add(bubble));
-    
+    fragment.querySelectorAll?.('.message-bubble')?.forEach?.((bubble) => bubbles.add(bubble));
+
     const allBubbles = Array.from(document.querySelectorAll('.message-bubble'));
-    const intersectingBubbles = allBubbles.filter(bubble => range.intersectsNode(bubble));
+    const intersectingBubbles = allBubbles.filter((bubble) => {
+      try {
+        return range.intersectsNode(bubble);
+      } catch (_err) {
+        return false;
+      }
+    });
 
     const uniqueBubbles = [...new Set([...bubbles, ...intersectingBubbles])];
-    
     if (uniqueBubbles.length <= 1) {
         return selection.toString();
     }
@@ -154,8 +203,11 @@ const ChatPage = () => {
             const bubbleText = selectionWithinBubble.toString();
             window.getSelection().removeAllRanges();
             window.getSelection().addRange(range);
-            return `${author}:\n${bubbleText.trim()}`;
-        }).join('\n\n');
+            return `${author}:
+${bubbleText.trim()}`;
+        }).join('
+
+');
   };
 
   const handleMouseUp = useCallback(() => {
@@ -184,7 +236,7 @@ const ChatPage = () => {
   const handleCopy = () => {
     if (selectionState) {
       navigator.clipboard.writeText(selectionState.rawText);
-      toast({ title: "Copié !", description: "Le texte a été copié dans le presse-papiers." });
+      toast({ title: 'Copie !', description: 'Le texte a ete copie dans le presse-papiers.' });
       setSelectionState(null);
     }
   };
@@ -215,53 +267,163 @@ const ChatPage = () => {
     };
   }, [selectionState]);
 
+  const statusConfig = STATUS_CONFIG[conversation?.status] || STATUS_CONFIG.ouvert;
+  const staffRole = conversation?.staff_user_type ? STAFF_ROLE_LABELS[conversation.staff_user_type] || conversation.staff_user_type : null;
+  const staffName = conversation ? `${conversation.staff_first_name || ''} ${conversation.staff_last_name || ''}`.trim() : '';
+  const displayStaffName = staffName || 'Equipe NotionLab';
+  const lastUpdated = formatDateTime(latestMessage?.created_at || conversation?.updated_at);
+  const lastMessagePreview = latestMessage?.content || latestMessage?.file_url || '';
+
+  const renderSidebarContent = () => {
+    if (loading) {
+      return (
+        <div className="space-y-4">
+          <div className="h-4 w-24 rounded bg-muted animate-pulse" />
+          <div className="h-16 rounded-xl border border-border/40 bg-muted/40 animate-pulse" />
+          <div className="h-20 rounded-xl border border-border/40 bg-muted/40 animate-pulse" />
+        </div>
+      );
+    }
+
+    if (!conversation) {
+      return (
+        <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border/60 bg-background/40 p-6 text-center text-sm text-muted-foreground">
+          <MessageSquare className="h-6 w-6" />
+          <p>Aucune conversation active pour le moment.</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Conversation active</p>
+          <div className="rounded-xl border border-border/60 bg-card/50 p-4 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-foreground">{displayStaffName}</p>
+                {staffRole && <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{staffRole}</p>}
+              </div>
+              <Badge variant={statusConfig.variant} className="text-2xs uppercase tracking-wide">
+                {statusConfig.label}
+              </Badge>
+            </div>
+            <Separator className="my-4" />
+            <dl className="space-y-3 text-sm">
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-muted-foreground">Dernier message</dt>
+                <dd className="font-medium text-right">{lastUpdated || '...'}</dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-muted-foreground">Conversation ID</dt>
+                <dd className="text-xs font-mono text-muted-foreground">{conversation.id.slice(0, 12)}...</dd>
+              </div>
+            </dl>
+            {lastMessagePreview && (
+              <div className="mt-4 rounded-lg border border-border/40 bg-background/80 p-3 text-xs text-muted-foreground line-clamp-3">
+                {lastMessagePreview}
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="rounded-xl border border-border/60 bg-background/60 p-4 text-sm text-muted-foreground">
+          <p>
+            Rappel : tu peux selectionner un passage du chat pour le copier ou le sauvegarder en ressource directement depuis le menu contextuel.
+          </p>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <>
       <Helmet>
         <title>Le Chat | NotionLab</title>
         <meta name="description" content="Discutez en direct avec votre formateur Notion." />
-        <link rel="icon" type="image/png" href="https://horizons-cdn.hostinger.com/33d72ce2-b6b0-4274-b8ce-63300e44633e/78b000f735753ad0c3a19a5789970ddc.png" />
       </Helmet>
-      
-      <div className="h-screen flex flex-col overflow-hidden text-foreground" style={{ backgroundColor: 'hsl(var(--colors-chat-surface))' }}>
-        <ChatHeader messages={messages} user={user} />
 
-        <main
-          className="flex-grow flex flex-col w-full pt-28 pb-24 overflow-hidden min-h-0"
-          style={{ backgroundColor: 'hsl(var(--colors-chat-surface))' }}
-        >
-          <MessageList onMouseUp={handleMouseUp}>
+      <div className="flex min-h-screen bg-background text-foreground">
+        <aside className="hidden lg:flex lg:w-[320px] xl:w-[360px] flex-col border-r border-border/60 bg-card/40">
+          <div className="flex flex-1 min-h-0 flex-col">
+            <div className="border-b border-border/60 px-6 py-5">
+              <h2 className="text-lg font-semibold">Conversations</h2>
+              <p className="text-sm text-muted-foreground">Accede rapidement a ton echange en cours.</p>
+            </div>
+            <ScrollArea className="flex-1">
+              <div className="px-6 py-6">
+                {renderSidebarContent()}
+              </div>
+            </ScrollArea>
+          </div>
+        </aside>
+
+        <div className="flex min-h-0 flex-1 flex-col">
+          <ChatHeader messages={messages} user={user} />
+
+          <div className="border-b border-border/60 bg-background/80 px-4 py-4 lg:hidden">
             {loading ? (
-              <div className="flex items-center justify-center h-full pt-10">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <div className="h-4 w-32 rounded bg-muted animate-pulse" />
+                  <div className="h-3 w-20 rounded bg-muted animate-pulse" />
+                </div>
+                <div className="h-6 w-16 rounded-full bg-muted animate-pulse" />
               </div>
-            ) : groupedMessages.length > 0 ? (
-              groupedMessages.map(group => (
-                <MessageList.Item key={group.id || group.messages[0]?.id} message={group} user={user} />
-              ))
+            ) : conversation ? (
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold leading-snug">{displayStaffName}</p>
+                  {staffRole && <p className="text-xs uppercase tracking-wide text-muted-foreground">{staffRole}</p>}
+                  {lastUpdated && <p className="text-xs text-muted-foreground">Mis a jour {lastUpdated}</p>}
+                </div>
+                <Badge variant={statusConfig.variant} className="text-2xs uppercase tracking-wide">
+                  {statusConfig.label}
+                </Badge>
+              </div>
             ) : (
-              <div className="flex flex-col items-center justify-center h-full pt-10 text-center text-muted-foreground">
-                 <Info className="w-12 h-12 mb-4" />
-                 <p className="font-semibold">C'est le début de votre conversation.</p>
-                 <p>N'hésitez pas à poser une question !</p>
-              </div>
+              <p className="text-sm text-muted-foreground">Aucune conversation active.</p>
             )}
-          </MessageList>
-        </main>
-          
-        <TextSelectionMenu
-          position={selectionState?.position}
-          onCopy={handleCopy}
-          onCreateResource={handleCreateResource}
-        />
+          </div>
 
-        <ChatInput 
-          onSendMessage={handleSendMessage}
-          onFileSelect={handleFileSelect}
-          onSelectResource={handleSelectResource}
-          onClearChat={handleClearChat}
-          isAdmin={isAdmin}
-        />
+          <div className="flex flex-1 overflow-hidden">
+            <div className="flex flex-1 min-h-0 flex-col bg-background">
+              <div className="flex-1 min-h-0 overflow-hidden">
+                <MessageList onMouseUp={handleMouseUp}>
+                  {loading ? (
+                    <div className="flex h-full items-center justify-center py-12 text-muted-foreground">
+                      <Loader2 className="h-6 w-6 animate-spin" />
+                    </div>
+                  ) : groupedMessages.length > 0 ? (
+                    groupedMessages.map((group) => (
+                      <MessageList.Item key={group.id || group.messages[0]?.id} message={group} user={user} />
+                    ))
+                  ) : (
+                    <div className="flex flex-col items-center justify-center gap-3 py-12 text-center text-muted-foreground">
+                      <Info className="h-12 w-12" />
+                      <p className="font-semibold">C'est le debut de votre conversation.</p>
+                      <p>N'hesite pas a poser une question !</p>
+                    </div>
+                  )}
+                </MessageList>
+              </div>
+
+              <TextSelectionMenu
+                position={selectionState?.position}
+                onCopy={handleCopy}
+                onCreateResource={handleCreateResource}
+              />
+
+              <ChatInput
+                onSendMessage={handleSendMessage}
+                onFileSelect={handleFileSelect}
+                onSelectResource={handleSelectResource}
+                onClearChat={handleClearChat}
+                isAdmin={isAdmin}
+                className="border-t border-border/60 bg-card/70 px-4 pb-4 pt-3"
+              />
+            </div>
+          </div>
+        </div>
       </div>
     </>
   );

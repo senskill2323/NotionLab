@@ -43,7 +43,7 @@ const ChatHeader = ({ messages, user }) => {
 
   return (
     <header
-      className="sticky top-16 z-20 backdrop-blur-md border-b border-border"
+      className="sticky top-0 z-20 backdrop-blur-md border-b border-border"
       style={{ backgroundColor: 'hsl(var(--colors-chat-surface))' }}
     >
       <div className="flex justify-between items-center h-16 px-4 w-full">

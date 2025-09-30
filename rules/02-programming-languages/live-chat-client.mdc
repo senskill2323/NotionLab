@@ -1,4 +1,4 @@
-﻿---
+---
 title: "Live Chat - Code Patterns"
 version: "2"
 date: "2025-10-09"
@@ -8,21 +8,18 @@ description: Hooks, helpers and Supabase usage for client/admin live chat module
 
 <!-- AUTO:BEGIN -->
 <!-- ANCHOR:LIVE_CHAT_CODE -->
-- Hook `useClientLiveChat()`
-  - Query keys: `['client-live-chat','conversations',guestKey]` and `['client-live-chat','messages',conversationId]`
-  - Selection: `selectedConversationId` synced with URL search param; `ensureSelection` respects current view (active vs archived)
-  - Mark as read: `markConversationViewedByClient` mutation + optimistic cache update of `client_last_viewed_at`
-  - Archive toggle: mutation calls `archiveClientConversation` (RPC `client_chat_set_archived`), updates cache on success and reverts + toast on error
-  - Throttle: `scheduleConversationsRefetch()` (~250 ms) replaces redundant `invalidateQueries`
+- Orchestrateur client `ClientLiveChatPage.jsx`
+  - Chargement initial via `supabase.rpc('get_chat_conversations_with_details')` puis tri avec `sortConversationsByUpdatedAt`
+  - Gestion des canaux `client-chat-conversations-*` / `client-chat-messages-*` au niveau du composant; chaque payload passe par `hydrateMessage()` avant insertion puis la liste est re-triee avec `sortMessagesAscending`
+  - Marquage lecture: des qu'une conversation active est montee ou qu'un message staff arrive sur la selection, update `client_last_viewed_at` (Supabase) et remise a `false` de `has_unread`
+  - Envoi message/fichier/ressource: insert direct dans `chat_messages` (generation d'URL publique pour fichiers), hydratation du retour puis `updateConversationFromMessage()`
+  - Archivage: appel `supabase.rpc('client_chat_set_archived', ...)` + normalisation locale, avec toasts d'erreur en cas d'echec
 
 - API `src/lib/chatApi.js`
-  - `listClientConversations()` -> RPC `get_chat_conversations_with_details`
   - `listChatStaffUsers()` -> RPC `client_list_chat_staff_users`
-  - `startClientConversation({ staffUserId, initialMessage? })` -> RPC `client_start_chat_conversation`; normalize booleans (`client_archived`, `has_unread`)
-  - `archiveClientConversation(conversationId, archived)` -> RPC `client_chat_set_archived`; emits `conversation` broadcast events via chatApi helpers
-  - `sendMessage` / `sendFile` / `sendResource` -> insert `chat_messages` puis `broadcastMessageChange` pour propager l'evenement `message`
-  - `subscribeToClientChatMessages`, `subscribeToClientConversations`, `getOrCreateConversation.subscribeToMessages` s'appuient sur Supabase broadcast (topics `client-chat-messages-*`, `client-chat-conversations-*`) avec acquittement et auto-cleanup
-
+  - `startClientConversation({ staffUserId, initialMessage? })` -> RPC `client_start_chat_conversation` (diffusion broadcast garantie par le helper)
+  - Helpers broadcast (`broadcastMessageChange`, `broadcastConversationChange`) restent la voie officielle pour les mutations admin ou le widget embarque
+  - `subscribeToClientChatMessages` / `subscribeToClientConversations` demeurent pour le widget (canaux preconfigures); la page client principale s'attache manuellement aux canaux Supabase
 - Admin panel specifics
   - `AdminLiveChatPanel` fetches active vs archived via RPC `admin_get_chat_conversations_with_details`; broadcast `conversation` et `message` alimentent les mises a jour locales
   - `ConversationList` utilise le helper `setAdminConversationArchived` (RPC `admin_chat_set_archived`) qui publie l'evenement `conversation`
@@ -31,3 +28,4 @@ description: Hooks, helpers and Supabase usage for client/admin live chat module
 - Supabase client: toujours passer par `@/lib/customSupabaseClient` (timeouts + auth)
 - Ne jamais exposer la service role; toute logique privilegiee reste dans les RPCs ou Edge functions
 <!-- AUTO:END -->
+

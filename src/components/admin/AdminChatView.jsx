@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { Send, Bot, User, Loader2, Paperclip, File as FileIcon, Bold, Underline } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
+import { cn } from '@/lib/utils';
 import RichTextRenderer from '@/components/RichTextRenderer';
-import { motion } from 'framer-motion';
 
 const CompactChatMessage = ({ message, conversation, isFirstInGroup }) => {
   const isSenderAdmin = message.sender === 'admin';
@@ -32,24 +33,32 @@ const CompactChatMessage = ({ message, conversation, isFirstInGroup }) => {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2 }}
-      className={`flex items-start gap-3 ${isFirstInGroup ? 'mt-4' : 'mt-1'}`}
+    <div
+      className={cn(
+        'flex items-start gap-3',
+        isFirstInGroup ? 'mt-4' : 'mt-1',
+        'animate-in fade-in slide-in-from-bottom-1'
+      )}
     >
       <div className="w-8 flex-shrink-0">
         {isFirstInGroup && (
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${isSenderAdmin ? 'notion-gradient' : 'bg-muted'}`}>
-            {isSenderAdmin ? <Bot className="w-5 h-5 text-white" /> : <User className="w-5 h-5 text-muted-foreground" />}
-          </div>
+          <Avatar className="h-8 w-8 border border-border">
+            <AvatarFallback
+              className={cn(
+                'flex h-full w-full items-center justify-center rounded-full',
+                isSenderAdmin ? 'notion-gradient text-white' : 'bg-muted text-muted-foreground'
+              )}
+            >
+              {isSenderAdmin ? <Bot className="h-4 w-4" /> : <User className="h-4 w-4" />}
+            </AvatarFallback>
+          </Avatar>
         )}
       </div>
       <div className="flex-grow">
         {isFirstInGroup && (
-          <div className="flex items-baseline gap-2 mb-1">
-            <span className="font-semibold text-sm">
-              {isSenderAdmin ? "Vous (Admin)" : (conversation.guest_email || 'Visiteur')}
+          <div className="mb-1 flex items-baseline gap-2">
+            <span className="text-sm font-semibold">
+              {isSenderAdmin ? 'Vous (Admin)' : conversation.guest_email || 'Visiteur'}
             </span>
             <span className="text-xs text-muted-foreground">
               {new Date(message.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
@@ -60,7 +69,7 @@ const CompactChatMessage = ({ message, conversation, isFirstInGroup }) => {
           {renderMessageContent(message)}
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 };
 

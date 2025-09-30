@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Papa from 'papaparse';
-import { motion } from 'framer-motion';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -116,22 +116,26 @@ const CompactMessage = ({ message, isFirstInGroup }) => {
     : '';
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 4 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2 }}
-      className="flex w-full gap-3"
+    <div
+      className={cn(
+        'flex w-full gap-3',
+        'animate-in fade-in slide-in-from-bottom-1'
+      )}
     >
       <div className="w-9 flex-shrink-0">
         {isFirstInGroup && (
-          <div
-            className={cn(
-              'flex h-9 w-9 items-center justify-center rounded-full border',
-              isStaffMessage ? 'bg-primary text-white border-primary/70' : 'bg-muted text-muted-foreground border-border'
-            )}
-          >
-            {isStaffMessage ? <Bot className="h-4 w-4" /> : <User className="h-4 w-4" />}
-          </div>
+          <Avatar className="h-9 w-9 border border-border">
+            <AvatarFallback
+              className={cn(
+                'flex h-full w-full items-center justify-center rounded-full',
+                isStaffMessage
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground'
+              )}
+            >
+              {isStaffMessage ? <Bot className="h-4 w-4" /> : <User className="h-4 w-4" />}
+            </AvatarFallback>
+          </Avatar>
         )}
       </div>
       <div className="flex-1 text-sm">
@@ -144,13 +148,13 @@ const CompactMessage = ({ message, isFirstInGroup }) => {
           </div>
         )}
         <div className="message-bubble rounded-lg bg-card/80 px-4 py-3 text-foreground shadow-sm" data-author={authorLabel}>
-          <div className="flex flex-col gap-2 message-content">
+          <div className="message-content flex flex-col gap-2">
             <Attachment message={message} />
             {message.content && !message.file_url && <RichTextRenderer content={message.content} />}
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 };
 
