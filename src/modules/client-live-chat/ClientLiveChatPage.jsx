@@ -81,6 +81,8 @@ const ClientLiveChatPage = () => {
 
   const conversationsChannelRef = useRef(null);
   const messagesSubscriptionRef = useRef(null);
+  const lastLoadedConversationIdRef = useRef(null);
+  const pendingConversationReloadRef = useRef(new Set());
 
   const hydrateMessage = useCallback(async (message) => {
     if (!message?.id) return message;
@@ -164,10 +166,14 @@ const ClientLiveChatPage = () => {
   const updateConversationFromMessage = useCallback(
     (message) => {
       if (!message?.conversation_id) return;
+      let conversationExists = false;
       setConversations((prev) => {
-        if (!Array.isArray(prev) || prev.length === 0) return prev;
+        if (!Array.isArray(prev) || prev.length === 0) {
+          return prev;
+        }
         const updated = prev.map((conversation) => {
           if (conversation.id !== message.conversation_id) return conversation;
+          conversationExists = true;
           const isStaffMessage = STAFF_SENDERS.has(message.sender || '');
           const next = {
             ...conversation,
@@ -183,8 +189,21 @@ const ClientLiveChatPage = () => {
         });
         return sortConversationsByUpdatedAt(updated);
       });
+      if (!conversationExists) {
+        const conversationId = message.conversation_id;
+        if (conversationId && !pendingConversationReloadRef.current.has(conversationId)) {
+          pendingConversationReloadRef.current.add(conversationId);
+          fetchConversations({ background: true })
+            .catch((error) => {
+              console.error('client-live-chat refresh conversations failed', error);
+            })
+            .finally(() => {
+              pendingConversationReloadRef.current.delete(conversationId);
+            });
+        }
+      }
     },
-    [selectedConversationId]
+    [fetchConversations, selectedConversationId]
   );
 
   const markConversationAsViewed = useCallback(
@@ -252,29 +271,36 @@ const ClientLiveChatPage = () => {
   }, [conversations, selectedConversationId]);
 
   useEffect(() => {
-    if (!selectedConversation?.id) {
-      setMessages([]);
+    const cleanupSubscription = () => {
       if (messagesSubscriptionRef.current) {
         messagesSubscriptionRef.current.unsubscribe?.();
         messagesSubscriptionRef.current = null;
       }
-      return;
+    };
+
+    const conversationId = selectedConversationId || null;
+
+    if (!conversationId) {
+      setMessages([]);
+      cleanupSubscription();
+      lastLoadedConversationIdRef.current = null;
+      return cleanupSubscription;
     }
 
-    const conversationId = selectedConversation.id;
-    const skipSpinner = skipNextMessagesLoadFor === conversationId;
-    fetchMessagesForConversation(conversationId, { showSpinner: !skipSpinner });
-    if (skipSpinner) {
-      setSkipNextMessagesLoadFor(null);
-    }
-    if (!isStaff && conversationId) {
-      try { markAsRead(conversationId); } catch (_) {}
+    const conversationChanged = lastLoadedConversationIdRef.current !== conversationId;
+    if (conversationChanged) {
+      lastLoadedConversationIdRef.current = conversationId;
+      const skipSpinner = skipNextMessagesLoadFor === conversationId;
+      fetchMessagesForConversation(conversationId, { showSpinner: !skipSpinner });
+      if (skipSpinner) {
+        setSkipNextMessagesLoadFor(null);
+      }
+      if (!isStaff) {
+        try { markAsRead(conversationId); } catch (_) {}
+      }
     }
 
-    if (messagesSubscriptionRef.current) {
-      messagesSubscriptionRef.current.unsubscribe?.();
-      messagesSubscriptionRef.current = null;
-    }
+    cleanupSubscription();
 
     const subscription = subscribeToClientChatMessages(conversationId, (payload) => {
       if (!payload) return;
@@ -307,13 +333,8 @@ const ClientLiveChatPage = () => {
 
     messagesSubscriptionRef.current = subscription;
 
-    return () => {
-      if (messagesSubscriptionRef.current) {
-        messagesSubscriptionRef.current.unsubscribe?.();
-        messagesSubscriptionRef.current = null;
-      }
-    };
-  }, [fetchMessagesForConversation, isStaff, markAsRead, markConversationAsViewed, selectedConversation, selectedConversationId, skipNextMessagesLoadFor, updateConversationFromMessage]);
+    return cleanupSubscription;
+  }, [fetchMessagesForConversation, isStaff, markAsRead, markConversationAsViewed, selectedConversationId, skipNextMessagesLoadFor, updateConversationFromMessage]);
 
   useEffect(() => {
     if (!identifiersReady) return;
@@ -324,6 +345,7 @@ const ClientLiveChatPage = () => {
   const handleConversationBroadcast = useCallback(
     (payload) => {
       if (!payload) return;
+      console.log('[client-chat] broadcast', payload);
       const eventType = payload.eventType;
       const newRecord = payload.new;
       const oldRecord = payload.old;
