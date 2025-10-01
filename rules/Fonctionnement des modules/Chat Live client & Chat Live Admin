@@ -1,0 +1,51 @@
+"Live Chat - Architecture
+
+- Surfaces
+  - Client: `modules/client-live-chat/ClientLiveChatPage.jsx` reste l'orchestrateur (chargement via `supabase.rpc('get_chat_conversations_with_details')`, wiring `ClientConversationView`). Toutes les ecritures passent par `chatApi` (`sendMessage|sendFile|sendResource`, `archiveClientConversation`, `markConversationViewedByClient`) pour conserver les diffusions broadcast et la normalisation.
+  - Widget: `components/ChatWidget.jsx` reutilise les memes helpers `chatApi` (creation conversation, envoi, archivage) afin de poser `sender='user'`, declencher les broadcast et reappliquer les validations RPC.
+  - Admin: `components/admin/AdminLiveChatPanel.jsx` et `AdminChatView.jsx` consomment les donnees, mais deleguent toutes les mutations (`startAdminConversation`, `setAdminConversationArchived`, `sendMessage|sendFile|sendResource`, marquage lecture) a `chatApi`.
+  - API unique: `src/lib/chatApi.js` centralise la normalisation, la gestion des canaux broadcast et les appels RPC/Edge Functions. Aucun composant ne touche directement `supabase.from('chat_messages')` ou `supabase.from('chat_conversations')`.
+
+- Flux realtime
+  - Tous les canaux `supabase.channel` sont crees avec `{ broadcast: { self: true, ack: true } }` et referencees dans `broadcastChannelRegistry`; les surfaces liberent ensuite la ressource via `releaseBroadcastChannel` dans leurs cleanups.
+  - `broadcastMessageChange` et `broadcastConversationChange` restent le chemin nominal (faible latence, pas de reevaluation RLS) ; les helpers chatApi (`createMessageSubscription`, `createConversationChannelSubscription`) orchestrent validation, hydratation ciblée et fallback RPC automatiques.
+  - Les payloads broadcast sont consommes tels quels; l'hydratation SQL n'est declenchee que si le message recu est partiel (legacy).
+
+- Mutations communes
+  - Client et widget: creation via `client_start_chat_conversation`, envoi par `chatApi.sendMessage|sendFile|sendResource`, archivage `archiveClientConversation`, lecture `markConversationViewedByClient`.
+  - Admin: nouveaux fils via `startAdminConversation`, archivage `setAdminConversationArchived`, envoi `chatApi.sendMessage|sendFile|sendResource`, lecture via un RPC `admin_mark_chat_viewed` (a livrer) qui met a jour `admin_last_viewed_at` sous RLS.
+  - Aucun composant ne doit inserer ou mettre a jour `chat_messages` / `chat_conversations` sans passer par ces helpers.
+
+- Statuts et archivage
+  - Statuts valides: `ouvert`, `en_cours`, `a_traiter`, `resolu`, `abandonne`; `resolu` et `abandonne` restent auto-archives cote client.
+  - Toutes les bascules de statut/archivage passent par les RPC security definer (`client_chat_set_archived`, `admin_chat_set_archived`) qui declenchent ensuite `broadcastConversationChange`.
+
+- Securite & RLS
+  - Activer `row level security` sur `public.chat_conversations` et `public.chat_messages`, puis definir:
+    - policies clients: appartenance via `guest_id`, `profiles.chat_guest_id` ou email.
+    - policies staff: roles `owner|admin|prof` via `profiles.user_type` / `user_types`.
+    - policies widget: correspondance sur `guest_id` pour les visiteurs anonymes.
+  - Une fois RLS active, deplacer `markConversationViewedByClient` et le marquage admin dans des RPC security definer (`client_mark_chat_viewed`, `admin_mark_chat_viewed`) utilises par `chatApi`.
+  - Les colonnes `sender` restent strictement `user`, `admin`, `owner`, `prof`; bannir les alias texte (ex: `guest`, prenom) afin de conserver les calculs `has_unread`.
+
+- Performance & observabilite
+  - Les payloads diffusés doivent rester complets (messages hydratés, ressources résolues) afin d'éviter des requêtes supplémentaires côté client ; conserver une journalisation `console.error` + toast pour les cas de fallback.
+  - Coupler les toasts utilisateurs avec un `console.error` structure afin de suivre les echecs dans les logs Supabase / Edge.
+  - Tous les hooks realtime detruisent leurs canaux dans les cleanups pour eviter les fuites multi-onglets; `broadcastChannelRegistry` reste la source de verite des refCount.
+
+
+
+title: "Live Chat - UI Standards"
+<!-- ANCHOR:LIVE_CHAT_STANDARDS -->
+- Selection destinataire obligatoire (client): bouton "Nouvelle conversation" (Radix Dialog + Select) bloque la creation tant que `staff_user_id` n'est pas fourni
+- Statuts et badges (client/admin): `ouvert`, `en_cours`, `a_traiter`, `resolu`, `abandonne`; fallback "Ouvert" si valeur inconnue cote client
+- Archivage
+  - Client: icone corbeille -> `client_chat_set_archived` (status aligne `resolu` <-> `ouvert`); la liste "Archivees" ne doit afficher que les conversations archivables
+  - Admin: `ConversationList` traite `resolu|abandonne` comme archive par defaut et s'appuie sur `admin_chat_set_archived`
+- Navigation entre vues: bascule Active/Archivee doit reinitialiser la conversation selectionnee si elle n'appartient plus a la vue courante
+- Realtime & reseau: les surfaces consomment uniquement `subscribeToClientConversations` / `subscribeToClientChatMessages` exposés par chatApi; les helpers broadcastent, hydratent et déclenchent les fallbacks RPC si nécessaire, aucun canal Supabase manuel n'est autorisé.
+- Accessibilite: Dialog annonce titre/description, desactive le CTA tant qu'aucun destinataire n'est choisi et affiche un message d'erreur concis
+<!-- AUTO:END -->
+
+
+

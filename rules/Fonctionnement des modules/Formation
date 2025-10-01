@@ -1,0 +1,26 @@
+Vue d'ensemble
+
+Le module formation s’articule autour des parcours Supabase (courses standard/custom) et des soumissions client qui, une fois approuvées, alimentent un Kanban partagé entre clients et administrateurs pour suivre l’avancement module par module (Supabase/migrations/2025-09-08_formation_module_statuses.sql:6, Supabase/migrations/2025-09-08_init_fms.sql:9).
+L’architecture sépare le catalogue public (homepage), le dashboard client (inscriptions, statut et Kanban), et la console admin (gestion du catalogue, revue des soumissions, Kanban global, brief formation) (rules/00-architecture/readme.mdc:4, src/components/dashboard/ClientDashboardContent.jsx:21, src/pages/AdminDashboardPage.jsx:24).
+Données & automatisations
+
+Les statuts Kanban sont stockés dans formation_module_statuses avec RLS et checks (todo/in_progress/blocked/done) et sont diffusés par Supabase Realtime (Supabase/migrations/2025-09-08_formation_module_statuses.sql:6, Supabase/migrations/2025-09-17_enable_realtime_fms.sql:5).
+Le déclencheur on_submission_approved_init_fms peuple automatiquement les cartes lorsqu’une soumission passe en “approved/live”, en détectant la table réellement présente (Supabase/migrations/2025-09-08_submission_approved_trigger.sql:4, Supabase/migrations/2025-09-08_init_fms.sql:29).
+La vue kanban_user_modules_v1 expose ces cartes aux clients, les métadonnées étant ajoutées côté front via builder_modules (Supabase/migrations/2025-09-08_kanban_user_modules_v1.sql:7, src/components/kanban/KanbanPanel.jsx:54).
+Le brief d’onboarding formation repose sur les tables training_onboarding_* (sections, questions, réponses, NPS) avec politiques dédiées et API React Query (Supabase/migrations/2025-09-20_training_onboarding_form.sql:10, src/lib/trainingOnboardingApi.js:290).
+Parcours Admin
+
+FormationManagementPanel agrège via RPC get_admin_formations_and_submissions les cours catalogues + soumissions client, avec filtres, duplication et suppression directe sur courses (src/components/admin/FormationManagementPanel.jsx:26).
+La liste affiche un mini workflow d’approbation qui appelle les RPC d’état (approve_user_parcours_submission, revert_submission_to_pending, reject_user_parcours_submission) pour piloter les soumissions (src/components/admin/formation-management/FormationListView.jsx:49).
+UserFormationSubmissionsPanel se focalise sur les formations live, propose la galerie des soumissions, le passage en Kanban détaillé, et ouvre le dashboard global par utilisateur (src/components/admin/UserFormationSubmissionsPanel.jsx:33, src/components/admin/formation-live/UserKanbanDashboard.jsx:146).
+AdminKanbanView recharge les cartes via la RPC get_admin_kanban_module_statuses (fallback sur la vue) et persiste le drag-and-drop sur formation_module_statuses, tout en affichant le brief onboarding du client (src/components/admin/formation-live/AdminKanbanView.jsx:143, src/components/admin/formation-live/OnboardingBriefPanel.jsx:14).
+Parcours Client
+
+FormationsPanel combine les inscriptions live (get_user_courses_and_parcours) et les brouillons personnels pour que l’utilisateur pilote ses parcours, lance des duplications ou arrête une formation (src/components/dashboard/modules/FormationsPanel.jsx:32).
+UserFormationStatusSelect gère l’inscription ou la soumission custom : insert/update dans user_formations, RPC submit_user_parcours_for_validation, puis verrouille les statuts une fois validés (src/components/dashboard/modules/UserFormationStatusSelect.jsx:24).
+Le Kanban client lit la vue kanban_user_modules_v1, enrichit avec builder_modules et autorise le drag-and-drop en temps réel, tout en informant l’utilisateur si aucune carte n’est encore publiée par l’admin (src/components/kanban/KanbanPanel.jsx:43).
+Le module “Préférences de formation” restitue le brief et renvoie vers le formulaire d’onboarding accessible depuis le site (src/components/dashboard/modules/TrainingPreferencesPanel.jsx:27, src/lib/trainingOnboardingApi.js:290).
+Homepage & vitrines
+
+Le bloc dynamique home.formations récupère jusqu’à quatre parcours catalogues live (courses.status='live' AND course_type='standard') et prépare les accroches (durée totale, mode de diffusion, teaser modules) (src/components/home/FormationsSection.jsx:55).
+Ce bloc est verrouillé côté admin pour éviter toute suppression accidentelle dans la gestion des home blocks (src/components/admin/home-blocks/HomeBlockList.jsx:837).

@@ -1,70 +1,23 @@
-﻿<!-- ANCHOR:STANDARDS -->
-- Reutiliser le client Supabase fourni par src/lib/customSupabaseClient pour beneficier du timeout et du singleton GoTrue.
-- Invitations admin :
-  - Utiliser supabase.functions.invoke('invite-user', ...) depuis l'UI admin ; pas de service-role cote client.
-  - La fonction Edge met profiles.status = 'active' et applique le user_type client ; garder cette source de verite.
-  - Secrets requis cote Edge : SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (optionnel INVITE_REDIRECT_URL).
+Framworks:
 
-- Respecter authReady et authLoading avant redirection afin d'eviter un spinner permanent ou des redirections prematures.
-- Verifier les droits via usePermissions().hasPermission et garder role_permissions/modules_registry/admin_dashboard_tabs synchronises :
-  - Toute nouveaute client passe par une permission de type *:view_module referencee dans modules_registry.required_permission.
-  - Pour un module admin, creer une permission de type admin:*, l'inserer via migration Supabase et la lier a admin_dashboard_tabs.permission_required avant exposition UI.
-  - Documenter la permission (rules/04-database) et invalider les caches apres migration (emitSessionRefresh, PermissionsContext).
-- Conserver le nommage snake_case et les prefixes get_/set_/search_ pour toute nouvelle fonction SQL ou migration dans Supabase/migrations/.
+React + Vite forment le cœur, Tailwind/Radix/TipTap composent la couche UI, Zustand/Tanstack Query gèrent l’état, dnd-kit/React Flow assurent les interactions complexes, et Supabase fournit l’auth, la base temps réel et le stockage — le tout empaqueté via npm/Node 20.
+
+
+
+Technologies sur le projet: 
+
+Base stack : Frontend React 18 avec Vite 7, backend Supabase (auth, base Postgres, realtime, stockage). Node 20 côté build/CI.
+UI & état : Tailwind CSS + Radix UI comme socle, react-hook-form pour les formulaires, Zustand pour l’état partagé, framer-motion pour les animations, @dnd-kit pour le drag/drop, React Flow pour les builders visuels.
+Accès données : RPC Postgres et fonctions Edge (Deno/TypeScript) pour toute logique privilégiée ; RLS activée sur les tables sensibles. Chat, assistant, modules formation passent par des helpers chatApi/assistantApi.
+Realtime : Channels Supabase en broadcast (ack/self) orchestrés par des helpers (subscriptions unifiées, fallback hydratation).
+CI/CD & scripts : npm (npm ci / npm run build / npm run dev/preview), exécution SQL via npm run db:query/db:file, déploiement FTPS.
+Edge Functions actives : assistant-mint-key / voice-preview, notify-training-onboarding, invite-user, delete-user-full, create-user-with-role, content-blocks-search, manage-content-block, dashboard layout helpers, set-user-password, users-search, etc.
+
+
+Instructions: 
+
+- Utilise powershell v7.xx installé ("C:\Program Files\PowerShell\7\pwsh.exe")
+- Utilise le script Node scripts/run-sql.js (lancé comme node scripts/run-sql.js "<ta requête SQL>") pour exécuter des requêtes SQL contre Supabase.
 - Ne jamais exposer SUPABASE_SERVICE_ROLE dans le code client et limiter la diffusion du fichier .env.local.
-- Themes UI: versionner les changements dans `Supabase/migrations/<date>_themes_and_rpcs.sql` en conservant les noms RPC `get_active_theme_tokens` et `set_active_theme`. Restreindre `set_active_theme` aux admins/owners via RLS/policies et/ou gardes dans la fonction.
- - Onboarding formation (standards UI):
-   - Cartes cliquables pour single/multi, sliders 1â€“5 avec ancres, aucune question obligatoire.
-   - FR uniquement (tutoiement), disclaimer minimal sous Â« Valider Â» interdisant les donnÃ©es sensibles.
-   - RÃ©sumÃ© avec pictogrammes Lucide, sections et items triÃ©s par `step_order`/`sort_order`.
- - Onboarding formation (standards dâ€™accÃ¨s):
-   - VisibilitÃ© client actif uniquement (`ClientOnlyRoute`), non-bloquant, CTA Â« Remplir les prÃ©fÃ©rences Â» si vide.
- - Notifications: conserver Resend via Edge Function `notify-training-onboarding` avec secrets `RESEND_API_KEY`, `ONBOARDING_NOTIFICATION_EMAIL` (fallback `OWNER_EMAIL`), `ONBOARDING_EMAIL_FROM` (fallback `SENDER_EMAIL`).
-
-<!-- ANCHOR:ACCOUNT_DELETION_STANDARDS -->
-- Utiliser exclusivement l'appel `supabase.rpc('admin_delete_user_full', { p_user_id })` pour supprimer un compte depuis l'UI (Admin et autoâ€‘suppression).
-- Ne plus appeler `auth.admin.deleteUser` directement depuis le client: nÃ©cessite la service_role et peut Ã©chouer ou laisser des identitÃ©s orphelines.
-- Les dialogues de confirmation doivent reflÃ©ter une suppression TOTALE (auth + identitÃ©s + profil + donnÃ©es liÃ©es) et Ãªtre irrÃ©versibles.
-- Permissions: seul un `owner` peut supprimer un `owner`; `owner`/`admin` peuvent supprimer d'autres comptes; un utilisateur peut se supprimer luiâ€‘mÃªme.
-- PrÃ©â€‘vÃ©rification d'email d'inscription: privilÃ©gier `public.check_email_available(p_email text)` (security definer) ou dÃ©sactiver via `VITE_SIGNUP_EMAIL_PRECHECK=false` si la RPC n'est pas en place.
-
-- Assistant IA (client):
-  - React: consommer `useAssistant()` (contexte global) pour ouvrir le drawer ou afficher l'etat dans le dashboard; ne jamais by-passer les gardes `callState`, `quotaError`, `configLoading`.
-  - WebRTC: laisser `AssistantProvider` piloter `usePerfectNegotiation()` (pas de creation directe de `RTCPeerConnection`). Ajouter uniquement des handlers via `setHandlers`.
-  - Edge/API: toute session passe par `supabase.functions.invoke('assistant-mint-key', {...})`. Respecter les entetes CORS (`POST, OPTIONS`) et ne jamais stocker la cle OpenAI cote client.
-  - Quotas: utiliser `ensureAssistantLimits()` et `updateAssistantLimits()` pour initialiser/mettre a jour les compteurs (minutes/jour, sessions, images). Les surcharges se gerent via SQL (`assistant_limits`).
-  - Metrics: ecrire via `insertAssistantMetric` puis `updateAssistantMetric` (bytes up/down, duree, erreurs). Pas de tracking cote client hors Supabase.
-  - UI: `AssistantDrawer` et `AssistantPanel` doivent rester les points d'entree; tout nouveau composant doit consommer l'etat via `useAssistant()` plutot que dupliqer la logique.
-
-<!-- ANCHOR:WORKFLOWS -->
-- Invalider les caches critiques avec emitSessionRefresh ou queryClient.invalidateQueries() apres toute mise a jour de profil, permissions ou layout.
-- Routage : ProtectedRoute, ClientOnlyRoute et PublicOnlyRoute se basent sur allowedUserTypes, requiredPermission et le bypass owner.
-- Cycle parcours : draft client -> soumission -> validation -> init_kanban_statuses_for_submission.
-- Modifications autorisees : UI/UX formation, logique client du builder, styles, permissions (cf. src/components et src/hooks dedies).
-- Modifications interdites sans validation : schema des tables courses et formation_module_statuses, RPC submit_*/approve_*/init_kanban_*, logiques de snapshot et policies RLS.
-- ThÃ¨mes: utiliser `ThemePanel` (Admin) pour CRUD/activation; cÃ´tÃ© client, rÃ©cupÃ©rer les tokens via `supabase.rpc('get_active_theme_tokens')` et appliquer via `ThemeContext.applyTheme()`.
- - Flux Onboarding:
-   - Chargement config: `fetchTrainingOnboardingConfig({ includeInactive: false })` cÃ´tÃ© wizard; `fetchTrainingOnboardingConfigWithAllQuestions()` cÃ´tÃ© rÃ©sumÃ© (client/admin).
-   - Autosauvegarde brouillon: debounce 600 ms, statut Â« Brouillon enregistrÃ© Â»; toast destructif en cas dâ€™Ã©chec.
-   - Soumission: upsert `training_onboarding_responses`, mise Ã  jour de `profiles.profession` depuis `metier_activite`.
-   - Notification: `supabase.functions.invoke('notify-training-onboarding', {...})` avec rÃ©sumÃ© texte.
-   - Premier envoi: mini NPS (Oui/Non + commentaire), puis redirection.
-
-<!-- ANCHOR:ACCOUNT_DELETION_WORKFLOWS -->
-- Admin Users list (`src/components/admin/UserManagementPanel.jsx`) â†’ corbeille â†’ RPC `admin_delete_user_full`.
-- Admin User page (`src/pages/admin/ManageUserPage.jsx`) â†’ bouton supprimer â†’ RPC `admin_delete_user_full`.
-- Compte utilisateur (`src/components/account/DeleteAccountSection.jsx`) â†’ bouton supprimer â†’ RPC `admin_delete_user_full`.
-
-
-<!-- ANCHOR:EXAMPLES -->
-```javascript
-const { data, error } = await supabase.rpc('get_user_courses_and_parcours', {
-  p_user_id: user.id,
-});
-```
-
-```javascript
-// Lecture tokens de thÃ¨me et application
-const { data: tokens } = await supabase.rpc('get_active_theme_tokens');
-if (tokens) applyTheme(tokens);
-```
+- Env via /.env & /.env.local (ex. VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY) ; alerter si manquants ; ne jamais exposer de clés service-role côté client.
+- ID du projet Supabase: kiudpvvqpbkzeybogrnq (Projet NotionLab)

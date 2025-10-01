@@ -1,66 +1,14 @@
----
-title: "NotionLab Guide IA - Module Formations"
-version: "2"
-date: "2025-01-18"
-owner: "NEEDS-VERIFY Provide owner or primary contact."
-description: Le dossier regroupe des guides pratiques pour FastAPI et Next.js. Côté FastAPI : arborescence claire (routers, schemas, services), Pydantic pour validation, gestion d’erreurs normalisée, sécurité (OAuth/JWT, RLS, rôles/permissions), Postgres async avec patterns repo/service, tâches de fond, audit log, documentation OpenAPI et tests pytest/httpx. Côté Next.js : conventions (Server vs Client Components, UI stateless/smart), data-fetching optimisé (ISR/SSR/SSG, React Query, Supabase sécurisé), formulaires avec Server Actions et validation Zod, structure /app (layouts, routes dynamiques, erreurs/loading), gestion d’état, revalidation, sécurité. Ajout des Radix Themes avec tokens, accessibilité, intégration Tailwind/CVA, icônes Lucide, animations Framer et cohérence design.
----
+Dependencies (prod)
+@dnd-kit/core, @dnd-kit/modifiers, @dnd-kit/sortable, @dnd-kit/utilities, @emotion/is-prop-valid, @radix-ui/react-{accordion,alert-dialog,avatar,checkbox,dialog,dropdown-menu,label,popover,radio-group,scroll-area,select,separator,slider,slot,switch,tabs,toast,toggle,toggle-group,tooltip}, @supabase/supabase-js, @tanstack/react-query,
+@tiptap/{extension-character-count,extension-color,extension-font-family,extension-highlight,extension-horizontal-rule,extension-image,extension-link,extension-placeholder,extension-table,extension-table-cell,extension-table-header,extension-table-row,extension-text-align,extension-text-style,extension-underline,extension-youtube,pm,react,starter-kit},
+class-variance-authority, clsx, cmdk, dagre, date-fns, dompurify, dotenv, emoji-picker-react, framer-motion, lucide-react, papaparse, pg, react, react-beautiful-dnd, react-color, react-day-picker, react-dom, react-helmet, react-hook-form, react-markdown, react-router-dom, reactflow, remark-gfm, tailwind-merge, tailwindcss-animate, use-debounce, uuid.
 
-<!-- AUTO:BEGIN -->
-<!-- ANCHOR:OVERVIEW -->
-readmeIA decrit les librairies clefs du module Formations : React 18, Vite 7 et l'ecosysteme Supabase, ainsi que les outils specialises du builder et du Kanban.
+DevDependencies
+@babel/{generator,parser,traverse,types}, @modelcontextprotocol/server-filesystem, @openai/codex, @supabase/mcp-server-supabase, @tailwindcss/typography,
+@types/{dagre,node,react,react-dom}, @vitejs/plugin-react, autoprefixer, env-cmd, eslint, eslint-config-react-app, postcss, tailwindcss, terser, vite.
 
-<!-- ANCHOR:STANDARDS -->
-- ReactFlow 11.x pilote l'editeur graphique des parcours (nodes et edges) dans le builder.
-- @dnd-kit 6.x/7.x/8.x gere le drag and drop du Kanban (src/components/kanban/).
-- Framer Motion 6.x anime les cartes de formation et les transitions UI.
-- TipTap 2.4.0 fournit l'editeur riche pour les descriptions de modules.
-- date-fns 2.x formate les dates (created_at, enrolled_at) dans les interfaces.
-- Dagre 0.8.x calcule les layouts automatiques des graphes de parcours.
-- Tailwind + Autoprefixer: les couleurs/UI utilisent des tokens `hsl(var(--colors-...))` definis dans `tailwind.config.js` et resolus par des variables CSS injectees dynamiquement via `ThemeContext`.
-- Fallbacks CSS: `src/index.css` fournit un mapping de secours `:root` (`--colors-*` ← `--background`/`--foreground`/etc.) pour eviter tout flash avant l'injection du theme.
-- Compatibilite CSS: `src/index.css` force les variantes standard + prefixees pour `text-size-adjust` (standard et `-webkit-…`) et pour `backdrop-filter` (standard et `-webkit-…`).
-- ThemeProvider unique: conserver `ThemeProvider` uniquement dans `src/main.jsx` (plus de doublon dans `src/App.jsx`).
-- Onboarding formation (UI & libs):
-  - Radix UI + composants `@/components/ui/*` pour inputs, cartes et alertes; sliders via `@radix-ui/react-slider`.
-  - Icônes Lucide dans le résumé: `src/components/onboarding/TrainingPreferencesSummary.jsx` (pictos par section).
-  - React Query pour le data‑fetching (config, réponses, NPS) et mutations (draft, submit, NPS).
-  - `react-helmet` pour titres/meta des pages onboarding.
-  - Navigation protégée via `ClientOnlyRoute`.
+Ces deux listes couvrent toutes les librairies référencées dans package.json.
 
-- Assistant IA UI: le drawer s'appuie sur les composants shadcn (Button, Badge, Tooltip) + Tailwind pour la layout; les icones Lucide (Bot, PhoneCall, etc.) indiquent l'etat.
-  - Video/audio: balises `<video>` natives gerent remote/local streams; maintenir playsInline/muted pour eviter les warnings.
-  - Action "Montrez-lui": upload via `<input type="file">` + helper `readFileAsBase64`; les images partent sur le DataChannel vers OpenAI Realtime.
-  - Bouton nav: `Navigation.jsx` affiche `Assistant` via `ManagedComponent` (rules `component_rules`); conserver la pulse `animate-pulse` pour l'etat connected.
 
-<!-- ANCHOR:WORKFLOWS -->
-- Le builder ReactFlow exploite CustomNode.jsx et StartNode.jsx pour modeliser le parcours et utiliser ModuleCatalog.jsx pour le drag and drop.
-- Le Kanban temps reel combine formation_module_statuses et supabase.channel pour synchroniser l'avancement utilisateur.
-- FormationsPanel.jsx consomme supabase.rpc('get_user_courses_and_parcours') pour lister les formations et parcours custom.
-- Page Admin « Thèmes » (`src/components/admin/ThemePanel.jsx`) pilote les tokens via la table `public.themes` et 2 RPCs: `get_active_theme_tokens()` (lecture) et `set_active_theme(uuid)` (activation). L'aperçu applique `ThemeContext.applyTheme()`.
- - Live Chat admin : `AdminLiveChatPage.jsx` doit lancer `fetchConversations()` au montage avant toute souscription realtime. Ne compte jamais uniquement sur les evenements `supabase.channel`, sinon la liste reste vide et le spinner tourne indefiniment.
- - Live Chat client : `ClientLiveChatPage.jsx` declenche `supabase.rpc('get_chat_conversations_with_details')` avant d'attacher les canaux et hydrate chaque payload via `hydrateMessage()` pour conserver pieces jointes/ressources.
- - Onboarding formation:
- - Tickets admin : `TicketManagementPanel.jsx` doit enrichir les tickets avec `hasNewClientReply` (derniere reponse client + `admin_last_viewed_at`) et `AdminDashboardPage.jsx` doit declencher periodiquement `checkTicketActivity()` ; sans ce fetch initial, les badges/boutons ne s'actualisent pas.
-   - Wizard: `TrainingOnboardingWizard.jsx` affiche uniquement les questions actives et masque les sections vides; autosauvegarde débouncée; toasts d'erreur.
-   - Résumé: `TrainingPreferencesSummary.jsx` côté client et admin (lecture seule) avec pictos; CTA « Mettre à jour ».
-   - Notifications: `supabase.functions.invoke('notify-training-onboarding', {...})`.
 
-<!-- ANCHOR:EXAMPLES -->
-| Element | Version | Usage |
-| --- | --- | --- |
-| React Flow | 11.x | Builder visuel de parcours (src/pages/FormationBuilderPage.jsx) |
-| @dnd-kit | 6.1.0 / 8.0.0 / 7.0.0 | Kanban drag and drop (src/components/kanban/) |
-| ReactFlow | 11.x | Editeur graphique des parcours |
-| Framer Motion | 6.x | Animations UI (cards et transitions) |
-| TipTap | 2.4.0 | Editeur riche des descriptions |
-| date-fns | 2.x | Formatage de dates |
-| Dagre | 0.8.x | Auto-layout des graphes |
-
-<!-- ANCHOR:LIMITS -->
-- Performance : ReactFlow peut ralentir au dela de 100 noeuds; filtrer le catalogue module pour limiter la charge.
-- Realtime : les sessions multi-onglets peuvent presenter un leger decalage avant synchronisation.
-- Catalogue builder : filtrage cote client potentiellement lent si plus de 1000 modules.
-- Thèmes: en absence temporaire de tokens (latence reseau), les fallbacks `:root` evitent un flash; `ThemeContext` applique ensuite les valeurs dynamiques.
-<!-- AUTO:END -->
 
