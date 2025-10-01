@@ -542,6 +542,7 @@ export const getClientGuestIdentifiers = (user) => {
   const guestEmail = user?.email || null;
   const guestKey = guestId || guestEmail || null;
   return { guestId, guestEmail, guestKey };
+};
 
 export const listClientConversations = async (user) => {
   const { guestId, guestEmail } = getClientGuestIdentifiers(user);
@@ -556,6 +557,7 @@ export const listClientConversations = async (user) => {
   }
 
   return (Array.isArray(data) ? data : []).map(normalizeClientConversation);
+};
 
 export const listChatStaffUsers = async () => {
   const { data, error } = await supabase.rpc('client_list_chat_staff_users');
@@ -569,6 +571,7 @@ export const listChatStaffUsers = async () => {
     ...staff,
     user_type: staff?.user_type || null,
   }));
+};
 
 export const archiveClientConversation = async (conversationId, archived) => {
   if (!conversationId) throw new Error('ID de conversation manquant.');
@@ -587,6 +590,7 @@ export const archiveClientConversation = async (conversationId, archived) => {
   await broadcastConversationChange({ eventType: 'UPDATE', record: normalized });
 
   return normalized;
+};
 
 export const ensureClientConversation = async ({ guestId = null, guestEmail = null, guestName = '', forceNew = false } = {}) => {
   let conversation = null;
@@ -705,6 +709,7 @@ export const ensureClientConversation = async ({ guestId = null, guestEmail = nu
     eventType: 'INSERT',
     perspective: 'client',
   });
+};
 
 export const resolveClientConversation = async (conversationId) => {
   if (!conversationId) throw new Error('ID de conversation manquant.');
@@ -746,6 +751,7 @@ export const resolveClientConversation = async (conversationId) => {
     eventType: 'UPDATE',
     perspective: 'client',
   });
+};
 
 export const listAdminConversations = async ({ view = 'active', limit = 100, offset = 0 } = {}) => {
   const isArchivedView = view === 'archived';
@@ -766,6 +772,7 @@ export const listAdminConversations = async ({ view = 'active', limit = 100, off
     return normalized.filter((conversation) => Boolean(conversation?.admin_archived));
   }
   return normalized.filter((conversation) => !conversation?.admin_archived);
+};
 
 export const markConversationViewedByAdmin = async (conversationId) => {
   if (!conversationId) throw new Error('ID de conversation manquant.');
@@ -802,6 +809,7 @@ export const markConversationViewedByAdmin = async (conversationId) => {
     eventType: 'UPDATE',
     perspective: 'admin',
   });
+};
 
 export const getOrCreateConversation = async (user) => {
   if (!user) throw new Error("Utilisateur non authentifie.");
@@ -897,6 +905,7 @@ getOrCreateConversation.subscribeToMessages = (conversationId, callback) => {
       releaseBroadcastChannel(channel);
     },
   };
+};
 
 export const getClientChatStatus = async ({ guestId, guestEmail }) => {
   if (!guestId && !guestEmail) throw new Error("Identifiant client manquant.");
@@ -955,6 +964,7 @@ export const getClientChatStatus = async ({ guestId, guestEmail }) => {
   });
 
   return { conversations, hasUnread };
+};
 
 export const markConversationViewedByClient = async (conversationId) => {
   if (!conversationId) throw new Error("ID de conversation non fourni.");
@@ -967,6 +977,9 @@ export const markConversationViewedByClient = async (conversationId) => {
   if (error) {
     throw new Error("Impossible de mettre a jour le statut de lecture du chat.");
   }
+
+  return true;
+};
 
 export const subscribeToClientChatMessages = (conversationId, callback, options = {}) => {
   if (!conversationId) return null;
@@ -981,6 +994,7 @@ export const subscribeToClientChatMessages = (conversationId, callback, options 
     context: 'subscribeToClientChatMessages',
     onFallback: typeof normalizedOptions.onFallback === 'function' ? normalizedOptions.onFallback : null,
   });
+};
 
 export const subscribeToAdminChatMessages = (conversationIdOrCallback, maybeCallback = undefined, maybeOptions = undefined) => {
   let conversationId = conversationIdOrCallback;
@@ -1091,6 +1105,8 @@ const createConversationChannelSubscription = ({
     unsubscribe: cleanup,
   };
 
+};
+
 export const subscribeToClientConversations = (params, callback, options = {}) => {
   const guestId = params?.guestId || null;
   const guestEmail = params?.guestEmail || null;
@@ -1106,6 +1122,7 @@ export const subscribeToClientConversations = (params, callback, options = {}) =
     onFallback:
       typeof normalizedOptions.onFallback === 'function' ? normalizedOptions.onFallback : null,
   });
+};
 
 export const subscribeToAdminConversations = (callback, options = {}) => {
   const normalizedOptions = options && typeof options === 'object' ? options : {};
@@ -1119,6 +1136,7 @@ export const subscribeToAdminConversations = (callback, options = {}) => {
     onFallback:
       typeof normalizedOptions.onFallback === 'function' ? normalizedOptions.onFallback : null,
   });
+};
 
 export const fetchMessages = async (conversationId) => {
   const { data, error } = await supabase
@@ -1148,6 +1166,8 @@ export const sendMessage = async (conversationId, content, isAdmin) => {
       `Votre message n'a pas pu etre envoye: ${dbError.message || dbError.details || 'Erreur inconnue.'}`,
   });
 
+};
+
 export const sendFile = async (file, conversation, isAdmin) => {
   if (!conversation?.id) throw new Error('Identifiant de conversation manquant.');
 
@@ -1173,6 +1193,8 @@ export const sendFile = async (file, conversation, isAdmin) => {
       `Echec de l'enregistrement du message: ${dbError.message || dbError.details || 'Erreur inconnue.'}`,
   });
 
+};
+
 export const sendResource = async (resource, conversationId, isAdmin) => {
   if (!conversationId) throw new Error('ID de conversation manquant.');
   if (!resource?.id) throw new Error('Ressource invalide.');
@@ -1195,6 +1217,8 @@ export const sendResource = async (resource, conversationId, isAdmin) => {
     buildErrorMessage: () => 'Impossible de partager la ressource.',
   });
 
+};
+
 export const listShareableResources = async ({ limit = 200 } = {}) => {
   const { data, error } = await supabase
     .from('resources')
@@ -1208,6 +1232,8 @@ export const listShareableResources = async ({ limit = 200 } = {}) => {
   }
 
   return Array.isArray(data) ? data : [];
+
+};
 
 export const getResourcePublicUrl = (filePath) => {
   if (!filePath) return null;
@@ -1252,6 +1278,8 @@ export const startClientConversation = async ({ staffUserId = null, initialMessa
 
   return conversation;
 
+};
+
 export const listAdminChatRecipients = async () => {
   const { data, error } = await supabase.rpc('admin_list_chat_recipients');
   if (error) {
@@ -1275,6 +1303,8 @@ export const listAdminChatRecipients = async () => {
       user_type_display_name: recipient?.user_type_display_name || null,
       status: recipient?.status || null,
     }));
+
+};
 
 export const startAdminConversation = async ({ staffUserId, recipient, forceNew = true }) => {
   if (!staffUserId) {
@@ -1398,6 +1428,8 @@ export const startAdminConversation = async ({ staffUserId, recipient, forceNew 
     throw new Error('Impossible de creer la conversation.');
   }
 
+};
+
 export const setAdminConversationArchived = async (conversationId, archived) => {
   if (!conversationId) throw new Error('ID de conversation manquant.');
 
@@ -1420,6 +1452,8 @@ export const setAdminConversationArchived = async (conversationId, archived) => 
 
   return null;
 
+};
+
 export const clearChatHistory = async (conversationId) => {
   if (!conversationId) throw new Error("ID de conversation non fourni.");
 
@@ -1433,8 +1467,4 @@ export const clearChatHistory = async (conversationId) => {
     throw new Error("Impossible de vider l'historique du chat.");
   }
 };
-
-
-
-
 
