@@ -352,35 +352,48 @@ export const useClientLiveChat = ({ user, initialConversationId = null } = {}) =
       selectedConversationId,
       messageCount: messages?.length ?? 0,
     });
-    const subscription = subscribeToClientChatMessages(selectedConversationId, (payload) => {
-      console.debug('client-live-chat realtime payload', payload);
-      const message = payload?.new;
-      if (!message?.conversation_id) {
-        return;
-      }
-
-      patchConversationInCache(message.conversation_id, (conversation) => {
-        if (!conversation) return conversation;
-        const summary = deriveSummaryFromMessage(message);
-        return {
-          ...conversation,
-          summary: summary ?? conversation.summary,
-          updated_at: message.created_at || conversation.updated_at,
-          has_unread: computeUnreadStatus(conversation, message),
-        };
-      });
-
-      queryClient.setQueryData(MESSAGES_KEY(message.conversation_id), (existing) => {
-        const nextMessages = Array.isArray(existing) ? [...existing] : [];
-        const index = nextMessages.findIndex((item) => item.id === message.id);
-        if (index >= 0) {
-          nextMessages[index] = { ...nextMessages[index], ...message };
-        } else {
-          nextMessages.push(message);
+    const subscription = subscribeToClientChatMessages(
+      selectedConversationId,
+      (payload) => {
+        console.debug('client-live-chat realtime payload', payload);
+        const message = payload?.new;
+        if (!message?.conversation_id) {
+          return;
         }
-        return sortMessagesByCreatedAt(nextMessages);
-      });
-    });
+
+        patchConversationInCache(message.conversation_id, (conversation) => {
+          if (!conversation) return conversation;
+          const summary = deriveSummaryFromMessage(message);
+          return {
+            ...conversation,
+            summary: summary ?? conversation.summary,
+            updated_at: message.created_at || conversation.updated_at,
+            has_unread: computeUnreadStatus(conversation, message),
+          };
+        });
+
+        queryClient.setQueryData(MESSAGES_KEY(message.conversation_id), (existing) => {
+          const nextMessages = Array.isArray(existing) ? [...existing] : [];
+          const index = nextMessages.findIndex((item) => item.id === message.id);
+          if (index >= 0) {
+            nextMessages[index] = { ...nextMessages[index], ...message };
+          } else {
+            nextMessages.push(message);
+          }
+          return sortMessagesByCreatedAt(nextMessages);
+        });
+      },
+      {
+        onFallback: async () => {
+          try {
+            const data = await fetchMessages(selectedConversationId);
+            queryClient.setQueryData(MESSAGES_KEY(selectedConversationId), sortMessagesByCreatedAt(Array.isArray(data) ? data : []));
+          } catch (error) {
+            console.error('client-live-chat hook message fallback failed', { conversationId: selectedConversationId, error });
+          }
+        },
+      }
+    );
     return () => {
       console.debug('client-live-chat subscribe:cleanup', { selectedConversationId });
       subscription?.unsubscribe?.();

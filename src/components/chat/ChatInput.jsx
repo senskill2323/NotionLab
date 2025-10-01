@@ -37,7 +37,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import EmojiPicker from 'emoji-picker-react';
-import { supabase } from '@/lib/customSupabaseClient';
+import { listShareableResources } from '@/lib/chatApi';
 import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -54,19 +54,18 @@ const AddResourceDialog = ({ open, onOpenChange, onSelectResource }) => {
     let isMounted = true;
     const fetchResources = async () => {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('resources')
-        .select('id, name, type, format')
-        .order('name', { ascending: true })
-        .limit(RESOURCE_SEARCH_LIMIT);
-
-      if (!isMounted) return;
-      if (error) {
-        console.error('Error fetching resources', error);
-      } else {
+      try {
+        const data = await listShareableResources({ limit: RESOURCE_SEARCH_LIMIT });
+        if (!isMounted) return;
         setResources(Array.isArray(data) ? data : []);
+      } catch (error) {
+        if (!isMounted) return;
+        console.error('Error fetching resources', error);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
       }
-      setLoading(false);
     };
 
     fetchResources();

@@ -1,6 +1,5 @@
 ﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Loader2, Inbox } from 'lucide-react';
-import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import ConversationList from '@/components/admin/chat/ConversationList';
 import AdminChatView from '@/components/admin/AdminChatView';
@@ -9,7 +8,14 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
-import { listAdminChatRecipients, startAdminConversation } from '@/lib/chatApi';
+import {
+  listAdminChatRecipients,
+  listAdminConversations,
+  markConversationViewedByAdmin,
+  startAdminConversation,
+  subscribeToAdminChatMessages,
+  subscribeToAdminConversations,
+} from '@/lib/chatApi';
 
 const RECIPIENT_ROLE_LABELS = {
   owner: 'Owner',
@@ -17,10 +23,6 @@ const RECIPIENT_ROLE_LABELS = {
   prof: 'Prof',
   client: 'Client',
 };
-
-const ADMIN_CHANNEL_TOPIC = 'chat-live-admin';
-const ADMIN_CONVERSATION_EVENT = 'conversation';
-const ADMIN_MESSAGE_EVENT = 'message';
 
 /**
  * @param {Object} props
@@ -92,21 +94,24 @@ const AdminLiveChatPanel = ({
     if (markViewInFlightRef.current) return;
 
     markViewInFlightRef.current = true;
-    const nowIso = new Date().toISOString();
 
     try {
-      const { error } = await supabase
-        .from('chat_conversations')
-        .update({ admin_last_viewed_at: nowIso })
-        .eq('id', conversationId);
-
-      if (error) {
-        console.error('Error marking chat conversation as viewed by admin:', error);
-      } else {
-        onActivityClearedRef.current?.();
+      const updated = await markConversationViewedByAdmin(conversationId);
+      if (updated?.id) {
+        setConversations((prev) =>
+          Array.isArray(prev)
+            ? prev.map((conversation) =>
+                conversation.id === updated.id ? { ...conversation, ...updated } : conversation
+              )
+            : prev
+        );
+        setSelectedConversation((prev) =>
+          prev?.id === updated.id ? { ...prev, ...updated } : prev
+        );
       }
-    } catch (err) {
-      console.error('Unexpected error while marking chat conversation as viewed by admin:', err);
+      onActivityClearedRef.current?.();
+    } catch (error) {
+      console.error('markConversationViewedByAdmin failed', { conversationId, error });
     } finally {
       markViewInFlightRef.current = false;
     }
@@ -117,23 +122,15 @@ const AdminLiveChatPanel = ({
       setLoading(true);
     }
     try {
-      const { data, error } = await supabase
-        .rpc('admin_get_chat_conversations_with_details', {
-          p_archived: view === 'archived' ? null : false,
-          p_limit: 100,
-          p_offset: 0,
-        });
-
-      if (error) throw error;
-      const nextConversations = Array.isArray(data) ? data : [];
-      setConversations(nextConversations);
-      if (nextConversations.length === 0) {
+      const nextConversations = await listAdminConversations({ view, limit: 100, offset: 0 });
+      setConversations(Array.isArray(nextConversations) ? nextConversations : []);
+      if (!nextConversations || nextConversations.length === 0) {
         setSelectedConversation(null);
         hasAutoSelectedRef.current = false;
       }
-    } catch (err) {
-      console.error('fetchConversations failed:', err);
-      toast({ title: 'Erreur', description: 'Impossible de charger les conversations.', variant: 'destructive' });
+    } catch (error) {
+      console.error('fetchConversations failed', error);
+      toast({ title: 'Erreur', description: "Impossible de charger les conversations.", variant: 'destructive' });
       setConversations([]);
     } finally {
       if (!background) {
@@ -186,10 +183,7 @@ const AdminLiveChatPanel = ({
   }, [selectedConversation, markConversationAsViewed, onConversationSelected]);
 
   useEffect(() => {
-    const channel = supabase.channel(ADMIN_CHANNEL_TOPIC, { config: { broadcast: { self: true, ack: true } } });
-
-    const handleConversationEvent = (event) => {
-      const payload = event?.payload;
+    const handleConversationEvent = (payload) => {
       if (!payload) {
         fetchConversations({ background: true });
         return;
@@ -206,7 +200,9 @@ const AdminLiveChatPanel = ({
 
       if (eventType === 'DELETE') {
         if (oldRecord?.id) {
-          setConversations((prev) => (Array.isArray(prev) ? prev.filter((conversation) => conversation.id !== oldRecord.id) : []));
+          setConversations((prev) =>
+            Array.isArray(prev) ? prev.filter((conversation) => conversation.id !== oldRecord.id) : []
+          );
         }
         return;
       }
@@ -238,9 +234,30 @@ const AdminLiveChatPanel = ({
       }
     };
 
-    const handleMessageEvent = (event) => {
-      const payload = event?.payload;
-      const message = payload?.new;
+    const subscription = subscribeToAdminConversations(handleConversationEvent, {
+      onFallback: async ({ reason }) => {
+        try {
+          console.warn('admin live chat conversation fallback', { reason });
+          await fetchConversations({ background: true });
+        } catch (error) {
+          console.error('admin live chat conversation fallback failed', { reason, error });
+        }
+      },
+    });
+
+    return () => {
+      subscription?.unsubscribe?.();
+    };
+  }, [fetchConversations]);
+
+  useEffect(() => {
+    const subscription = subscribeToAdminChatMessages((payload) => {
+      if (!payload) {
+        fetchConversations({ background: true });
+        return;
+      }
+
+      const message = payload.new;
       if (!message?.conversation_id) return;
 
       setConversations((prev) => {
@@ -257,22 +274,14 @@ const AdminLiveChatPanel = ({
         });
         return updated.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
       });
-    };
-
-    channel.on('broadcast', { event: ADMIN_CONVERSATION_EVENT }, handleConversationEvent);
-    channel.on('broadcast', { event: ADMIN_MESSAGE_EVENT }, handleMessageEvent);
-
-    channel.subscribe((status) => {
-      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-        console.error('admin live chat channel issue', { status });
-      }
+    }, {
+      onFallback: async () => {
+        fetchConversations({ background: true });
+      },
     });
 
     return () => {
-      if (typeof channel.unsubscribe === 'function') {
-        channel.unsubscribe();
-      }
-      supabase.removeChannel(channel);
+      subscription?.unsubscribe?.();
     };
   }, [fetchConversations]);
 

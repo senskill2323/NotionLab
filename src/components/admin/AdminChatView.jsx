@@ -1,13 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { supabase } from '@/lib/customSupabaseClient';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
+import { fetchMessages, sendFile, sendMessage, subscribeToAdminChatMessages } from '@/lib/chatApi';
 import { Send, Bot, User, Loader2, Paperclip, File as FileIcon, Bold, Underline } from 'lucide-react';
-import { v4 as uuidv4 } from 'uuid';
 import { cn } from '@/lib/utils';
 import RichTextRenderer from '@/components/RichTextRenderer';
+
+const sortMessagesByCreatedAt = (list) => {
+  if (!Array.isArray(list)) return [];
+  return [...list].sort((a, b) => new Date(a?.created_at || 0).getTime() - new Date(b?.created_at || 0).getTime());
+};
 
 const CompactChatMessage = ({ message, conversation, isFirstInGroup }) => {
   const isSenderAdmin = message.sender === 'admin';
@@ -93,101 +97,112 @@ const AdminChatView = ({ conversation }) => {
       id: tempId,
       ...newMessageData,
     };
-    setMessages(prev => [...prev, newMessage]);
+    setMessages((prev) => sortMessagesByCreatedAt([...prev, newMessage]));
     return tempId;
   };
   
   const handleSendSuccess = (tempId, insertedMessage) => {
-    setMessages(prev => prev.map(msg => msg.id === tempId ? insertedMessage : msg));
+    setMessages((prev) => sortMessagesByCreatedAt(prev.map((msg) => (msg.id === tempId ? insertedMessage : msg))));
   };
 
   const handleSendError = (tempId, originalContent) => {
-     toast({ title: "Erreur", description: "Votre message n'a pas pu être envoyé.", variant: "destructive" });
+     toast({ title: "Erreur", description: "Votre message n'a pas pu etre envoye.", variant: "destructive" });
     if (originalContent) setInput(originalContent);
     setMessages(prev => prev.filter(msg => msg.id !== tempId));
   };
 
 
   useEffect(() => {
-    const fetchMessages = async () => {
+    const loadMessages = async () => {
       if (!conversation?.id) {
         setLoading(false);
         setMessages([]);
         return;
       }
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('chat_messages')
-        .select('*')
-        .eq('conversation_id', conversation.id)
-        .order('created_at', { ascending: true });
 
-      if (error) {
+      setLoading(true);
+
+      try {
+        const data = await fetchMessages(conversation.id);
+        setMessages(Array.isArray(data) ? data : []);
+      } catch (error) {
         toast({ title: "Erreur", description: "Impossible de charger les messages.", variant: "destructive" });
-      } else {
-        setMessages(data);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
-    fetchMessages();
+    loadMessages();
   }, [conversation?.id, toast]);
 
   useEffect(scrollToBottom, [messages]);
 
   useEffect(() => {
-    if (!conversation?.id) return;
-    const channel = supabase
-      .channel(`admin_chat_${conversation.id}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `conversation_id=eq.${conversation.id}` },
-        (payload) => {
-            setMessages((prev) => {
-            if (prev.find(msg => msg.id === payload.new.id)) {
-              return prev.map(msg => msg.id === payload.new.id ? payload.new : msg);
-            }
-            return [...prev, payload.new];
-          });
+    if (!conversation?.id) return undefined;
+
+    const subscription = subscribeToAdminChatMessages(
+      conversation.id,
+      (payload) => {
+        if (!payload) return;
+        const { eventType, new: newMessage, old: previous } = payload;
+        if (eventType === 'DELETE' && previous?.id) {
+          setMessages((prev) => (Array.isArray(prev) ? prev.filter((msg) => msg.id !== previous.id) : prev));
+          return;
         }
-      )
-      .subscribe();
+        if (!newMessage?.id || newMessage.conversation_id !== conversation.id) {
+          return;
+        }
+
+        setMessages((prev) => {
+          const next = Array.isArray(prev) ? [...prev] : [];
+          const index = next.findIndex((msg) => msg.id === newMessage.id);
+          if (index >= 0) {
+            next[index] = { ...next[index], ...newMessage };
+          } else {
+            next.push(newMessage);
+          }
+          return sortMessagesByCreatedAt(next);
+        });
+      },
+      {
+        onFallback: async () => {
+          try {
+            const data = await fetchMessages(conversation.id);
+            setMessages(Array.isArray(data) ? data : []);
+          } catch (error) {
+            console.error('admin chat view message fallback failed', { conversationId: conversation.id, error });
+          }
+        },
+      }
+    );
 
     return () => {
-      supabase.removeChannel(channel);
+      subscription?.unsubscribe?.();
     };
   }, [conversation?.id]);
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!input.trim() || !conversation?.id) return;
+    if (!conversation?.id) return;
+    const trimmedContent = input.trim();
+    if (!trimmedContent) return;
 
-    const messageContent = input;
     setInput('');
-    
+
     const tempId = handleOptimisticSend({
       conversation_id: conversation.id,
       sender: 'admin',
-      content: messageContent,
+      content: trimmedContent,
       created_at: new Date().toISOString(),
       file_url: null,
       file_type: null,
     });
 
-    const { data: insertedMessage, error } = await supabase
-      .from('chat_messages')
-      .insert({
-        conversation_id: conversation.id,
-        sender: 'admin',
-        content: messageContent,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      handleSendError(tempId, messageContent);
-    } else {
+    try {
+      const insertedMessage = await sendMessage(conversation.id, trimmedContent, true);
       handleSendSuccess(tempId, insertedMessage);
+    } catch (error) {
+      handleSendError(tempId, trimmedContent);
     }
   };
 
@@ -197,32 +212,12 @@ const AdminChatView = ({ conversation }) => {
     if (!file || !conversation?.id) return;
 
     setUploading(true);
-    const fileName = `${uuidv4()}-${file.name}`;
-    const filePath = `${conversation.guest_id}/${fileName}`;
 
     try {
-      const { error: uploadError } = await supabase.storage
-        .from('chat_attachments')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('chat_attachments')
-        .getPublicUrl(filePath);
-
-      const { data: insertedMessage, error: messageError } = await supabase.from('chat_messages').insert({
-        conversation_id: conversation.id,
-        sender: 'admin',
-        content: `Fichier: ${file.name}`,
-        file_url: publicUrl,
-        file_type: file.type,
-      }).select().single();
-
-      if (messageError) throw messageError;
-
+      const message = await sendFile(file, conversation, true);
+      setMessages((prev) => sortMessagesByCreatedAt([...(Array.isArray(prev) ? prev : []), message]));
     } catch (error) {
-      toast({ title: "Erreur", description: `Échec de l'envoi du fichier: ${error.message}`, variant: "destructive" });
+      toast({ title: "Erreur", description: `Echec de l'envoi du fichier: ${error?.message || 'Erreur inattendue.'}`, variant: "destructive" });
     } finally {
       setUploading(false);
       e.target.value = null;
@@ -290,7 +285,7 @@ const AdminChatView = ({ conversation }) => {
                 ref={textareaRef}
                 value={input} 
                 onChange={(e) => setInput(e.target.value)} 
-                placeholder="Votre réponse..." 
+                placeholder="Votre reponse..." 
                 className="flex-grow resize-none border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent" 
                 rows={2}
                 disabled={uploading}
@@ -314,3 +309,4 @@ const AdminChatView = ({ conversation }) => {
 };
 
 export default AdminChatView;
+

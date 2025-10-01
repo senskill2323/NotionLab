@@ -1,6 +1,5 @@
-﻿import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useChat } from '@/contexts/ChatContext';
 import { useClientChatIndicator } from '@/hooks/useClientChatIndicator.jsx';
@@ -15,6 +14,19 @@ import MessageList from '@/components/chat/MessageList';
 import MessageInput from '@/components/chat/MessageInput';
 import CloseConfirmDialog from '@/components/chat/CloseConfirmDialog';
 import { groupMessagesByMinute } from '@/lib/chatUtils';
+import {
+  ensureClientConversation,
+  fetchMessages,
+  resolveClientConversation,
+  sendFile,
+  sendMessage,
+  subscribeToClientChatMessages,
+} from '@/lib/chatApi';
+
+const sortMessagesByCreatedAt = (list) => {
+  if (!Array.isArray(list)) return [];
+  return [...list].sort((a, b) => new Date(a?.created_at || 0).getTime() - new Date(b?.created_at || 0).getTime());
+};
 
 const ChatWidget = () => {
   const [messages, setMessages] = useState([]);
@@ -32,136 +44,167 @@ const ChatWidget = () => {
   const { markAsRead } = useClientChatIndicator();
   const { isOpen, isMinimized, closeChat, minimizeChat, toggleChat, prefilledMessage, setPrefilledMessage } = useChat();
 
+  const messagesSubscriptionRef = useRef(null);
+  const lastLoadedConversationIdRef = useRef(null);
+
   const isClientOrVip = user && (user.profile?.role === 'client' || user.profile?.role === 'vip');
 
-  const resetChatState = () => {
+  const groupedMessages = useMemo(() => groupMessagesByMinute(messages), [messages]);
+
+  const resetChatState = useCallback(() => {
+    messagesSubscriptionRef.current?.unsubscribe?.();
+    messagesSubscriptionRef.current = null;
+    lastLoadedConversationIdRef.current = null;
     setMessages([]);
     setConversation(null);
     setInput('');
-  };
-  
-  const handleCloseChat = () => {
-    if (messages.length > 0) {
-      setShowCloseConfirm(true);
-    } else {
-      closeChat();
-    }
-  };
-
-  const confirmCloseChat = async () => {
-    if (conversation) {
-      const { error } = await supabase
-        .from('chat_conversations')
-        .update({ status: 'resolu' })
-        .eq('id', conversation.id);
-
-      if (error) {
-        toast({
-          title: "Erreur",
-          description: "Impossible de fermer la conversation. Veuillez rÃ©essayer.",
-          variant: "destructive",
-        });
-        return;
-      }
-    }
-    
-    closeChat();
-    setShowCloseConfirm(false);
-  };
+  }, []);
 
   useEffect(() => {
     if (user) {
       setGuestId(user.id);
       setGuestName(user.profile?.first_name || '');
-    } else {
-      let id = localStorage.getItem('guestId');
-      if (!id) {
-        id = uuidv4();
-        localStorage.setItem('guestId', id);
-      }
-      setGuestId(id);
+      return;
+    }
 
-      const storedGuestName = localStorage.getItem('guestName');
-      if (storedGuestName) {
-        setGuestName(storedGuestName);
-      }
+    let id = localStorage.getItem('guestId');
+    if (!id) {
+      id = uuidv4();
+      localStorage.setItem('guestId', id);
+    }
+    setGuestId(id);
+
+    const storedGuestName = localStorage.getItem('guestName');
+    if (storedGuestName) {
+      setGuestName(storedGuestName);
     }
   }, [user]);
 
   useEffect(() => {
     if (prefilledMessage) {
-        setInput(prefilledMessage);
-        setPrefilledMessage('');
+      setInput(prefilledMessage);
+      setPrefilledMessage('');
     }
   }, [prefilledMessage, setPrefilledMessage]);
-  
-  const getOrCreateConversation = async () => {
-    if (!guestId) return;
-    if (conversation) return conversation;
-  
-    let query = supabase.from('chat_conversations').select('*');
-    query = query.eq('guest_id', guestId);
-    query = query.order('created_at', { ascending: false }).limit(1);
-  
-    const { data, error } = await query;
-  
-    if (error) {
-      toast({ title: "Erreur", description: "Impossible de rÃ©cupÃ©rer la conversation.", variant: "destructive" });
-      return null;
-    }
-  
-    if (data && data.length > 0) {
-      const existingConversation = data[0];
-      if (existingConversation.status !== 'resolu' && existingConversation.status !== 'abandonne') {
-        setConversation(existingConversation);
-        const { data: messageData } = await supabase.from('chat_messages').select('*').eq('conversation_id', existingConversation.id).order('created_at');
-        setMessages(messageData || []);
-        return existingConversation;
+
+  const ensureConversation = useCallback(
+    async ({ reloadMessages = true } = {}) => {
+      if (!guestId && !user?.email) {
+        return null;
       }
-    }
-    
-    return null;
-  };
+
+      try {
+        const record = await ensureClientConversation({
+          guestId: guestId || null,
+          guestEmail: user?.email || null,
+          guestName,
+        });
+
+        if (!record?.id) {
+          return null;
+        }
+
+        setConversation(record);
+
+        if (reloadMessages && lastLoadedConversationIdRef.current !== record.id) {
+          const data = await fetchMessages(record.id);
+          setMessages(sortMessagesByCreatedAt(Array.isArray(data) ? data : []));
+        }
+
+        lastLoadedConversationIdRef.current = record.id;
+        return record;
+      } catch (error) {
+        console.error('chat widget ensure conversation failed', error);
+        toast({
+          title: 'Erreur',
+          description: error?.message || "Impossible de recuperer la conversation.",
+          variant: 'destructive',
+        });
+        return null;
+      }
+    },
+    [guestId, guestName, toast, user?.email]
+  );
 
   useEffect(() => {
     if (isOpen && !isMinimized) {
-        getOrCreateConversation();
+      ensureConversation();
     } else if (!isOpen) {
-        resetChatState();
+      resetChatState();
     }
-  }, [isOpen, isMinimized, guestId]);
-
+  }, [ensureConversation, isMinimized, isOpen, resetChatState]);
 
   useEffect(() => {
-    if (!isOpen || !conversation) return;
+    const conversationId = conversation?.id;
+    if (!conversationId) {
+      return undefined;
+    }
 
-    const channel = supabase
-      .channel(`chat_${conversation.id}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `conversation_id=eq.${conversation.id}` },
-        (payload) => {
-          setMessages((prev) => {
-            if (prev.find(msg => msg.id === payload.new.id)) {
-              return prev.map(msg => msg.id === payload.new.id ? payload.new : msg);
-            }
-            return [...prev, payload.new];
-          });
-          if (isMinimized) {
-            setHasNewMessage(true);
-          }
+    const subscription = subscribeToClientChatMessages(
+      conversationId,
+      (payload) => {
+        if (!payload) {
+          return;
         }
-      )
-      .subscribe();
+
+        const { eventType, new: newMessage, old: previous } = payload;
+
+        if (eventType === 'DELETE' && previous?.id) {
+          setMessages((prev) => (Array.isArray(prev) ? prev.filter((msg) => msg.id !== previous.id) : prev));
+          return;
+        }
+
+        if (!newMessage?.id) {
+          return;
+        }
+
+        setConversation((prev) =>
+          prev?.id === newMessage.conversation_id
+            ? { ...prev, updated_at: newMessage.created_at || prev.updated_at }
+            : prev
+        );
+
+        setMessages((prev) => {
+          const next = Array.isArray(prev) ? [...prev] : [];
+          const index = next.findIndex((msg) => msg.id === newMessage.id);
+          if (index >= 0) {
+            next[index] = { ...next[index], ...newMessage };
+          } else {
+            next.push(newMessage);
+          }
+          return sortMessagesByCreatedAt(next);
+        });
+
+        if (isMinimized || !isOpen) {
+          setHasNewMessage(true);
+        }
+      },
+      {
+        onFallback: async () => {
+          try {
+            const data = await fetchMessages(conversationId);
+            setMessages(sortMessagesByCreatedAt(Array.isArray(data) ? data : []));
+          } catch (error) {
+            console.error('chat widget message fallback failed', { conversationId, error });
+          }
+        },
+      }
+    );
+
+    messagesSubscriptionRef.current = subscription;
 
     return () => {
-      supabase.removeChannel(channel);
+      subscription?.unsubscribe?.();
+      if (messagesSubscriptionRef.current === subscription) {
+        messagesSubscriptionRef.current = null;
+      }
     };
-  }, [isOpen, conversation, isMinimized]);
+  }, [conversation?.id, isMinimized, isOpen]);
 
   useEffect(() => {
     if (!conversation?.id) return;
     if (!isOpen || isMinimized) return;
+
     markAsRead(conversation.id).catch((error) => {
       console.error('Failed to mark widget chat as viewed:', error);
     });
@@ -171,25 +214,59 @@ const ChatWidget = () => {
     if (!conversation?.id) return;
     if (!isOpen || isMinimized) return;
     if (!messages || messages.length === 0) return;
+
     const latestMessage = messages[messages.length - 1];
     if (latestMessage?.sender !== 'admin') return;
+
     markAsRead(conversation.id).catch((error) => {
       console.error('Failed to refresh widget chat read status after admin message:', error);
     });
   }, [conversation?.id, isMinimized, isOpen, markAsRead, messages]);
 
   useEffect(() => {
-    if(isOpen && !isMinimized) {
-        setHasNewMessage(false);
+    if (isOpen && !isMinimized) {
+      setHasNewMessage(false);
     }
   }, [isOpen, isMinimized]);
 
-  const handleSendMessage = async (e) => {
-    e.preventDefault();
-    if (!input.trim()) return;
+  const handleCloseChat = () => {
+    if (messages.length > 0) {
+      setShowCloseConfirm(true);
+    } else {
+      closeChat();
+    }
+  };
 
-    if (!guestName.trim() && messages.length === 0) {
-      toast({ title: "Attention", description: "Veuillez entrer votre prÃ©nom pour commencer le chat.", variant: "default" });
+  const confirmCloseChat = async () => {
+    if (conversation?.id) {
+      try {
+        const updated = await resolveClientConversation(conversation.id);
+        setConversation(updated);
+      } catch (error) {
+        toast({
+          title: 'Erreur',
+          description: error?.message || "Impossible de fermer la conversation.",
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
+    closeChat();
+    setShowCloseConfirm(false);
+  };
+
+  const handleSendMessage = async (event) => {
+    event.preventDefault();
+    const trimmedInput = input.trim();
+    if (!trimmedInput) return;
+
+    if (!guestName.trim() && messages.length === 0 && !user) {
+      toast({
+        title: 'Attention',
+        description: 'Veuillez entrer votre prenom pour commencer le chat.',
+        variant: 'default',
+      });
       return;
     }
 
@@ -199,108 +276,82 @@ const ChatWidget = () => {
 
     let currentConversation = conversation;
     if (!currentConversation) {
-        const newConvPayload = { 
-          guest_id: guestId, 
-          guest_email: user ? user.email : `${guestName.trim()}@chat.guest` 
-        };
-
-        const { data: newConvData, error: newConvError } = await supabase
-          .from('chat_conversations')
-          .insert(newConvPayload)
-          .select()
-          .single();
-        
-        if (newConvError) {
-          toast({ title: "Erreur", description: `Impossible de dÃ©marrer le chat: ${newConvError.message}`, variant: "destructive" });
-          return;
-        }
-        currentConversation = newConvData;
-        setConversation(currentConversation);
+      currentConversation = await ensureConversation({ reloadMessages: false });
+      if (!currentConversation) {
+        return;
+      }
     }
 
-    const messageContent = input;
     setInput('');
-    
+
     const tempId = Date.now();
-    const senderName = user ? (user.profile?.first_name || 'guest') : (guestName.trim() || 'guest');
-    const newMessage = {
+    const optimisticMessage = {
       id: tempId,
       conversation_id: currentConversation.id,
-      sender: senderName,
-      content: messageContent,
+      sender: 'user',
+      content: trimmedInput,
       created_at: new Date().toISOString(),
       file_url: null,
       file_type: null,
     };
-    
-    setMessages(prev => [...prev, newMessage]);
 
-    const { data: insertedMessage, error } = await supabase
-      .from('chat_messages')
-      .insert({
-        conversation_id: currentConversation.id,
-        sender: senderName,
-        content: messageContent,
-      })
-      .select()
-      .single();
+    setMessages((prev) => sortMessagesByCreatedAt([...(Array.isArray(prev) ? prev : []), optimisticMessage]));
 
-    if (error) {
-      toast({ title: "Erreur", description: `Votre message n'a pas pu Ãªtre envoyÃ©: ${error.message}`, variant: "destructive" });
-      setInput(messageContent);
-      setMessages(prev => prev.filter(msg => msg.id !== tempId));
-    } else {
-        setMessages(prev => prev.map(msg => msg.id === tempId ? insertedMessage : msg));
+    try {
+      const sentMessage = await sendMessage(currentConversation.id, trimmedInput, false);
+      setMessages((prev) =>
+        sortMessagesByCreatedAt(prev.map((msg) => (msg.id === tempId ? sentMessage : msg)))
+      );
+    } catch (error) {
+      toast({
+        title: 'Erreur',
+        description: `Votre message n'a pas pu etre envoye: ${error?.message || 'Erreur inattendue.'}`,
+        variant: 'destructive',
+      });
+      setInput(trimmedInput);
+      setMessages((prev) => prev.filter((msg) => msg.id !== tempId));
     }
   };
 
-  const handleFileSelect = async (e) => {
-    const file = e.target.files[0];
-    if (!file || !conversation) return;
+  const handleFileSelect = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    let currentConversation = conversation;
+    if (!currentConversation) {
+      currentConversation = await ensureConversation();
+      if (!currentConversation) {
+        event.target.value = null;
+        return;
+      }
+    }
 
     setUploading(true);
-    const fileName = `${uuidv4()}-${file.name}`;
-    const filePath = `${guestId}/${fileName}`;
 
     try {
-      const { error: uploadError } = await supabase.storage
-        .from('chat_attachments')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('chat_attachments')
-        .getPublicUrl(filePath);
-
-      const senderName = user ? (user.profile?.first_name || 'guest') : (guestName.trim() || 'guest');
-      const { error: messageError } = await supabase.from('chat_messages').insert({
-        conversation_id: conversation.id,
-        sender: senderName,
-        content: file.name,
-        file_url: publicUrl,
-        file_type: file.type,
-      });
-
-      if (messageError) throw messageError;
-
+      const message = await sendFile(file, currentConversation, false);
+      setMessages((prev) => sortMessagesByCreatedAt([...(Array.isArray(prev) ? prev : []), message]));
     } catch (error) {
-      toast({ title: "Erreur", description: `Ã‰chec de l'envoi du fichier: ${error.message}`, variant: "destructive" });
+      toast({
+        title: 'Erreur',
+        description: `Echec de l'envoi du fichier: ${error?.message || 'Erreur inattendue.'}`,
+        variant: 'destructive',
+      });
     } finally {
       setUploading(false);
-      e.target.value = null;
+      event.target.value = null;
     }
   };
 
   if (isClientOrVip) return null;
 
   const widgetClass = isFullScreen
-    ? "fixed inset-0 z-50 w-full h-full"
-    : "fixed bottom-24 right-5 z-50 w-[380px] h-[500px]";
+    ? 'fixed inset-0 z-50 w-full h-full'
+    : 'fixed bottom-24 right-5 z-50 w-[380px] h-[500px]';
 
   const cardClass = isFullScreen
-    ? "w-full h-full flex flex-col shadow-2xl bg-background/95 backdrop-blur-sm"
-    : "w-full h-full flex flex-col shadow-2xl glass-effect";
+    ? 'w-full h-full flex flex-col shadow-2xl bg-background/95 backdrop-blur-sm'
+    : 'w-full h-full flex flex-col shadow-2xl glass-effect';
 
   return (
     <>
@@ -314,7 +365,7 @@ const ChatWidget = () => {
             className={widgetClass}
           >
             <Card className={cardClass}>
-              <ChatHeader 
+              <ChatHeader
                 isFullScreen={isFullScreen}
                 onToggleFullScreen={() => setIsFullScreen(!isFullScreen)}
                 onMinimize={minimizeChat}
@@ -338,7 +389,7 @@ const ChatWidget = () => {
         )}
       </AnimatePresence>
 
-      <CloseConfirmDialog 
+      <CloseConfirmDialog
         open={showCloseConfirm}
         onOpenChange={setShowCloseConfirm}
         onConfirm={confirmCloseChat}
@@ -362,5 +413,3 @@ const ChatWidget = () => {
 };
 
 export default ChatWidget;
-  const groupedMessages = useMemo(() => groupMessagesByMinute(messages), [messages]);
-

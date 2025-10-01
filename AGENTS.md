@@ -1,0 +1,6 @@
+- Utilise powershell v7.xx installé ("C:\Program Files\PowerShell\7\pwsh.exe")
+- Utilise le script Node scripts/run-sql.js (lancé comme node scripts/run-sql.js "<ta requête SQL>") pour exécuter des requêtes SQL contre Supabase.
+- Ne jamais exposer SUPABASE_SERVICE_ROLE dans le code client et limiter la diffusion du fichier .env.local.
+- Env via /.env & /.env.local (ex. VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY) ; alerter si manquants ; ne jamais exposer de clés service-role côté client.
+- ID du projet Supabase: kiudpvvqpbkzeybogrnq (Projet NotionLab)
+- les instructions et la documentation du site (/rules) doit être lue afin que puisse faire une bonne expertise

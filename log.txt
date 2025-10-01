@@ -1,0 +1,553 @@
+pmPS C:\Users\yvallott> cd c:\dev\notionlab; node scripts/run-sql.js "select created_at, entity, filters, claims from realtime.subscription order by created_at desc limit 20;"
+[dotenv@17.2.2] injecting env (6) from .env.local -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.2.2] injecting env (2) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[run-sql] start 2025-10-01T12:05:54.611Z
+[run-sql] argv: ["select created_at, entity, filters, claims from realtime.subscription order by created_at desc limit 20;"]
+[run-sql] mode=inline sql_length=104
+[run-sql] Using PG* variables with SSL
+[run-sql] Connecting...
+[run-sql] Connected. Executing query...
+[
+  {
+    "created_at": "2025-10-01T10:05:25.539Z",
+    "entity": "chat_messages",
+    "filters": "{\"(conversation_id,eq,af754094-901e-4860-bb42-e900164833af)\"}",
+    "claims": {
+      "aal": "aal1",
+      "amr": [
+        {
+          "method": "password",
+          "timestamp": 1759319905
+        }
+      ],
+      "aud": "authenticated",
+      "exp": 1759323505,
+      "iat": 1759319905,
+      "iss": "https://kiudpvvqpbkzeybogrnq.supabase.co/auth/v1",
+      "sub": "697fdd96-c25d-4462-8939-bde6a98b42cb",
+      "role": "authenticated",
+      "email": "vallottonyann@gmail.com",
+      "phone": "",
+      "session_id": "46fd6e8a-ac36-4ad9-ba98-cd0c91e87ec1",
+      "app_metadata": {
+        "provider": "email",
+        "providers": [
+          "email"
+        ]
+      },
+      "is_anonymous": false,
+      "user_metadata": {
+        "sub": "697fdd96-c25d-4462-8939-bde6a98b42cb",
+        "email": "vallottonyann@gmail.com",
+        "email_verified": true,
+        "phone_verified": false
+      }
+    }
+  },
+  {
+    "created_at": "2025-10-01T10:05:25.539Z",
+    "entity": "chat_messages",
+    "filters": "{\"(conversation_id,eq,af754094-901e-4860-bb42-e900164833af)\"}",
+    "claims": {
+      "aal": "aal1",
+      "amr": [
+        {
+          "method": "password",
+          "timestamp": 1759319905
+        }
+      ],
+      "aud": "authenticated",
+      "exp": 1759323505,
+      "iat": 1759319905,
+      "iss": "https://kiudpvvqpbkzeybogrnq.supabase.co/auth/v1",
+      "sub": "697fdd96-c25d-4462-8939-bde6a98b42cb",
+      "role": "authenticated",
+      "email": "vallottonyann@gmail.com",
+      "phone": "",
+      "session_id": "46fd6e8a-ac36-4ad9-ba98-cd0c91e87ec1",
+      "app_metadata": {
+        "provider": "email",
+        "providers": [
+          "email"
+        ]
+      },
+      "is_anonymous": false,
+      "user_metadata": {
+        "sub": "697fdd96-c25d-4462-8939-bde6a98b42cb",
+        "email": "vallottonyann@gmail.com",
+        "email_verified": true,
+        "phone_verified": false
+      }
+    }
+  },
+  {
+    "created_at": "2025-10-01T10:05:25.539Z",
+    "entity": "chat_messages",
+    "filters": "{\"(conversation_id,eq,af754094-901e-4860-bb42-e900164833af)\"}",
+    "claims": {
+      "aal": "aal1",
+      "amr": [
+        {
+          "method": "password",
+          "timestamp": 1759319905
+        }
+      ],
+      "aud": "authenticated",
+      "exp": 1759323505,
+      "iat": 1759319905,
+      "iss": "https://kiudpvvqpbkzeybogrnq.supabase.co/auth/v1",
+      "sub": "697fdd96-c25d-4462-8939-bde6a98b42cb",
+      "role": "authenticated",
+      "email": "vallottonyann@gmail.com",
+      "phone": "",
+      "session_id": "46fd6e8a-ac36-4ad9-ba98-cd0c91e87ec1",
+      "app_metadata": {
+        "provider": "email",
+        "providers": [
+          "email"
+        ]
+      },
+      "is_anonymous": false,
+      "user_metadata": {
+        "sub": "697fdd96-c25d-4462-8939-bde6a98b42cb",
+        "email": "vallottonyann@gmail.com",
+        "email_verified": true,
+        "phone_verified": false
+      }
+    }
+  },
+  {
+    "created_at": "2025-10-01T10:05:25.539Z",
+    "entity": "chat_messages",
+    "filters": "{\"(conversation_id,eq,af754094-901e-4860-bb42-e900164833af)\"}",
+    "claims": {
+      "aal": "aal1",
+      "amr": [
+        {
+          "method": "password",
+          "timestamp": 1759319905
+        }
+      ],
+      "aud": "authenticated",
+      "exp": 1759323505,
+      "iat": 1759319905,
+      "iss": "https://kiudpvvqpbkzeybogrnq.supabase.co/auth/v1",
+      "sub": "697fdd96-c25d-4462-8939-bde6a98b42cb",
+      "role": "authenticated",
+      "email": "vallottonyann@gmail.com",
+      "phone": "",
+      "session_id": "46fd6e8a-ac36-4ad9-ba98-cd0c91e87ec1",
+      "app_metadata": {
+        "provider": "email",
+        "providers": [
+          "email"
+        ]
+      },
+      "is_anonymous": false,
+      "user_metadata": {
+        "sub": "697fdd96-c25d-4462-8939-bde6a98b42cb",
+        "email": "vallottonyann@gmail.com",
+        "email_verified": true,
+        "phone_verified": false
+      }
+    }
+  },
+  {
+    "created_at": "2025-10-01T10:05:25.539Z",
+    "entity": "chat_messages",
+    "filters": "{\"(conversation_id,eq,af754094-901e-4860-bb42-e900164833af)\"}",
+    "claims": {
+      "aal": "aal1",
+      "amr": [
+        {
+          "method": "password",
+          "timestamp": 1759319905
+        }
+      ],
+      "aud": "authenticated",
+      "exp": 1759323505,
+      "iat": 1759319905,
+      "iss": "https://kiudpvvqpbkzeybogrnq.supabase.co/auth/v1",
+      "sub": "697fdd96-c25d-4462-8939-bde6a98b42cb",
+      "role": "authenticated",
+      "email": "vallottonyann@gmail.com",
+      "phone": "",
+      "session_id": "46fd6e8a-ac36-4ad9-ba98-cd0c91e87ec1",
+      "app_metadata": {
+        "provider": "email",
+        "providers": [
+          "email"
+        ]
+      },
+      "is_anonymous": false,
+      "user_metadata": {
+        "sub": "697fdd96-c25d-4462-8939-bde6a98b42cb",
+        "email": "vallottonyann@gmail.com",
+        "email_verified": true,
+        "phone_verified": false
+      }
+    }
+  },
+  {
+    "created_at": "2025-10-01T10:05:25.457Z",
+    "entity": "chat_messages",
+    "filters": "{\"(conversation_id,eq,bcec1c80-ba53-4941-9233-f5abe6db3eca)\"}",
+    "claims": {
+      "aal": "aal1",
+      "amr": [
+        {
+          "method": "password",
+          "timestamp": 1759319905
+        }
+      ],
+      "aud": "authenticated",
+      "exp": 1759323505,
+      "iat": 1759319905,
+      "iss": "https://kiudpvvqpbkzeybogrnq.supabase.co/auth/v1",
+      "sub": "697fdd96-c25d-4462-8939-bde6a98b42cb",
+      "role": "authenticated",
+      "email": "vallottonyann@gmail.com",
+      "phone": "",
+      "session_id": "46fd6e8a-ac36-4ad9-ba98-cd0c91e87ec1",
+      "app_metadata": {
+        "provider": "email",
+        "providers": [
+          "email"
+        ]
+      },
+      "is_anonymous": false,
+      "user_metadata": {
+        "sub": "697fdd96-c25d-4462-8939-bde6a98b42cb",
+        "email": "vallottonyann@gmail.com",
+        "email_verified": true,
+        "phone_verified": false
+      }
+    }
+  },
+  {
+    "created_at": "2025-10-01T10:05:25.457Z",
+    "entity": "chat_messages",
+    "filters": "{\"(conversation_id,eq,bcec1c80-ba53-4941-9233-f5abe6db3eca)\"}",
+    "claims": {
+      "aal": "aal1",
+      "amr": [
+        {
+          "method": "password",
+          "timestamp": 1759319905
+        }
+      ],
+      "aud": "authenticated",
+      "exp": 1759323505,
+      "iat": 1759319905,
+      "iss": "https://kiudpvvqpbkzeybogrnq.supabase.co/auth/v1",
+      "sub": "697fdd96-c25d-4462-8939-bde6a98b42cb",
+      "role": "authenticated",
+      "email": "vallottonyann@gmail.com",
+      "phone": "",
+      "session_id": "46fd6e8a-ac36-4ad9-ba98-cd0c91e87ec1",
+      "app_metadata": {
+        "provider": "email",
+        "providers": [
+          "email"
+        ]
+      },
+      "is_anonymous": false,
+      "user_metadata": {
+        "sub": "697fdd96-c25d-4462-8939-bde6a98b42cb",
+        "email": "vallottonyann@gmail.com",
+        "email_verified": true,
+        "phone_verified": false
+      }
+    }
+  },
+  {
+    "created_at": "2025-10-01T10:05:25.457Z",
+    "entity": "chat_messages",
+    "filters": "{\"(conversation_id,eq,bcec1c80-ba53-4941-9233-f5abe6db3eca)\"}",
+    "claims": {
+      "aal": "aal1",
+      "amr": [
+        {
+          "method": "password",
+          "timestamp": 1759319905
+        }
+      ],
+      "aud": "authenticated",
+      "exp": 1759323505,
+      "iat": 1759319905,
+      "iss": "https://kiudpvvqpbkzeybogrnq.supabase.co/auth/v1",
+      "sub": "697fdd96-c25d-4462-8939-bde6a98b42cb",
+      "role": "authenticated",
+      "email": "vallottonyann@gmail.com",
+      "phone": "",
+      "session_id": "46fd6e8a-ac36-4ad9-ba98-cd0c91e87ec1",
+      "app_metadata": {
+        "provider": "email",
+        "providers": [
+          "email"
+        ]
+      },
+      "is_anonymous": false,
+      "user_metadata": {
+        "sub": "697fdd96-c25d-4462-8939-bde6a98b42cb",
+        "email": "vallottonyann@gmail.com",
+        "email_verified": true,
+        "phone_verified": false
+      }
+    }
+  },
+  {
+    "created_at": "2025-10-01T10:05:25.457Z",
+    "entity": "chat_messages",
+    "filters": "{\"(conversation_id,eq,bcec1c80-ba53-4941-9233-f5abe6db3eca)\"}",
+    "claims": {
+      "aal": "aal1",
+      "amr": [
+        {
+          "method": "password",
+          "timestamp": 1759319905
+        }
+      ],
+      "aud": "authenticated",
+      "exp": 1759323505,
+      "iat": 1759319905,
+      "iss": "https://kiudpvvqpbkzeybogrnq.supabase.co/auth/v1",
+      "sub": "697fdd96-c25d-4462-8939-bde6a98b42cb",
+      "role": "authenticated",
+      "email": "vallottonyann@gmail.com",
+      "phone": "",
+      "session_id": "46fd6e8a-ac36-4ad9-ba98-cd0c91e87ec1",
+      "app_metadata": {
+        "provider": "email",
+        "providers": [
+          "email"
+        ]
+      },
+      "is_anonymous": false,
+      "user_metadata": {
+        "sub": "697fdd96-c25d-4462-8939-bde6a98b42cb",
+        "email": "vallottonyann@gmail.com",
+        "email_verified": true,
+        "phone_verified": false
+      }
+    }
+  },
+  {
+    "created_at": "2025-10-01T10:05:25.334Z",
+    "entity": "chat_messages",
+    "filters": "{\"(conversation_id,eq,35bcef4b-df2a-42e3-8ac6-696be5c6a0db)\"}",
+    "claims": {
+      "aal": "aal1",
+      "amr": [
+        {
+          "method": "password",
+          "timestamp": 1759319905
+        }
+      ],
+      "aud": "authenticated",
+      "exp": 1759323505,
+      "iat": 1759319905,
+      "iss": "https://kiudpvvqpbkzeybogrnq.supabase.co/auth/v1",
+      "sub": "697fdd96-c25d-4462-8939-bde6a98b42cb",
+      "role": "authenticated",
+      "email": "vallottonyann@gmail.com",
+      "phone": "",
+      "session_id": "46fd6e8a-ac36-4ad9-ba98-cd0c91e87ec1",
+      "app_metadata": {
+        "provider": "email",
+        "providers": [
+          "email"
+        ]
+      },
+      "is_anonymous": false,
+      "user_metadata": {
+        "sub": "697fdd96-c25d-4462-8939-bde6a98b42cb",
+        "email": "vallottonyann@gmail.com",
+        "email_verified": true,
+        "phone_verified": false
+      }
+    }
+  },
+  {
+    "created_at": "2025-10-01T10:05:25.334Z",
+    "entity": "chat_messages",
+    "filters": "{\"(conversation_id,eq,35bcef4b-df2a-42e3-8ac6-696be5c6a0db)\"}",
+    "claims": {
+      "aal": "aal1",
+      "amr": [
+        {
+          "method": "password",
+          "timestamp": 1759319905
+        }
+      ],
+      "aud": "authenticated",
+      "exp": 1759323505,
+      "iat": 1759319905,
+      "iss": "https://kiudpvvqpbkzeybogrnq.supabase.co/auth/v1",
+      "sub": "697fdd96-c25d-4462-8939-bde6a98b42cb",
+      "role": "authenticated",
+      "email": "vallottonyann@gmail.com",
+      "phone": "",
+      "session_id": "46fd6e8a-ac36-4ad9-ba98-cd0c91e87ec1",
+      "app_metadata": {
+        "provider": "email",
+        "providers": [
+          "email"
+        ]
+      },
+      "is_anonymous": false,
+      "user_metadata": {
+        "sub": "697fdd96-c25d-4462-8939-bde6a98b42cb",
+        "email": "vallottonyann@gmail.com",
+        "email_verified": true,
+        "phone_verified": false
+      }
+    }
+  },
+  {
+    "created_at": "2025-10-01T10:05:25.334Z",
+    "entity": "chat_messages",
+    "filters": "{\"(conversation_id,eq,35bcef4b-df2a-42e3-8ac6-696be5c6a0db)\"}",
+    "claims": {
+      "aal": "aal1",
+      "amr": [
+        {
+          "method": "password",
+          "timestamp": 1759319905
+        }
+      ],
+      "aud": "authenticated",
+      "exp": 1759323505,
+      "iat": 1759319905,
+      "iss": "https://kiudpvvqpbkzeybogrnq.supabase.co/auth/v1",
+      "sub": "697fdd96-c25d-4462-8939-bde6a98b42cb",
+      "role": "authenticated",
+      "email": "vallottonyann@gmail.com",
+      "phone": "",
+      "session_id": "46fd6e8a-ac36-4ad9-ba98-cd0c91e87ec1",
+      "app_metadata": {
+        "provider": "email",
+        "providers": [
+          "email"
+        ]
+      },
+      "is_anonymous": false,
+      "user_metadata": {
+        "sub": "697fdd96-c25d-4462-8939-bde6a98b42cb",
+        "email": "vallottonyann@gmail.com",
+        "email_verified": true,
+        "phone_verified": false
+      }
+    }
+  },
+  {
+    "created_at": "2025-10-01T10:05:25.334Z",
+    "entity": "chat_messages",
+    "filters": "{\"(conversation_id,eq,35bcef4b-df2a-42e3-8ac6-696be5c6a0db)\"}",
+    "claims": {
+      "aal": "aal1",
+      "amr": [
+        {
+          "method": "password",
+          "timestamp": 1759319905
+        }
+      ],
+      "aud": "authenticated",
+      "exp": 1759323505,
+      "iat": 1759319905,
+      "iss": "https://kiudpvvqpbkzeybogrnq.supabase.co/auth/v1",
+      "sub": "697fdd96-c25d-4462-8939-bde6a98b42cb",
+      "role": "authenticated",
+      "email": "vallottonyann@gmail.com",
+      "phone": "",
+      "session_id": "46fd6e8a-ac36-4ad9-ba98-cd0c91e87ec1",
+      "app_metadata": {
+        "provider": "email",
+        "providers": [
+          "email"
+        ]
+      },
+      "is_anonymous": false,
+      "user_metadata": {
+        "sub": "697fdd96-c25d-4462-8939-bde6a98b42cb",
+        "email": "vallottonyann@gmail.com",
+        "email_verified": true,
+        "phone_verified": false
+      }
+    }
+  },
+  {
+    "created_at": "2025-10-01T10:05:25.331Z",
+    "entity": "chat_messages",
+    "filters": "{\"(conversation_id,eq,4abcb3b1-2c29-4955-a4a0-3888f6c45000)\"}",
+    "claims": {
+      "aal": "aal1",
+      "amr": [
+        {
+          "method": "password",
+          "timestamp": 1759319905
+        }
+      ],
+      "aud": "authenticated",
+      "exp": 1759323505,
+      "iat": 1759319905,
+      "iss": "https://kiudpvvqpbkzeybogrnq.supabase.co/auth/v1",
+      "sub": "697fdd96-c25d-4462-8939-bde6a98b42cb",
+      "role": "authenticated",
+      "email": "vallottonyann@gmail.com",
+      "phone": "",
+      "session_id": "46fd6e8a-ac36-4ad9-ba98-cd0c91e87ec1",
+      "app_metadata": {
+        "provider": "email",
+        "providers": [
+          "email"
+        ]
+      },
+      "is_anonymous": false,
+      "user_metadata": {
+        "sub": "697fdd96-c25d-4462-8939-bde6a98b42cb",
+        "email": "vallottonyann@gmail.com",
+        "email_verified": true,
+        "phone_verified": false
+      }
+    }
+  },
+  {
+    "created_at": "2025-10-01T10:05:25.331Z",
+    "entity": "chat_messages",
+    "filters": "{\"(conversation_id,eq,4abcb3b1-2c29-4955-a4a0-3888f6c45000)\"}",
+    "claims": {
+      "aal": "aal1",
+      "amr": [
+        {
+          "method": "password",
+          "timestamp": 1759319905
+        }
+      ],
+      "aud": "authenticated",
+      "exp": 1759323505,
+      "iat": 1759319905,
+      "iss": "https://kiudpvvqpbkzeybogrnq.supabase.co/auth/v1",
+      "sub": "697fdd96-c25d-4462-8939-bde6a98b42cb",
+      "role": "authenticated",
+      "email": "vallottonyann@gmail.com",
+      "phone": "",
+      "session_id": "46fd6e8a-ac36-4ad9-ba98-cd0c91e87ec1",
+      "app_metadata": {
+        "provider": "email",
+        "providers": [
+          "email"
+        ]
+      },
+      "is_anonymous": false,
+      "user_metadata": {
+        "sub": "697fdd96-c25d-4462-8939-bde6a98b42cb",
+        "email": "vallottonyann@gmail.com",
+        "email_verified": true,
+        "phone_verified": false
+      }
+    }
+  }
+]
+[run-sql] done
+PS C:\dev\notionlab>

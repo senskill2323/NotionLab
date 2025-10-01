@@ -89,13 +89,21 @@ export const ClientChatIndicatorProvider = ({ guestId, guestEmail, children }) =
 
     const subscriptions = conversationIds
       .map((conversationId) =>
-        subscribeToClientChatMessages(conversationId, (payload) => {
-          if (!payload) return;
-          const sender = payload?.new?.sender ?? payload?.old?.sender ?? null;
-          if (isStaffSender(sender)) {
-            queryClient.invalidateQueries({ queryKey: STATUS_QUERY_KEY(guestKey) });
+        subscribeToClientChatMessages(
+          conversationId,
+          (payload) => {
+            if (!payload) return;
+            const sender = payload?.new?.sender ?? payload?.old?.sender ?? null;
+            if (isStaffSender(sender)) {
+              queryClient.invalidateQueries({ queryKey: STATUS_QUERY_KEY(guestKey) });
+            }
+          },
+          {
+            onFallback: async () => {
+              queryClient.invalidateQueries({ queryKey: STATUS_QUERY_KEY(guestKey) });
+            },
           }
-        })
+        )
       )
       .filter(Boolean);
 

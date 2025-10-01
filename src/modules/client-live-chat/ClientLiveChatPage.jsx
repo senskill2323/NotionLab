@@ -7,13 +7,23 @@ import ClientConversationView from './components/ClientConversationView';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/components/ui/use-toast';
 import { Loader2 } from 'lucide-react';
-import { supabase } from '@/lib/customSupabaseClient';
 import { useClientChatIndicator } from '@/hooks/useClientChatIndicator.jsx';
-import { getClientGuestIdentifiers, listChatStaffUsers, startClientConversation, subscribeToClientChatMessages } from '@/lib/chatApi';
-import { v4 as uuidv4 } from 'uuid';
+import {
+  archiveClientConversation,
+  clearChatHistory,
+  fetchMessages,
+  getClientGuestIdentifiers,
+  listChatStaffUsers,
+  listClientConversations,
+  markConversationViewedByClient,
+  sendFile,
+  sendMessage,
+  sendResource,
+  startClientConversation,
+  subscribeToClientChatMessages,
+  subscribeToClientConversations,
+} from '@/lib/chatApi';
 
-const BROADCAST_EVENT_CONVERSATION = 'conversation';
-const BROADCAST_EVENT_MESSAGE = 'message';
 const AUTO_ARCHIVED_STATUSES = new Set(['resolu', 'abandonne']);
 const STAFF_SENDERS = new Set(['admin', 'owner', 'prof']);
 
@@ -49,19 +59,6 @@ const sortMessagesAscending = (list) => {
   });
 };
 
-const getClientConversationTopic = ({ guestId, guestEmail }) => {
-  const parts = ['client-chat-conversations'];
-  if (guestId) {
-    parts.push(guestId);
-    return parts.join('-');
-  }
-  if (guestEmail) {
-    parts.push(String(guestEmail).trim().toLowerCase());
-    return parts.join('-');
-  }
-  return null;
-};
-
 const ClientLiveChatPage = () => {
   const { user, authLoading } = useAuth();
   const { markAsRead } = useClientChatIndicator();
@@ -69,7 +66,7 @@ const ClientLiveChatPage = () => {
   const { toast } = useToast();
   const conversationParam = searchParams.get('conversation');
 
-  const { guestId, guestEmail, guestKey } = getClientGuestIdentifiers(user);
+  const { guestId, guestEmail } = getClientGuestIdentifiers(user);
   const identifiersReady = Boolean(guestId || guestEmail);
   const isStaff = Boolean(user?.profile?.user_type && STAFF_SENDERS.has(user.profile.user_type));
 
@@ -85,29 +82,11 @@ const ClientLiveChatPage = () => {
   const [isLoadingStaffRecipients, setIsLoadingStaffRecipients] = useState(false);
   const [skipNextMessagesLoadFor, setSkipNextMessagesLoadFor] = useState(null);
 
-  const conversationsChannelRef = useRef(null);
   const messagesSubscriptionRef = useRef(null);
   const lastLoadedConversationIdRef = useRef(null);
   const pendingConversationReloadRef = useRef(new Set());
 
-  const hydrateMessage = useCallback(async (message) => {
-    if (!message?.id) return message;
-    try {
-      const { data, error } = await supabase
-        .from('chat_messages')
-        .select('*, resource:resources(id, name, url, file_path)')
-        .eq('id', message.id)
-        .single();
-      if (!error && data) {
-        return data;
-      }
-    } catch (error) {
-      console.error('hydrateMessage failed', error);
-    }
-    return message;
-  }, []);
-
-
+  
   useEffect(() => {
     if (!selectedConversationId && conversationParam) {
       const next = new URLSearchParams(searchParams);
@@ -146,8 +125,7 @@ const ClientLiveChatPage = () => {
       }
 
       try {
-        const { data, error } = await supabase.rpc('get_chat_conversations_with_details');
-        if (error) throw error;
+        const data = await listClientConversations(user);
         const normalized = sortConversationsByUpdatedAt(
           (Array.isArray(data) ? data : []).map(normalizeClientConversation)
         );
@@ -166,7 +144,7 @@ const ClientLiveChatPage = () => {
         setIsLoadingConversations(false);
       }
     },
-    [identifiersReady, selectedConversationId, toast]
+    [identifiersReady, selectedConversationId, toast, user]
   );
 
   const updateConversationFromMessage = useCallback(
@@ -216,11 +194,8 @@ const ClientLiveChatPage = () => {
     async (conversationId) => {
       if (!conversationId) return;
       try {
+        await markConversationViewedByClient(conversationId);
         const nowIso = new Date().toISOString();
-        await supabase
-          .from('chat_conversations')
-          .update({ client_last_viewed_at: nowIso })
-          .eq('id', conversationId);
         setConversations((prev) =>
           prev.map((conversation) =>
             conversation.id === conversationId
@@ -242,14 +217,8 @@ const ClientLiveChatPage = () => {
         setIsLoadingMessages(true);
       }
 
-      
       try {
-        const { data, error } = await supabase
-          .from('chat_messages')
-          .select('*, resource:resources(id, name, url, file_path)')
-          .eq('conversation_id', conversationId)
-          .order('created_at', { ascending: true });
-        if (error) throw error;
+        const data = await fetchMessages(conversationId);
         setMessages(Array.isArray(data) ? data : []);
         if (!isStaff) {
           await markConversationAsViewed(conversationId);
@@ -308,34 +277,46 @@ const ClientLiveChatPage = () => {
 
     cleanupSubscription();
 
-    const subscription = subscribeToClientChatMessages(conversationId, (payload) => {
-      if (!payload) return;
-      const { eventType, new: message, old: previous } = payload;
+    const subscription = subscribeToClientChatMessages(
+      conversationId,
+      (payload) => {
+        if (!payload) return;
+        const { eventType, new: message, old: previous } = payload;
 
-      if (eventType === 'DELETE' && previous?.id) {
-        setMessages((prev) => prev.filter((item) => item.id !== previous.id));
-        return;
-      }
-
-      if (!message?.id) return;
-
-      setMessages((prev) => {
-        const exists = prev.some((item) => item.id === message.id);
-        if (exists) {
-          return prev.map((item) => (item.id === message.id ? { ...item, ...message } : item));
+        if (eventType === 'DELETE' && previous?.id) {
+          setMessages((prev) => prev.filter((item) => item.id !== previous.id));
+          return;
         }
-        return sortMessagesAscending([...prev, message]);
-      });
 
-      updateConversationFromMessage(message);
+        if (!message?.id) return;
 
-      if (!isStaff && STAFF_SENDERS.has(message.sender || '') && message.conversation_id === selectedConversationId) {
-        try { markAsRead(message.conversation_id); } catch (_) {}
-        markConversationAsViewed(message.conversation_id).catch((error) => {
-          console.error('markConversationAsViewed on message failed', error);
+        setMessages((prev) => {
+          const exists = prev.some((item) => item.id === message.id);
+          if (exists) {
+            return prev.map((item) => (item.id === message.id ? { ...item, ...message } : item));
+          }
+          return sortMessagesAscending([...prev, message]);
         });
+
+        updateConversationFromMessage(message);
+
+        if (!isStaff && STAFF_SENDERS.has(message.sender || '') && message.conversation_id === selectedConversationId) {
+          try { markAsRead(message.conversation_id); } catch (_) {}
+          markConversationAsViewed(message.conversation_id).catch((error) => {
+            console.error('markConversationAsViewed on message failed', error);
+          });
+        }
+      },
+      {
+        onFallback: async () => {
+          try {
+            await fetchMessagesForConversation(conversationId, { showSpinner: false });
+          } catch (error) {
+            console.error('client-live-chat message fallback failed', { conversationId, error });
+          }
+        },
       }
-    });
+    );
 
     messagesSubscriptionRef.current = subscription;
 
@@ -384,35 +365,34 @@ const ClientLiveChatPage = () => {
 
   useEffect(() => {
     if (!identifiersReady) return undefined;
-    const topic = getClientConversationTopic({ guestId, guestEmail });
-    if (!topic) return undefined;
 
-    const channel = supabase.channel(topic, { config: { broadcast: { self: true, ack: true } } });
-    channel.on('broadcast', { event: BROADCAST_EVENT_CONVERSATION }, (event) => {
-      handleConversationBroadcast(event?.payload ?? null);
-    });
-    channel.on('broadcast', { event: BROADCAST_EVENT_MESSAGE }, (event) => {
-      const message = event?.payload?.new;
-      if (message) {
-        updateConversationFromMessage(message);
+    const subscription = subscribeToClientConversations(
+      { guestId, guestEmail },
+      (payload) => {
+        handleConversationBroadcast(payload);
+      },
+      {
+        onMessage: (payload) => {
+          const message = payload?.new;
+          if (message) {
+            updateConversationFromMessage(message);
+          }
+        },
+        onFallback: async ({ reason }) => {
+          try {
+            console.warn('client live chat conversation fallback', { reason });
+            await fetchConversations({ background: true });
+          } catch (error) {
+            console.error('client-live-chat conversation fallback failed', { reason, error });
+          }
+        },
       }
-    });
-
-    channel.subscribe((status) => {
-      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-        console.error('client-live-chat conversation channel issue', { status, topic });
-      }
-    });
-
-    conversationsChannelRef.current = channel;
+    );
 
     return () => {
-      if (conversationsChannelRef.current) {
-        supabase.removeChannel(conversationsChannelRef.current);
-        conversationsChannelRef.current = null;
-      }
+      subscription?.unsubscribe?.();
     };
-  }, [guestEmail, guestId, handleConversationBroadcast, identifiersReady, updateConversationFromMessage]);
+  }, [fetchConversations, guestEmail, guestId, handleConversationBroadcast, identifiersReady, updateConversationFromMessage]);
 
   const filteredConversations = useMemo(() => {
     const lowered = searchTerm.trim().toLowerCase();
@@ -443,12 +423,9 @@ const ClientLiveChatPage = () => {
     async (conversationId, archived) => {
       if (!conversationId) return;
       try {
-        const { data, error } = await supabase.rpc('client_chat_set_archived', {
-          p_conversation_id: conversationId,
-          p_archived: !!archived,
-        });
-        if (error) throw error;
-        const normalized = normalizeClientConversation({ ...data, id: conversationId });
+        const updated = await archiveClientConversation(conversationId, archived);
+        if (!updated) return;
+        const normalized = normalizeClientConversation({ ...updated, id: conversationId });
         setConversations((prev) =>
           sortConversationsByUpdatedAt(
             prev.map((conversation) =>
@@ -472,7 +449,7 @@ const ClientLiveChatPage = () => {
         console.error('client-live-chat toggle archive failed', error);
         toast({
           title: 'Erreur',
-          description: "Impossible de mettre a jour l'archivage.",
+          description: error?.message || "Impossible de mettre a jour l'archivage.",
           variant: 'destructive',
         });
       }
@@ -522,24 +499,13 @@ const ClientLiveChatPage = () => {
       if (!selectedConversation?.id) return;
       const trimmed = content?.trim();
       if (!trimmed) return;
-      const sender = isStaff ? 'admin' : 'user';
       try {
-        const { data, error } = await supabase
-          .from('chat_messages')
-          .insert({
-            conversation_id: selectedConversation.id,
-            sender,
-            content: trimmed,
-          })
-          .select('*')
-          .single();
-        if (error) throw error;
-        const hydrated = await hydrateMessage(data);
-        setMessages((prev) => sortMessagesAscending([...prev, hydrated]));
-        updateConversationFromMessage(hydrated);
+        const message = await sendMessage(selectedConversation.id, trimmed, isStaff);
+        setMessages((prev) => sortMessagesAscending([...prev, message]));
+        updateConversationFromMessage(message);
       } catch (error) {
         console.error('sendTextMessage failed', error);
-        throw new Error("Votre message n'a pas pu etre envoye.");
+        throw new Error(error?.message || "Votre message n'a pas pu etre envoye.");
       }
     },
     [isStaff, selectedConversation?.id, updateConversationFromMessage]
@@ -548,66 +514,28 @@ const ClientLiveChatPage = () => {
   const sendFileMessage = useCallback(
     async (file) => {
       if (!selectedConversation?.id || !file) return;
-      const sender = isStaff ? 'admin' : 'user';
-      const fileName = `${uuidv4()}-${file.name}`;
-      const guestFolder = selectedConversation.guest_id || guestKey || 'guest';
-      const filePath = `${guestFolder}/${fileName}`;
       try {
-        const { error: uploadError } = await supabase.storage
-          .from('chat_attachments')
-          .upload(filePath, file);
-        if (uploadError) throw uploadError;
-
-        const {
-          data: { publicUrl },
-        } = supabase.storage.from('chat_attachments').getPublicUrl(filePath);
-
-        const content = file.type.startsWith('image/') ? '' : file.name;
-        const { data, error } = await supabase
-          .from('chat_messages')
-          .insert({
-            conversation_id: selectedConversation.id,
-            sender,
-            content,
-            file_url: publicUrl,
-            file_type: file.type,
-          })
-          .select('*')
-          .single();
-        if (error) throw error;
-        const hydrated = await hydrateMessage(data);
-        setMessages((prev) => sortMessagesAscending([...prev, hydrated]));
-        updateConversationFromMessage(hydrated);
+        const message = await sendFile(file, selectedConversation, isStaff);
+        setMessages((prev) => sortMessagesAscending([...prev, message]));
+        updateConversationFromMessage(message);
       } catch (error) {
         console.error('sendFileMessage failed', error);
-        throw new Error("Impossible d'envoyer le fichier.");
+        throw new Error(error?.message || "Impossible d'envoyer le fichier.");
       }
     },
-    [guestKey, isStaff, selectedConversation?.guest_id, selectedConversation?.id, updateConversationFromMessage]
+    [isStaff, selectedConversation, updateConversationFromMessage]
   );
 
   const sendResourceMessage = useCallback(
     async (resource) => {
       if (!selectedConversation?.id || !resource) return;
-      const sender = isStaff ? 'admin' : 'user';
       try {
-        const { data, error } = await supabase
-          .from('chat_messages')
-          .insert({
-            conversation_id: selectedConversation.id,
-            sender,
-            content: `Ressource partagee : ${resource.name}`,
-            resource_id: resource.id,
-          })
-          .select('*')
-          .single();
-        if (error) throw error;
-        const hydrated = await hydrateMessage(data);
-        setMessages((prev) => sortMessagesAscending([...prev, hydrated]));
-        updateConversationFromMessage(hydrated);
+        const message = await sendResource(resource, selectedConversation.id, isStaff);
+        setMessages((prev) => sortMessagesAscending([...prev, message]));
+        updateConversationFromMessage(message);
       } catch (error) {
         console.error('sendResourceMessage failed', error);
-        throw new Error("Impossible de partager la ressource.");
+        throw new Error(error?.message || "Impossible de partager la ressource.");
       }
     },
     [isStaff, selectedConversation?.id, updateConversationFromMessage]
@@ -617,7 +545,7 @@ const ClientLiveChatPage = () => {
     async () => {
       if (!selectedConversation?.id) return;
       try {
-        await supabase.from('chat_messages').delete().eq('conversation_id', selectedConversation.id);
+        await clearChatHistory(selectedConversation.id);
         setMessages([]);
         toast({
           title: 'Conversation videe',
@@ -627,7 +555,7 @@ const ClientLiveChatPage = () => {
         console.error('clearConversationHistory failed', error);
         toast({
           title: 'Erreur',
-          description: "Impossible de vider la conversation.",
+          description: error?.message || "Impossible de vider la conversation.",
           variant: 'destructive',
         });
       }

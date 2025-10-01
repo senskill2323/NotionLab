@@ -4,12 +4,13 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { useClientChatIndicator } from '@/hooks/useClientChatIndicator.jsx';
 import {
-  getOrCreateConversation,
-  fetchMessages,
-  sendMessage,
-  sendFile,
-  sendResource,
   clearChatHistory,
+  ensureClientConversation,
+  fetchMessages,
+  sendFile,
+  sendMessage,
+  sendResource,
+  subscribeToClientChatMessages,
 } from '@/lib/chatApi';
 import { groupMessagesByMinute } from '@/lib/chatUtils';
 import ChatHeader from '@/components/chat/ChatHeader';
@@ -76,34 +77,70 @@ const ChatPage = () => {
       }
       setLoading(true);
       try {
-        const conv = await getOrCreateConversation(user);
+        const conv = await ensureClientConversation({
+          guestId: user.id || null,
+          guestEmail: user.email || null,
+          guestName: user.profile?.first_name || '',
+        });
         if (conv) {
           setConversation(conv);
           const initialMessages = await fetchMessages(conv.id);
-          setMessages(initialMessages);
+          setMessages(Array.isArray(initialMessages) ? initialMessages : []);
         }
       } catch (error) {
-        toast({ title: "Erreur d'initialisation", description: error.message, variant: 'destructive' });
+        toast({
+          title: "Erreur d'initialisation",
+          description: error?.message || 'Conversation introuvable.',
+          variant: 'destructive',
+        });
       } finally {
         setLoading(false);
       }
     };
     initializeChat();
-  }, [user, toast]);
+  }, [toast, user]);
 
   useEffect(() => {
-    if (!conversation) return;
+    if (!conversation?.id) return;
 
-    const handleNewMessage = (newMessage) => {
-      setMessages((prev) => [...prev, newMessage]);
-    };
+    const subscription = subscribeToClientChatMessages(
+      conversation.id,
+      (payload) => {
+        if (!payload) return;
+        const { eventType, new: newMessage, old: previous } = payload;
 
-    const channel = getOrCreateConversation.subscribeToMessages(conversation.id, handleNewMessage);
+        if (eventType === 'DELETE' && previous?.id) {
+          setMessages((prev) => prev.filter((msg) => msg.id !== previous.id));
+          return;
+        }
+
+        if (!newMessage?.id) return;
+
+        setMessages((prev) => {
+          const next = Array.isArray(prev) ? [...prev] : [];
+          const index = next.findIndex((msg) => msg.id === newMessage.id);
+          if (index >= 0) {
+            next[index] = { ...next[index], ...newMessage };
+          } else {
+            next.push(newMessage);
+          }
+          return next;
+        });
+      },
+      {
+        onFallback: async () => {
+          try {
+            const data = await fetchMessages(conversation.id);
+            setMessages(Array.isArray(data) ? data : []);
+          } catch (error) {
+            console.error('chat page message fallback failed', { conversationId: conversation.id, error });
+          }
+        },
+      }
+    );
 
     return () => {
-      if (channel) {
-        channel.unsubscribe();
-      }
+      subscription?.unsubscribe?.();
     };
   }, [conversation]);
 

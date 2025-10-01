@@ -6,10 +6,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Download, Bot, User, File as FileIcon, BookOpen, Loader2 } from 'lucide-react';
-import { supabase } from '@/lib/customSupabaseClient';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/components/ui/use-toast';
 import { useResourceCreation } from '@/contexts/ResourceCreationContext';
+import { getResourcePublicUrl } from '@/lib/chatApi';
 import TextSelectionMenu from '@/components/chat/TextSelectionMenu';
 import ChatInput from '@/components/chat/ChatInput';
 import RichTextRenderer from '@/components/RichTextRenderer';
@@ -86,12 +86,7 @@ const Attachment = ({ message }) => {
   if (message.resource) {
     let href = message.resource.url || message.resource.public_url;
     if (!href && message.resource.file_path) {
-      try {
-        const { data } = supabase.storage.from('resources').getPublicUrl(message.resource.file_path);
-        href = data?.publicUrl || href;
-      } catch (_err) {
-        href = href || '#';
-      }
+      href = getResourcePublicUrl(message.resource.file_path) || href || '#';
     }
     return (
       <a
