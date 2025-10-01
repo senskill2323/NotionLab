@@ -1,150 +1,144 @@
 Contexte
-•	Frontend React 18 / Vite 7, backend Supabase (auth, données, temps réel, stockage).
+â€¢	Frontend React 18 / Vite 7, backend Supabase (auth, donnÃ©es, temps rÃ©el, stockage).
 
-Principes généraux
-•	Workspace : C:\dev\notionlab ; travailler uniquement dans ce projet Vite/React via VSCode.
-•	Source of truth : dossier /rules. Toujours mettre à jour quand de nouvelles architectures / logiques / dépendances  / tables sur supabase / RPC / Edge Functions arrivent.
-•	Style React : fonctionnel, déclaratif, modulaire (composant ? sous-composants ? hooks/helpers ? données statiques).
-•	Nommage : objets DB en snake_case, Edge Functions en kebab-case, alias Vite @ pour les imports.
+Principes gÃ©nÃ©raux
+â€¢	Workspace : C:\dev\notionlab ; travailler uniquement dans ce projet Vite/React via VSCode.
+â€¢	Source of truth : dossier /rules. Toujours mettre Ã  jour quand de nouvelles architectures / logiques / dÃ©pendances  / tables sur supabase / RPC / Edge Functions arrivent.
+â€¢	Style React : fonctionnel, dÃ©claratif, modulaire (composant ? sous-composants ? hooks/helpers ? donnÃ©es statiques).
+â€¢	Nommage : objets DB en snake_case, Edge Functions en kebab-case, alias Vite @ pour les imports.
 
 Environnement & secrets
 
-•	Env via /.env & /.env.local (ex. VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY) ; alerter si manquants ; ne jamais exposer de clés service-role côté client.
+â€¢	Env via /.env & /.env.local (ex. VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY) ; alerter si manquants ; ne jamais exposer de clÃ©s service-role cÃ´tÃ© client.
 
 Authentification & routes
-•	Séparer strictement contenus Admin vs Client.
-•	Les admins sont redirigés vers /admin/dashboard.
+â€¢	SÃ©parer strictement contenus Admin vs Client.
+â€¢	Les admins sont redirigÃ©s vers /admin/dashboard.
 
 
-Données, RPC & Edge Functions
-•	Favoriser RPCs et Edge Functions pour la logique métier et l’accès privilégié (RLS par défaut).
-•	Ajouter index DB avant livraison si nécessaires.
-•	Utiliser des upsert explicites et des enum defaults.
+DonnÃ©es, RPC & Edge Functions
+â€¢	Favoriser RPCs et Edge Functions pour la logique mÃ©tier et lâ€™accÃ¨s privilÃ©giÃ© (RLS par dÃ©faut).
+â€¢	Ajouter index DB avant livraison si nÃ©cessaires.
+â€¢	Utiliser des upsert explicites et des enum defaults.
 
 
 Realtime
-•	Préférer broadcast channels : supabase.channel(...).on('broadcast', ...) avec ack/self ; nommer les canaux explicitement ; dispose on unmount.
-•	N’utiliser postgres_changes que si inévitable.
+â€¢	PrÃ©fÃ©rer broadcast channels : supabase.channel(...).on('broadcast', ...) avec ack/self ; nommer les canaux explicitement ; dispose on unmount.
+â€¢	Nâ€™utiliser postgres_changes que si inÃ©vitable.
 
 
 Stockage
-•	Garder DB et Storage en phase (avatars, ressources, pièces jointes chat/forum) selon conventions de buckets.
+â€¢	Garder DB et Storage en phase (avatars, ressources, piÃ¨ces jointes chat/forum) selon conventions de buckets.
 
 
-UI/UX & accessibilité
-•	Stack UI : Radix + Tailwind, react-hook-form, Zustand (état partagé), framer-motion (animations subtiles), @dnd-kit (drag/drop), React Flow (builders).
-•	Interactions accessibles (focus, rôles, labels).
-•	Langue : français uniquement, tutoiement. Disclaimer minimal sous « Valider » interdisant les données sensibles.
+UI/UX & accessibilitÃ©
+â€¢	Stack UI : Radix + Tailwind, react-hook-form, Zustand (Ã©tat partagÃ©), framer-motion (animations subtiles), @dnd-kit (drag/drop), React Flow (builders).
+â€¢	Interactions accessibles (focus, rÃ´les, labels).
+â€¢	Langue : franÃ§ais uniquement, tutoiement. Disclaimer minimal sous Â« Valider Â» interdisant les donnÃ©es sensibles.
 
 
-Thème & CSS
-•	Theme system : couleurs via variables CSS --colors-* injectées par ThemeContext (RPC get_active_theme_tokens) et utilisées via hsl(var(--colors-…)) dans tailwind.config.js. Fallbacks :root dans src/index.css pour éviter le flash initial.
-•	Compat CSS : fournir la paire standard + préfixée pour backdrop-filter et text-size-adjust (-webkit-…).
-•	ThemeProvider présent uniquement dans src/main.jsx (retiré de src/App.jsx) pour éviter doubles injections/effets de bord.
+ThÃ¨me & CSS
+â€¢	Theme system : couleurs via variables CSS --colors-* injectÃ©es par ThemeContext (RPC get_active_theme_tokens) et utilisÃ©es via hsl(var(--colors-â€¦)) dans tailwind.config.js. Fallbacks :root dans src/index.css pour Ã©viter le flash initial.
+â€¢	Compat CSS : fournir la paire standard + prÃ©fixÃ©e pour backdrop-filter et text-size-adjust (-webkit-â€¦).
+â€¢	ThemeProvider prÃ©sent uniquement dans src/main.jsx (retirÃ© de src/App.jsx) pour Ã©viter doubles injections/effets de bord.
 
 
 Kanban & dashboards
-•	Réutiliser AdminKanbanView, UserKanbanDashboard + hooks associés ; ne pas dupliquer la logique, étendre par composition.
-•	Interagir avec component_rules, modules_registry, et RPCs/EF dashboard (get-dashboard-layout, update-dashboard-layout) plutôt que des toggles en dur.
+â€¢	RÃ©utiliser AdminKanbanView, UserKanbanDashboard + hooks associÃ©s ; ne pas dupliquer la logique, Ã©tendre par composition.
+â€¢	Interagir avec component_rules, modules_registry, et RPCs/EF dashboard (get-dashboard-layout, update-dashboard-layout) plutÃ´t que des toggles en dur.
 
 
 Cache, invalidation & logs
-•	Sur mises à jour sensibles au cache : appeler emitSessionRefresh ou invalider les requêtes pertinentes.
-•	Journaliser les erreurs de façon structurée ; toasts conviviaux (sans détails sensibles).
+â€¢	Sur mises Ã  jour sensibles au cache : appeler emitSessionRefresh ou invalider les requÃªtes pertinentes.
+â€¢	Journaliser les erreurs de faÃ§on structurÃ©e ; toasts conviviaux (sans dÃ©tails sensibles).
 
 
-Sécurité DB & RLS
-•	Tout doit respecter la RLS ; escalader en Edge Functions pour l’accès privilégié.
+SÃ©curitÃ© DB & RLS
+â€¢	Tout doit respecter la RLS ; escalader en Edge Functions pour lâ€™accÃ¨s privilÃ©giÃ©.
 
 
-CI / Dév
-•	Node 20 : pipeline npm ci ? npm run build ? déploiement FTPS.
-•	Local : npm run dev / npm run preview ; SQL via npm run db:query / npm run db:file.
+CI / DÃ©v
+â€¢	Node 20 : pipeline npm ci ? npm run build ? dÃ©ploiement FTPS.
+â€¢	Local : npm run dev / npm run preview ; SQL via npm run db:query / npm run db:file.
 
 
-Workflows « Formations »
-•	Cycle : brouillon client ? soumission ? validation admin ? Kanban live synchronisé.
-•	Onboarding formation
-o	UI charge uniquement les questions actives (admin activable/désactivable).
-o	Wizard non bloquant, autosauvegarde, résumé côté client + admin.
-o	Soumission : upsert training_onboarding_responses, mise à jour éventuelle de profiles.profession (depuis metier_activite).
+Workflows Â« Formations Â»
+â€¢	Cycle : brouillon client ? soumission ? validation admin ? Kanban live synchronisÃ©.
+â€¢	Onboarding formation
+o	UI charge uniquement les questions actives (admin activable/dÃ©sactivable).
+o	Wizard non bloquant, autosauvegarde, rÃ©sumÃ© cÃ´tÃ© client + admin.
+o	Soumission : upsert training_onboarding_responses, mise Ã  jour Ã©ventuelle de profiles.profession (depuis metier_activite).
 o	Notification via Edge Function notify-training-onboarding (Deno) conservant Resend.
 ?	Secrets requis : RESEND_API_KEY, ONBOARDING_NOTIFICATION_EMAIL (fallback OWNER_EMAIL), ONBOARDING_EMAIL_FROM (fallback SENDER_EMAIL).
 ?	CORS : POST, OPTIONS.
-o	Restitution : page client « Mes préférences de formation » (bouton « Mettre à jour ») ; panneau admin « Brief & Profil » (lecture seule) dans le Kanban Formation Live.
+o	Restitution : page client Â« Mes prÃ©fÃ©rences de formation Â» (bouton Â« Mettre Ã  jour Â») ; panneau admin Â« Brief & Profil Â» (lecture seule) dans le Kanban Formation Live.
 
 
 Assistant IA (WebRTC Realtime)
-•	Accès : bouton nav Assistant (component_key nav:assistant) et module dashboard client_ai_assistant.
-•	Contexte : AssistantProvider (wrappé dans App.jsx) expose useAssistant() et encapsule Perfect Negotiation (peer « polite »).
-•	Backend Supabase :
+â€¢	AccÃ¨s : bouton nav Assistant (component_key nav:assistant) et module dashboard client_ai_assistant.
+â€¢	Contexte : AssistantProvider (wrappÃ© dans App.jsx) expose useAssistant() et encapsule Perfect Negotiation (peer Â« polite Â»).
+â€¢	Backend Supabase :
 o	Tables : assistant_settings (config), assistant_limits (quotas par utilisateur), assistant_metrics (journal sessions).
-o	Edge Function assistant-mint-key : clé éphémère Realtime (OpenAI) + ice_servers + flags (aucun secret côté client).
-•	Quotas & métriques :
-o	Garde locale (minutes/jour, sessions concurrentes, images/session) synchronisée avec assistant_limits.
-o	Chaque session met à jour assistant_metrics (durée, images, bytes up/down, erreurs) et rafraîchit les compteurs.
-•	UX : AssistantDrawer.jsx gère Appeler / Raccrocher / Webcam / Montrez-lui (images via DataChannel) ; AssistantPanel.jsx résume l’état et ouvre le drawer.
+o	Edge Function assistant-mint-key : clÃ© Ã©phÃ©mÃ¨re Realtime (OpenAI) + ice_servers + flags (aucun secret cÃ´tÃ© client).
+â€¢	Quotas & mÃ©triques :
+o	Garde locale (minutes/jour, sessions concurrentes, images/session) synchronisÃ©e avec assistant_limits.
+o	Chaque session met Ã  jour assistant_metrics (durÃ©e, images, bytes up/down, erreurs) et rafraÃ®chit les compteurs.
+â€¢	UX : AssistantDrawer.jsx gÃ¨re Appeler / Raccrocher / Webcam / Montrez-lui (images via DataChannel) ; AssistantPanel.jsx rÃ©sume lâ€™Ã©tat et ouvre le drawer.
 
 
 Invitations administrateur
-•	UI : bouton « Inviter un utilisateur » (src/components/admin/UserManagementPanel.jsx) ? Edge Function invite-user.
-•	Serveur : Supabase/functions/invite-user/index.ts
-o	auth.admin.inviteUserByEmail (création/ré-utilisation)
-o	Mise à jour public.profiles (user_type_id client, status = 'active').
+â€¢	UI : bouton Â« Inviter un utilisateur Â» (src/components/admin/UserManagementPanel.jsx) ? Edge Function invite-user.
+â€¢	Serveur : Supabase/functions/invite-user/index.ts
+o	auth.admin.inviteUserByEmail (crÃ©ation/rÃ©-utilisation)
+o	Mise Ã  jour public.profiles (user_type_id client, status = 'active').
 o	Secrets Edge : SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, optionnel INVITE_REDIRECT_URL (fallback /connexion).
-•	Activation : plus de « guest » ; arrivée sur /activation-invitation pour définir le mot de passe (accès client déjà actif).
+â€¢	Activation : plus de Â« guest Â» ; arrivÃ©e sur /activation-invitation pour dÃ©finir le mot de passe (accÃ¨s client dÃ©jÃ  actif).
 
 
 Suppression de compte (full delete)
-•	Objectif : effacer Auth + identités + données domaine.
-•	Déclencheurs UI :
-o	UserManagementPanel.jsx (icône corbeille)
+â€¢	Objectif : effacer Auth + identitÃ©s + donnÃ©es domaine.
+â€¢	DÃ©clencheurs UI :
+o	UserManagementPanel.jsx (icÃ´ne corbeille)
 o	ManageUserPage.jsx (bouton supprimer)
 o	DeleteAccountSection.jsx (auto-suppression)
 o	Tous appellent supabase.rpc('admin_delete_user_full', { p_user_id }).
-•	Orchestration serveur : RPC public.admin_delete_user_full(uuid) (SECURITY DEFINER)
+â€¢	Orchestration serveur : RPC public.admin_delete_user_full(uuid) (SECURITY DEFINER)
 o	Nettoie : formation_module_statuses, user_formation_snapshots, user_formations, formation_submissions, tickets, ticket_replies, action_logs, chat_messages, chat_conversations, courses custom (author_id = user, course_type='custom').
 o	Supprime public.profiles puis auth.admin.delete_user(p_user_id) (inclut auth.identities).
-•	Autorisations : utilisateur ? auto-suppression ; owner/admin ? suppression d’autrui ; seul un owner peut supprimer un owner.
+â€¢	Autorisations : utilisateur ? auto-suppression ; owner/admin ? suppression dâ€™autrui ; seul un owner peut supprimer un owner.
 
 
 "Live Chat - Architecture
 
 - Surfaces
-  - Client: `modules/client-live-chat/ClientLiveChatPage.jsx` orchestre desormais le flux (fetch initial Supabase, canaux `client-chat-conversations-*` & `client-chat-messages-*`, tri local et marquage `client_last_viewed_at`) et delegue l'affichage aux composants `modules/client-live-chat/components/*`
-  - Admin: `components/admin/AdminLiveChatPanel.jsx`, `components/admin/chat/ConversationList.jsx`, `components/admin/AdminChatView.jsx` conservent le pilotage direct des canaux admin
-  - Primitifs partages: `src/lib/chatApi.js` assure la normalisation des conversations, la diffusion broadcast (`broadcastMessageChange`/`broadcastConversationChange`) et les RPC de creation/archivage cote staff
+  - Client: `modules/client-live-chat/ClientLiveChatPage.jsx` reste l'orchestrateur (chargement via `supabase.rpc('get_chat_conversations_with_details')`, wiring `ClientConversationView`). Toutes les ecritures passent par `chatApi` (`sendMessage|sendFile|sendResource`, `archiveClientConversation`, `markConversationViewedByClient`) pour conserver les diffusions broadcast et la normalisation.
+  - Widget: `components/ChatWidget.jsx` reutilise les memes helpers `chatApi` (creation conversation, envoi, archivage) afin de poser `sender='user'`, declencher les broadcast et reappliquer les validations RPC.
+  - Admin: `components/admin/AdminLiveChatPanel.jsx` et `AdminChatView.jsx` consomment les donnees, mais deleguent toutes les mutations (`startAdminConversation`, `setAdminConversationArchived`, `sendMessage|sendFile|sendResource`, marquage lecture) a `chatApi`.
+  - API unique: `src/lib/chatApi.js` centralise la normalisation, la gestion des canaux broadcast et les appels RPC/Edge Functions. Aucun composant ne touche directement `supabase.from('chat_messages')` ou `supabase.from('chat_conversations')`.
 
-- Conversation workflows
-  - Client: le Dialog "Nouvelle conversation" charge les destinataires via `client_list_chat_staff_users`, valide la selection et invoque `client_start_chat_conversation`; la page hydrate ensuite la nouvelle conversation et la selectionne (vue Active reinitialisee, recherche videe)
-  - Admin: le flux reste inchange (`startAdminConversation({ staffUserId, recipient, forceNew })`) avec reutilisation conditionnelle et tri par `updated_at`
+- Flux realtime
+  - Tous les canaux `supabase.channel` sont crees avec `{ broadcast: { self: true, ack: true } }` et referencees dans `broadcastChannelRegistry`; les surfaces liberent ensuite la ressource via `releaseBroadcastChannel` dans leurs cleanups.
+  - `broadcastMessageChange` et `broadcastConversationChange` restent le chemin nominal (faible latence, pas de reevaluation RLS). Le fallback `postgres_changes` de `subscribeToClientChatMessages` n'est maintenu que tant que `AdminChatView` et `ChatWidget` n'emet pas encore de broadcast; il devra etre retire des que le refactor est merge pour eviter le double cout.
+  - Les payloads broadcast sont consommes tels quels; l'hydratation SQL n'est declenchee que si le message recu est partiel (legacy).
 
-- Realtime & canaux
-  - Le client gere `supabase.channel(...)` pour `client-chat-conversations-{guest}` et `client-chat-messages-{conversationId}` (config `{ broadcast: { self: true, ack: true } }`) depuis le composant, avec cleanup systematique; `chatApi.subscribeToClientChatMessages` relaie aussi les `postgres_changes` sur `chat_messages` afin de couvrir les insertions directes sans passer par les helpers broadcast
-  - Les payloads `conversation`/`message` issus du hub `chat-live-admin` restent consommes cote admin via `AdminLiveChatPanel`
+- Mutations communes
+  - Client et widget: creation via `client_start_chat_conversation`, envoi par `chatApi.sendMessage|sendFile|sendResource`, archivage `archiveClientConversation`, lecture `markConversationViewedByClient`.
+  - Admin: nouveaux fils via `startAdminConversation`, archivage `setAdminConversationArchived`, envoi `chatApi.sendMessage|sendFile|sendResource`, lecture via un RPC `admin_mark_chat_viewed` (a livrer) qui met a jour `admin_last_viewed_at` sous RLS.
+  - Aucun composant ne doit inserer ou mettre a jour `chat_messages` / `chat_conversations` sans passer par ces helpers.
 
-- Hydratation & tri des messages
-  - Chaque payload client est enrichi via `hydrateMessage()` (select `chat_messages` + ressource join) avant insertion puis trie avec `sortMessagesAscending`
-  - Les listes de conversations sont reclassees via `sortConversationsByUpdatedAt()` apres mutation ou broadcast
+- Statuts et archivage
+  - Statuts valides: `ouvert`, `en_cours`, `a_traiter`, `resolu`, `abandonne`; `resolu` et `abandonne` restent auto-archives cote client.
+  - Toutes les bascules de statut/archivage passent par les RPC security definer (`client_chat_set_archived`, `admin_chat_set_archived`) qui declenchent ensuite `broadcastConversationChange`.
 
-- Mutations synchronisees
-  - Client: `ClientLiveChatPage` insere/supprime directement dans `chat_messages`, hydrate la reponse, met a jour le state local et marque `client_last_viewed_at` si l'utilisateur n'est pas staff
-  - Admin: conserve `startAdminConversation`, `setAdminConversationArchived`, `sendMessage|File|Resource` du `chatApi` pour garantir les diffusions broadcast et la logique de fallback
+- Securite & RLS
+  - Activer `row level security` sur `public.chat_conversations` et `public.chat_messages`, puis definir:
+    - policies clients: appartenance via `guest_id`, `profiles.chat_guest_id` ou email.
+    - policies staff: roles `owner|admin|prof` via `profiles.user_type` / `user_types`.
+    - policies widget: correspondance sur `guest_id` pour les visiteurs anonymes.
+  - Une fois RLS active, deplacer `markConversationViewedByClient` et le marquage admin dans des RPC security definer (`client_mark_chat_viewed`, `admin_mark_chat_viewed`) utilises par `chatApi`.
+  - Les colonnes `sender` restent strictement `user`, `admin`, `owner`, `prof`; bannir les alias texte (ex: `guest`, prenom) afin de conserver les calculs `has_unread`.
 
-- Status & archivage
-  - Etats metier: `ouvert`, `en_cours`, `a_traiter`, `resolu`, `abandonne`; `resolu|abandonne` sont consideres comme auto-archives cote client
-  - Client: `client_chat_set_archived` met a jour `client_archived` et declenche un broadcast; la vue Active filtre les fils auto-archives et ceux explicitement archives
-  - Admin: `ConversationList` continue d'appuyer sur `setAdminConversationArchived` (RPC `admin_chat_set_archived`)
-
-- Securite & conformite
-  - Client: RLS via `client_update_chat_last_viewed`; seules les colonnes `client_archived`, `client_last_viewed_at` sont modifiees depuis le front
-  - Admin: RPC `admin_chat_set_archived`, `admin_get_chat_conversations_with_details` en security definer; aucun acces direct service-role
-
-- Performance & maintenance
-  - Le client repose sur le state React : conserver `sortConversationsByUpdatedAt` / `sortMessagesAscending` pour eviter recharges reseau
-  - Deconnecter systematiquement les canaux Supabase dans les cleanup d'effets afin d'eviter les fuites multi-onglets
-  - Journaliser les erreurs Supabase avant toast (admin & client) pour diagnostiquer les pertes d'evenements
-  - Toujours liberer les canaux broadcast a l'unmount pour eviter les fuites
-  - Preferer `queryClient.setQueryData` et tri local aux invalidations massives
-  - Throttle scheduler (`scheduleConversationsRefetch`) pour limiter la charge
-  - Toujours liberer les canaux broadcast a l'unmount pour eviter les fuites
+- Performance & observabilite
+  - Supprimer l'hydratation SQL pour chaque evenement dans `subscribeToClientChatMessages` des que les surfaces emettent des payloads complets; sinon, mettre en file d'attente et mutualiser les lectures.
+  - Coupler les toasts utilisateurs avec un `console.error` structure afin de suivre les echecs dans les logs Supabase / Edge.
+  - Tous les hooks realtime detruisent leurs canaux dans les cleanups pour eviter les fuites multi-onglets; `broadcastChannelRegistry` reste la source de verite des refCount.
