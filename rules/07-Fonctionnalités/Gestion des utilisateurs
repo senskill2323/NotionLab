@@ -1,0 +1,89 @@
+ Un owner gère les utilisations sur l'espace admin, dans le "module gestion des utilisateurs. La suppression totale d’un compte passe exclusivement par la RPC public.admin_delete_user_full(uuid) (SECURITY DEFINER), appelée depuis l’UI (admin ou auto-suppression). La fonction purge d’abord toutes les données métier liées (formations, snapshots, soumissions, tickets/réponses, action_logs, conversations et messages de chat, cours custom). Ensuite, elle supprime uniquement la ligne du profil de l’utilisateur dans public.profiles—on ne droppe jamais la table. Enfin, elle appelle auth.admin.delete_user(p_user_id) qui retire aussi auth.identities. L’opération est idempotente et irréversible ; aucun composant client ne doit exécuter de DELETE direct, tout passe par supabase.rpc(...). Les permissions imposent : seul un owner peut supprimer un owner ; owners/admins peuvent supprimer d’autres comptes ; chaque utilisateur peut se supprimer lui-même. L’invitation utilise supabase.functions.invoke('invite-user', …) côté UI ; côté Edge, la fonction appelle auth.admin.inviteUserByEmail, met profiles.status='active', assigne le user_type client et gère INVITE_REDIRECT_URL vers /activation-invitation. L’UI respecte authReady/authLoading avant redirection. Les contrôles d’accès restent centralisés via usePermissions() et la cohérence role_permissions / modules_registry / admin_dashboard_tabs. Des vérifications SQL post-opération confirment l’effacement complet de la ligne du profil et des données associées.
+
+ Résumé
+
+Module admin UserManagementPanel gère recherche, filtres, pagination, invitation et suppression via Edge Functions dédiées (users-search, invite-user, delete-user-full) et rafraîchit l’état après chaque action src/components/admin/UserManagementPanel.jsx:105.
+Écran de gestion détaillée (ManageUserPage) combine mise à jour du profil, réinitialisation sécurité, historique de connexion RPC et gestion des formations affectées src/pages/admin/ManageUserPage.jsx:30.
+Parcours client “Mon compte” expose édition profil/adresse, upload avatar Storage, changement mot de passe et auto-suppression pilotée par Edge Function src/pages/ClientAccountPage.jsx:20.
+Contexte Auth centralise session, profil enrichi, refresh et helpers (updatePassword/signOut) tandis que Permissions met en cache RLS/TTL et fournit hasPermission pour la navigation protégée src/contexts/SupabaseAuthContext.jsx:9, src/contexts/PermissionsContext.jsx:17.
+Doc interne rappelle l’usage exclusif de admin_delete_user_full, les invariants RLS et le workflow d’invitation/activation rules/07-Fonctionnalités/Gestion des utilisateurs:1.
+
+Stack
+
+React 18 + Vite avec design system ShadCN/Tailwind et animations Framer Motion pour les écrans admin/client src/components/admin/UserManagementPanel.jsx:1.
+Supabase JS 2 encapsulé dans un client custom (timeout, apikey, singleton) pour PostgREST, auth et storage src/lib/customSupabaseClient.js:1.
+Formulaires admin reposant sur React Hook Form (UserProfileForm) et contrôles UI Radix src/components/admin/manage-user/UserProfileForm.jsx:1.
+Dépendance use-debounce pour lisser les filtres de recherche, lucide-react pour l’iconographie src/components/admin/UserManagementPanel.jsx:27.
+Edge Functions en TypeScript déployées côté Supabase avec service role (invite, création, suppression, reset password) Supabase/functions/create-user-with-role/index.ts:1.
+
+API publique (exports/props/hooks)
+
+useAuth/AuthProvider expose user enrichi, refreshUser, updatePassword, signOut, authReady src/contexts/SupabaseAuthContext.jsx:9, src/contexts/SupabaseAuthContext.jsx:402.
+usePermissions/PermissionsProvider fournit hasPermission, permissions, ready, refreshPermissions src/contexts/PermissionsContext.jsx:9, src/contexts/PermissionsContext.jsx:274.
+Composants admin principaux : UserManagementPanel (table + invites) src/components/admin/UserManagementPanel.jsx:902, CreateUserPage (Edge create-user) src/pages/admin/CreateUserPage.jsx:151, ManageUserPage (profil/sécurité/formations) src/pages/admin/ManageUserPage.jsx:268.
+Sous-composants gestion utilisateur : UserProfileForm, UserSecurityCard, UserFormationsCard, UserLoginHistory pour composer l’édition src/components/admin/manage-user/UserProfileForm.jsx:1, src/components/admin/manage-user/UserSecurityCard.jsx:1, src/components/admin/manage-user/UserFormationsCard.jsx:1, src/components/admin/manage-user/UserLoginHistory.jsx:1.
+Côté client : ClientAccountPage, ProfileSection, AddressSection, AvatarUpload, PasswordChangeSection, DeleteAccountSection couvrent self-service src/pages/ClientAccountPage.jsx:185, src/components/account/ProfileSection.jsx:137, src/components/account/AddressSection.jsx:179, src/components/account/AvatarUpload.jsx:297, src/components/account/PasswordChangeSection.jsx:316, src/components/account/DeleteAccountSection.jsx:165.
+
+Structure (fichiers)
+
+Vue liste admin : src/components/admin/UserManagementPanel.jsx pour la tab “Utilisateurs”.
+Pages admin : src/pages/admin/CreateUserPage.jsx, src/pages/admin/ManageUserPage.jsx gérées via routes protégées src/App.jsx:119.
+Modules dédiés dans src/components/admin/manage-user/ et src/components/account/ pour découpler UI client vs admin.
+Contextes transverses : src/contexts/SupabaseAuthContext.jsx, src/contexts/PermissionsContext.jsx, utilitaire bus src/lib/sessionRefreshBus.js.
+Edge Functions Supabase dans Supabase/functions/{users-search,create-user-with-role,invite-user,set-user-password,delete-user-full}.
+Documentation métier dans rules/07-Fonctionnalités/ (gestion utilisateurs, invitation, suppression) pour rappeler contraintes RLS/service-role.
+
+Dépendances internes/externes
+
+Interne : customSupabaseClient, sessionRefreshBus, useToast, ProtectedRoute, PermissionsContext orchestrent données et gating src/components/ProtectedRoute.jsx:1.
+External libs : @supabase/supabase-js (auth/PostgREST/storage) src/lib/customSupabaseClient.js:1, react-hook-form pour formulaire admin src/components/admin/manage-user/UserProfileForm.jsx:2, use-debounce pour filtres src/components/admin/UserManagementPanel.jsx:38, framer-motion pour transitions src/components/admin/UserManagementPanel.jsx:30.
+Données statiques : countries.json pour filtres/combos pays src/components/admin/UserManagementPanel.jsx:40, src/components/admin/manage-user/UserProfileForm.jsx:18.
+UI kit basé sur composants ShadCN (@/components/ui/*) partagés entre admin et client src/components/admin/UserManagementPanel.jsx:13.
+
+Flux de données
+
+Recherche admin : fetchUsers appelle supabase.functions.invoke('users-search', body={filters, sort, pagination}), alimente state users et pagination.total src/components/admin/UserManagementPanel.jsx:105.
+Invitation : handleInviteSubmit poste email/prénom/nom + redirect vers /activation-invitation, rafraîchit la liste src/components/admin/UserManagementPanel.jsx:253.
+Changement rôle & suppression : updates direct sur profiles.user_type_id et suppression via Edge delete-user-full src/components/admin/UserManagementPanel.jsx:423, src/components/admin/UserManagementPanel.jsx:447.
+Page gestion : fetchUserData fetch profiles, courses, user_formations, user_types, puis onProfileSubmit met à jour profil et déclenche notification d’activation src/pages/admin/ManageUserPage.jsx:30, src/pages/admin/ManageUserPage.jsx:78.
+Sécurité admin : reset password via Edge set-user-password, email reset via supabase.auth.resetPasswordForEmail, assignation formations en insert/delete user_formations src/pages/admin/ManageUserPage.jsx:126, src/pages/admin/ManageUserPage.jsx:113, src/pages/admin/ManageUserPage.jsx:161.
+Self-service client : éditions profil/adresse via PostgREST, avatar via Storage (upload/remove), suppression compte via delete-user-full, update password via useAuth.updatePassword src/components/account/ProfileSection.jsx:71, src/components/account/AddressSection.jsx:123, src/components/account/AvatarUpload.jsx:55, src/components/account/DeleteAccountSection.jsx:34, src/components/account/PasswordChangeSection.jsx:61.
+Activation invitation : supabase.auth.setSession avec tokens URL puis update profil/status et password src/pages/InvitationActivationPage.jsx:55.
+
+État & effets
+
+UserManagementPanel gère multiples useState (users, filters, sort, pagination) + useDebounce et abort controller pour éviter races; écoute bus de session pour refetch src/components/admin/UserManagementPanel.jsx:62.
+ManageUserPage s’appuie sur useForm (dirty state) et useCallback pour éviter re-render, plus loaders isSubmitting src/pages/admin/ManageUserPage.jsx:18.
+SupabaseAuthContext maintient session, timers de visibilité, invalidations QueryClient et reconnects, gère sign-out forcé src/contexts/SupabaseAuthContext.jsx:20.
+PermissionsContext garde un cache local TTL, observe route, online/visibility, throttle refresh src/contexts/PermissionsContext.jsx:64.
+Client account composants manipulent useState locaux pour editing, preview avatar et validations de mot de passe src/components/account/AvatarUpload.jsx:15, src/components/account/PasswordChangeSection.jsx:20.
+
+I/O DB (PostgREST/RPC/SQL)
+
+PostgREST : profiles select/update (admin & client), user_types select, courses select, user_formations insert/delete, storage('avatars').upload/remove src/pages/admin/ManageUserPage.jsx:30, src/components/account/ProfileSection.jsx:71, src/components/account/AvatarUpload.jsx:93.
+RPC : search_users via Edge users-search, admin_delete_user_full via Edge delete-user-full, get_user_login_history(_count) pour historique IP Supabase/functions/users-search/index.ts:17, Supabase/functions/delete-user-full/index.ts:132, src/components/admin/manage-user/UserLoginHistory.jsx:20.
+Auth admin API : création (create-user-with-role), invitation (invite-user), reset mot de passe (set-user-password), delete user direct dans Edge Supabase/functions/create-user-with-role/index.ts:27, Supabase/functions/invite-user/index.ts:2065, Supabase/functions/set-user-password/index.ts:18.
+Auth client API : supabase.auth.updateUser, setSession, resetPasswordForEmail, signOut src/components/account/ProfileSection.jsx:85, src/pages/InvitationActivationPage.jsx:55, src/pages/admin/ManageUserPage.jsx:113, src/contexts/SupabaseAuthContext.jsx:150.
+Notification activation : Edge notify-user-account-activated appelée après passage status active src/pages/admin/ManageUserPage.jsx:94.
+Bus session : supabase.auth.getSession/getUser/signOut déclenchés dans le contexte pour cohérence multi-onglets src/contexts/SupabaseAuthContext.jsx:118.
+
+Realtime (listen/broadcast)
+
+Pas de canal Supabase Realtime spécifique aux utilisateurs; rafraîchissement orchestré via CustomEvent sessionRefreshBus src/lib/sessionRefreshBus.js:3.
+Revalidation permissions sur événements navigateur (online/visibility) plutôt que Realtime src/contexts/PermissionsContext.jsx:210.
+
+Sécurité (RLS, XSS, CSRF)
+
+RLS supposée sur profiles, user_formations, etc. Les actions admin sensibles passent par Edge Functions en service role avec garde côté serveur (vérifie rôle requester vs target, owner-only) Supabase/functions/delete-user-full/index.ts:81.
+Aucun service-role exposé côté client : UI appelle uniquement supabase.functions.invoke, conforme consigne .env (anon key seule) src/lib/customSupabaseClient.js:4.
+Routes protégées combinent AuthProvider, PermissionsProvider et ProtectedRoute pour bloquer comptes non activés ou sans permission src/components/ProtectedRoute.jsx:31.
+Inputs utilisateurs affichés via JSX donc échappés par React; toutefois pas de sanitisation supplémentaire sur HTML riche (noms, adresses) src/components/account/ProfileSection.jsx:99.
+CSRF limité car toutes requêtes passent par supabase-js avec token session; aucune protection additionnelle nécessaire côté SPA, mais veiller à politiques RLS cohérentes (doc) rules/07-Fonctionnalités/Suppression d'un compte:5.
+
+
+
+
+
+
+
+

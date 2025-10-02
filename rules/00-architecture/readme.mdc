@@ -1,10 +1,97 @@
-1. Liste des Modules Client:
+Stack
+
+Vite + React 18 + React Router 6 pour le shell SPA package.json:6, src/App.jsx:78.
+TanStack Query configuré en singleton (refetchOnWindowFocus=false) src/lib/reactQueryClient.js:6.
+UI: Tailwind/Tailwind Merge, Radix primitives, Lucide, Framer Motion package.json:23.
+Supabase JS 2, PostgREST, Storage, Edge Functions encapsulés src/lib/customSupabaseClient.js:1, Supabase/functions/.
+TipTap, DnD Kit, React Flow pour le builder/contenu riche package.json:27.
+
+
+API publique (exports/props/hooks)
+
+useAuth / AuthProvider expose session, profils enrichis, signIn/out, notifier owner src/contexts/SupabaseAuthContext.jsx:9, src/contexts/SupabaseAuthContext.jsx:332.
+usePermissions / PermissionsProvider fournit garde fine, cache TTL et fallback src/contexts/PermissionsContext.jsx:17, src/contexts/PermissionsContext.jsx:43.
+useAssistant (drawer state, startCall, toggleVideo, quotas, metrics) src/contexts/AssistantContext.jsx:87, src/components/assistant/AssistantDrawer.jsx:71.
+useBuilderCatalog offre catalogue hiérarchique + mutations optimistes src/contexts/BuilderCatalogContext.jsx:17, src/contexts/BuilderCatalogContext.jsx:102.
+Hooks spécialisés: usePerfectNegotiation (RTCPeerConnection) src/hooks/usePerfectNegotiation.js:7, useDashboardLayout (éditeur d’agencement) src/hooks/useDashboardLayout.js:11, useSubmissions (workflow formations) src/hooks/useSubmissions.js:7.
+ManagedComponent applique règles d’affichage dynamiques via component_rules src/components/ManagedComponent.jsx:5, src/contexts/ComponentStateContext.jsx:20.
+
+
+Structure (fichiers)
+
+src/App.jsx compose providers (Auth, Permissions, Assistant, etc.) + layout principal src/App.jsx:47.
+src/pages/ sépare écrans public, client, admin (ex. AdminDashboardPage.jsx, DashboardPage.jsx) src/pages/AdminDashboardPage.jsx:1, src/pages/DashboardPage.jsx:1.
+src/components/dashboard/ contient modules clients/admin et éditeur src/components/dashboard/ClientDashboardContent.jsx:1, src/components/dashboard/editor/.
+src/contexts/, src/lib/, src/hooks/ regroupent respectivement providers, API Supabase, utilitaires WebRTC/RPC src/lib/trainingOnboardingApi.js:3.
+Supabase/functions/ héberge 13 edge functions (mint key, content blocks, users) Supabase/functions/assistant-mint-key, Supabase/functions/users-search.
+Docs internes sous rules/ (architecture, modules, RLS) rules/00-architecture/readme.mdc:41, rules/Fonctionnement des modules/Formation:7.
+
+
+Dépendances internes/externes
+
+Externes critiques: @supabase/supabase-js, @tanstack/react-query, @radix-ui UI, framer-motion, dompurify, Papaparse, uuid package.json:23.
+Builder/éditeur appuient sur @dnd-kit, reactflow, TipTap (@tiptap/*) package.json:12.
+Contexte métier: ComponentStateContext pour toggles UI dynamiques src/contexts/ComponentStateContext.jsx:10, ManagedComponent pour injection ciblée src/components/ManagedComponent.jsx:5.
+Services internes: assistantApi (settings/limits/metrics) src/lib/assistantApi.js:1, trainingOnboardingApi (sections, réponses, notifications email) src/lib/trainingOnboardingApi.js:3.
+Scripts utilitaires (SQL runner, audit tools) scripts/run-sql.js, tools/audit_step1.mjs.
+
+
+Flux de données
+
+Auth: Supabase session -> enrichissement profiles -> invalidation QueryClient et bus d’événements src/contexts/SupabaseAuthContext.jsx:78, src/lib/sessionRefreshBus.js:5.
+Permissions: cache local TTL, fetch role_permissions, fallback selon route src/contexts/PermissionsContext.jsx:43, src/contexts/PermissionsContext.jsx:149.
+Client dashboard: fetch modules_registry, layout via edge get-dashboard-layout puis rendu conditionnel src/components/dashboard/ClientDashboardContent.jsx:96, src/components/dashboard/ClientDashboardContent.jsx:105.
+Admin dashboard: RPC get_admin_dashboard_kpis, requêtes admin_dashboard_tabs/admin_modules_registry, notifications activity tickets src/pages/AdminDashboardPage.jsx:175, src/pages/AdminDashboardPage.jsx:192.
+Formations & onboarding: RPC search_user_formation_submissions, builder catalog, training onboarding API (sections/questions/responses) src/hooks/useSubmissions.js:20, src/lib/trainingOnboardingApi.js:137.
+Ressources & tickets: RPC get_user_resources_with_ratings + storage, filtrage tickets par utilisateur src/components/dashboard/modules/ResourcesPanel.jsx:80, src/pages/TicketsPage.jsx:36.
+
+État & effets
+
+QueryClient singleton + staleTime global src/lib/reactQueryClient.js:6.
+Contextes orchestrent effets : AuthProvider gère tab visibility, timers, invalidations src/contexts/SupabaseAuthContext.jsx:120; PermissionsProvider observe route, session refresh, visibility src/contexts/PermissionsContext.jsx:186.
+ComponentStateContext écoute Realtime + visibility pour rafraîchir règles UI src/contexts/ComponentStateContext.jsx:34.
+ThemeContext applique thème fallback immédiat puis RPC get_active_theme_tokens src/contexts/ThemeContext.jsx:57, src/contexts/ThemeContext.jsx:112.
+AssistantContext synchronise états d’appel, quotas, timers, metrics, gère WebRTC via usePerfectNegotiation src/contexts/AssistantContext.jsx:87, src/hooks/usePerfectNegotiation.js:31.
+Layout preferences et builder state isolés via providers/hook (useLayoutPreferences, useDashboardLayout) src/contexts/LayoutPreferencesContext.jsx:7, src/hooks/useDashboardLayout.js:11.
+I/O DB (PostgREST/RPC/SQL)
+
+Auth/profile: 
+
+profiles select/upsert, email checks, notification owner src/contexts/SupabaseAuthContext.jsx:78, src/contexts/SupabaseAuthContext.jsx:249, src/contexts/SupabaseAuthContext.jsx:332.
+Permissions: role_permissions read, cache invalidation src/contexts/PermissionsContext.jsx:149.
+Dashboard data: modules_registry, edge get-dashboard-layout, update-dashboard-layout src/components/dashboard/ClientDashboardContent.jsx:96, src/pages/admin/DashboardEditorPage.jsx:80.
+Formations: RPC search_user_formation_submissions, approve_user_parcours_submission, submit_course_for_validation, onboarding APIs src/hooks/useSubmissions.js:20, src/components/dashboard/modules/FormationsPanel.jsx:31, src/lib/trainingOnboardingApi.js:187.
+Admin ops: users-search, create-user-with-role, delete-user-full, set-user-password src/components/admin/UserManagementPanel.jsx:115, src/pages/admin/CreateUserPage.jsx:63, src/components/admin/UserManagementPanel.jsx:455, src/pages/admin/ManageUserPage.jsx:128.
+Tickets/ressources: CRUD sur tickets, ticket_replies, resources, storage buckets resources, avatars, forum_attachments src/pages/TicketsPage.jsx:36, src/components/dashboard/modules/ResourcesPanel.jsx:80, src/components/dashboard/modules/ResourcesPanel.jsx:135, src/components/account/AvatarUpload.jsx:82.
+Notifications: Edge notify-training-onboarding, assistant-mint-key, assistant-voice-preview src/lib/trainingOnboardingApi.js:310, src/contexts/AssistantContext.jsx:298, src/components/admin/AssistantSettingsPanel.jsx:171.
+
+Realtime (listen/broadcast)
+
+Admin dashboard KPI/config/ticket watchers via channels admin-dashboard-kpis, admin-dashboard-config-changes, admin-dashboard-ticket-activity src/pages/AdminDashboardPage.jsx:220, src/pages/AdminDashboardPage.jsx:232, src/pages/AdminDashboardPage.jsx:239.
+Client ressources & ratings: channel user-resources-channel-${user.id} + storage sync src/components/dashboard/modules/ResourcesPanel.jsx:106.
+Admin ressources panel public:resources_panel pour broadcasts src/components/admin/ResourcesPanel.jsx:63.
+Component toggles & builder catalog via public:component_rules et builder-catalog-changes src/contexts/ComponentStateContext.jsx:42, src/contexts/BuilderCatalogContext.jsx:60.
+Builder drag/drop persiste via RPC + local state (no live channel) src/hooks/useDashboardLayout.js:90.
+Formation Kanban realtime décrit dans règles (RLS activée) rules/Fonctionnement des modules/Formation:7.
+
+
+Sécurité (RLS, XSS, CSRF)
+
+RLS actif sur formations, onboarding, assistant, static pages selon doc rules/00-architecture/readme.mdc:41, rules/Fonctionnement des modules/Formation:7; le front respecte eq('user_id', …) pour limiter accès src/pages/TicketsPage.jsx:43, src/components/dashboard/modules/ResourcesPanel.jsx:80.
+Routes protégées selon statut, type, permissions, avec fallback login ou dashboard src/components/ProtectedRoute.jsx:7, src/components/ClientOnlyRoute.jsx:7.
+Contenu HTML public nettoyé via DOMPurify (home, static pages, homepage panel) src/pages/HomePage.jsx:57, src/pages/StaticPage.jsx:98, src/components/dashboard/modules/HomepagePanel.jsx:102; mais ViewResourceDialog rend du HTML sans sanitisation => risque XSS si une ressource interne contient du script src/components/dashboard/modules/ViewResourceDialog.jsx:26.
+Client Supabase injecte apikey côté fetch et gère timeouts pour résilience, pas de service-role exposée src/lib/customSupabaseClient.js:34, src/lib/customSupabaseClient.js:118.
+Aucune protection CSRF spécifique nécessaire (toutes requêtes via Supabase JS avec JWT) mais dépend de politiques RLS ; vérifier formulaires multi-onglets (tickets) pour double soumission.
+Assistant quotas empêchent abus (minutes/session/images) côté client + RLS/Edge functions pour gouvernance src/contexts/AssistantContext.jsx:127, rules/00-architecture/readme.mdc:55.
+Possible next steps: 1) Sanitize ou restreindre resource.content avant rendu (ajouter DOMPurify côté client ou filtrage SQL). 2) Vérifier RLS pour nouvelles tables (p.ex. component_rules, content_blocks) et couvrir tests automatisés RPC. 3) Documenter edge functions déployées (env/API keys) et s’assurer que .env.local reste non exposé.
+
+Liste des Modules Client:
 
 - client_training_preferences — label « Préférences de formation », expose le résumé/onboarding côté dashboard client. Initialisé dans Supabase/migrations/2025-09-20_training_onboarding_form.sql.
 - client_ai_assistant — label « Assistant IA », panneau assistant temps réel pour les clients. Ajouté via Supabase/migrations/2025-09-25_assistant_realtime_module.sql.
 
 
-2. Liste des Modules Admin:
+Liste des Modules Admin:
 
 - training_onboarding_questions_admin — label « Formulaire d’onboarding », composant OnboardingQuestionsAdminPanel (onglet user_submissions). Créé dans 2025-09-20_training_onboarding_form.sql.
 - onboarding_preferences_form — composant OnboardingQuestionsAdminPanel positionné dans l’onglet preferences_form (migration 2025-09-21_admin_move_onboarding_to_new_tab.sql).
@@ -12,58 +99,22 @@
  -admin_static_pages — label « Pages statiques », composant StaticPageManagementPanel, onglet static_pages (2025-09-30_static_pages_module.sql).
 
 
-3. Edge Functions actives (supabase/functions/) :
 
-assistant-mint-key
-assistant-voice-preview
-content-blocks-search
-create-admin-user
-create-user-with-role
-delete-user-full
-get-dashboard-layout
-invite-user
-manage-content-block
-notify-training-onboarding
-set-user-password
-update-dashboard-layout
-users-search
-
-
-4. Tables pour lesquelles la RLS est déjà activée (cf. migrations ALTER TABLE … ENABLE ROW LEVEL SECURITY):
-
-Table	Ensemble des policies actives
-public.formation_module_statuses	fms_select_own, fms_insert_own, fms_update_own, fms_select_admin, fms_update_admin
-public.training_onboarding_sections	training_onboarding_sections_select, training_onboarding_sections_admin_manage
-public.training_onboarding_questions	training_onboarding_questions_select, training_onboarding_questions_admin_manage
-public.training_onboarding_question_options	training_onboarding_question_options_select, training_onboarding_question_options_admin_manage
-public.training_onboarding_responses	training_onboarding_responses_select_own, training_onboarding_responses_select_admin, training_onboarding_responses_insert_own, training_onboarding_responses_update_own
-public.training_onboarding_nps	training_onboarding_nps_select_own, training_onboarding_nps_select_admin, training_onboarding_nps_insert_own, training_onboarding_nps_update_own
-public.assistant_settings	assistant_settings_select, assistant_settings_update
-public.assistant_limits	assistant_limits_select, assistant_limits_insert, assistant_limits_update
-public.assistant_metrics	assistant_metrics_select, assistant_metrics_insert, assistant_metrics_update
-public.static_pages	static_pages_public_read, static_pages_admin_manage
-Autres politiques déjà déclarées mais dont l’activation RLS n’est pas encore commise dans les migrations :
-
-public.chat_conversations : policy client_update_chat_last_viewed (RLS à activer lors de la finalisation du module chat côté client/admin).
-
-
-
-5. Les fonctionnalités sur le site internet: 
+Les fonctionnalités sur le site internet: 
 
 - Les formations: Le module “parcours de formation” relie des cours Supabase (standard ou custom) aux soumissions client. Une fois approuvées, ces soumissions génèrent automatiquement des cartes Kanban partagées entre clients et administrateurs pour suivre l’avancement module par module. L’architecture distingue un catalogue public (homepage), un dashboard client (inscriptions, statut, Kanban) et une console admin (gestion du catalogue, revue et Kanban global). Les statuts sont stockés dans formation_module_statuses sous RLS, diffusés en temps réel par Supabase, et peuplés par un trigger dès qu’une soumission passe en “approved/live”. Les clients accèdent à leurs cartes via la vue kanban_user_modules_v1, enrichie côté front par les métadonnées des builder_modules. L’onboarding de formation s’appuie sur des tables dédiées (sections, questions, réponses, NPS) et une API React Query. Côté admin, un panneau agrège cours et soumissions via RPC, propose filtres, duplication/suppression, et un mini workflow d’approbation (approve/revert/reject). La vue Kanban admin recharge les cartes via RPC, persiste le drag-and-drop et affiche le brief d’onboarding. Côté client, un panneau réunit formations live et brouillons, gère l’inscription ou la soumission custom, verrouille les statuts une fois validés, et offre un Kanban temps réel. La homepage expose jusqu’à quatre parcours “live” verrouillés côté admin.
 
 - Assistant IA: Accès depuis le bouton nav nav:assistant et le module dashboard client_ai_assistant. Côté React, AssistantProvider (wrappé dans App.jsx) expose useAssistant() et pilote toute la négociation WebRTC via Perfect Negotiation (pair « polite »), la création/fermeture de la RTCPeerConnection et le DataChannel utilisé par « Montrez-lui » (envoi d’images). Aucun composant ne crée de connexion directe : on n’ajoute que des handlers via setHandlers. Le backend Supabase fournit la config et la gouvernance : tables assistant_settings (paramètres), assistant_limits (quotas par utilisateur) et assistant_metrics (journal de sessions). L’Edge Function assistant-mint-key émet une clé Realtime éphémère pour OpenAI, renvoie les ice_servers et des flags ; aucun secret n’est stocké côté client. Toute session démarre par supabase.functions.invoke('assistant-mint-key', …) (CORS POST, OPTIONS). Les gardes locales (minutes/jour, sessions concurrentes, images/session) se synchronisent avec assistant_limits via ensureAssistantLimits() et updateAssistantLimits() ; les surcharges se règlent en SQL. Chaque session écrit puis met à jour assistant_metrics (insertAssistantMetric/updateAssistantMetric : durée, images, bytes up/down, erreurs). UX : AssistantPanel.jsx affiche l’état et ouvre AssistantDrawer.jsx, qui gère Appeler/Raccrocher/Webcam/« Montrez-lui ». Tout nouveau composant doit consommer useAssistant() et respecter callState, quotaError, configLoading.
 
-- La gestion des utilisateurs: Un owner gère les utilisations sur l'espace admin, dans le "module gestion des utilisateurs. La suppression totale d’un compte passe exclusivement par la RPC public.admin_delete_user_full(uuid) (SECURITY DEFINER), appelée depuis l’UI (admin ou auto-suppression). La fonction purge d’abord toutes les données métier liées (formations, snapshots, soumissions, tickets/réponses, action_logs, conversations et messages de chat, cours custom). Ensuite, elle supprime uniquement la ligne du profil de l’utilisateur dans public.profiles—on ne droppe jamais la table. Enfin, elle appelle auth.admin.delete_user(p_user_id) qui retire aussi auth.identities. L’opération est idempotente et irréversible ; aucun composant client ne doit exécuter de DELETE direct, tout passe par supabase.rpc(...). Les permissions imposent : seul un owner peut supprimer un owner ; owners/admins peuvent supprimer d’autres comptes ; chaque utilisateur peut se supprimer lui-même. L’invitation utilise supabase.functions.invoke('invite-user', …) côté UI ; côté Edge, la fonction appelle auth.admin.inviteUserByEmail, met profiles.status='active', assigne le user_type client et gère INVITE_REDIRECT_URL vers /activation-invitation. L’UI respecte authReady/authLoading avant redirection. Les contrôles d’accès restent centralisés via usePermissions() et la cohérence role_permissions / modules_registry / admin_dashboard_tabs. Des vérifications SQL post-opération confirment l’effacement complet de la ligne du profil et des données associées.
-
-- La gestion des bloques: Les bloques présents sur la home page sont gérés dans le module “Gestion des Blocs Actifs”. Un bloque centralise titres, contenus (HTML/JSON), statut, layout, ordre, priorité et métadonnées dans content_blocks. dans le module, il y  aun Bibliothèque des modèles, ou je vais piocher les bloques qui m'interessent pour les Utiliser. Les opérations critiques sont encapsulées en RPC : suppression définitive, déplacement, changement de statut avec réindexation, duplication, renommage et création transactionnelle d’un bloc HTML. Les inserts/updates génériques passent par l’Edge Function manage-content-block (service-role, retour 200 propre). La recherche historique s’appuie sur content-blocks-search qui délègue à search_content_blocks côté base. L’unicité de order_index pour les blocs actifs est d’abord gérée côté front (lecture du max), avec fallback RPC en cas de collision. Côté admin, HomeBlockList charge avec recherche/filtre/pagination, persiste l’état (onglet/éditeur) via URL + sessionStorage, bascule la priorité (“À la une”), réordonne en optimiste (rollback inclus) puis retombe sur home_blocks_move si besoin. Les transitions de statut invoquent home_blocks_set_status; duplication, renommage, archivage et suppression dure utilisent les RPC dédiées. L’éditeur EditHomeBlockPage sauve via home_blocks_create_html pour un HTML neuf, sinon via l’Edge Function. La bibliothèque block_samples est seedée, évite les doublons titre+layout, sérialise selon le layout et permet “Enregistrer comme modèle”. “Utiliser ce modèle” crée un brouillon (priorité 0, order_index libre) et ouvre automatiquement l’édition. Côté public, la Home charge les blocs publiés triés par order_index, assainit le HTML avec DOMPurify et résout les layouts dynamiques via homeBlockRegistry; l’aperçu admin réemploie la même logique.
-
+- La gestion des utilisateurs:
+- Les invitations sur la plateforme:
+- la suppresion d'un compte: 
+- La gestion des bloques: 
 - La gestion des tickets:
-
 - le forum:
 
 
-6. List des tables publiques Supabase et à quoi elles servent: 
+List des tables publiques Supabase et à quoi elles servent: 
 
 action_logs : journalise chaque action (acteur, cible, contexte, états JSON) pour l’audit applicatif (sql/create_action_logs_table.sql:2).
 admin_dashboard_tabs : catalogue les onglets du back-office (tab_id, label, icône, permissions, placement) pour structurer la navigation admin (Supabase/migrations/2025-09-21_admin_move_onboarding_to_new_tab.sql:17).
@@ -104,3 +155,40 @@ training_onboarding_sections : sections du questionnaire (slug, titre, descripti
 user_formation_snapshots : copies JSON des parcours affectés à un utilisateur/submission pour reconstruire le Kanban (Supabase/migrations/2025-09-08_init_fms.sql:3, tools/audit_step1.ps1:118).
 user_formations : association utilisateur ↔ formation (status, enrolled_at) gérée depuis le dashboard client (src/components/dashboard/modules/UserFormationStatusSelect.jsx:35).
 user_types : typologie des comptes (type_name, display_name, permissions) utilisée pour filtrer droits et règles d’UI (src/pages/admin/ComponentManagerPage.jsx:35).
+
+
+
+
+Edge Functions actives (supabase/functions/) :
+
+assistant-mint-key
+assistant-voice-preview
+content-blocks-search
+create-admin-user
+create-user-with-role
+delete-user-full
+get-dashboard-layout
+invite-user
+manage-content-block
+notify-training-onboarding
+set-user-password
+update-dashboard-layout
+users-search
+
+
+Tables pour lesquelles la RLS est déjà activée (cf. migrations ALTER TABLE … ENABLE ROW LEVEL SECURITY):
+
+Table	Ensemble des policies actives
+public.formation_module_statuses	fms_select_own, fms_insert_own, fms_update_own, fms_select_admin, fms_update_admin
+public.training_onboarding_sections	training_onboarding_sections_select, training_onboarding_sections_admin_manage
+public.training_onboarding_questions	training_onboarding_questions_select, training_onboarding_questions_admin_manage
+public.training_onboarding_question_options	training_onboarding_question_options_select, training_onboarding_question_options_admin_manage
+public.training_onboarding_responses	training_onboarding_responses_select_own, training_onboarding_responses_select_admin, training_onboarding_responses_insert_own, training_onboarding_responses_update_own
+public.training_onboarding_nps	training_onboarding_nps_select_own, training_onboarding_nps_select_admin, training_onboarding_nps_insert_own, training_onboarding_nps_update_own
+public.assistant_settings	assistant_settings_select, assistant_settings_update
+public.assistant_limits	assistant_limits_select, assistant_limits_insert, assistant_limits_update
+public.assistant_metrics	assistant_metrics_select, assistant_metrics_insert, assistant_metrics_update
+public.static_pages	static_pages_public_read, static_pages_admin_manage
+Autres politiques déjà déclarées mais dont l’activation RLS n’est pas encore commise dans les migrations :
+
+public.chat_conversations : policy client_update_chat_last_viewed (RLS à activer lors de la finalisation du module chat côté client/admin).

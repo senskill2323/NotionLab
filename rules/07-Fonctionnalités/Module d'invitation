@@ -1,0 +1,16 @@
+- le module admin d'invitation à la création d'un compte: 
+  - Utiliser supabase.functions.invoke('invite-user', ...) depuis l'UI admin ; pas de service-role cote client.
+  - La fonction Edge met profiles.status = 'active' et applique le user_type client ; garder cette source de verite.
+  - Secrets requis cote Edge : SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (optionnel INVITE_REDIRECT_URL).
+- Respecter authReady et authLoading avant redirection afin d'eviter un spinner permanent ou des redirections prematures.
+- Verifier les droits via usePermissions().hasPermission et garder role_permissions/modules_registry/admin_dashboard_tabs synchronises :
+  - Toute nouveaute client passe par une permission de type *:view_module referencee dans modules_registry.required_permission.
+  - Pour un module admin, creer une permission de type admin:*, l'inserer via migration Supabase et la lier a admin_dashboard_tabs.permission_required avant exposition UI.
+•	UI : bouton « Inviter un utilisateur » (src/components/admin/UserManagementPanel.jsx) ? Edge Function invite-user.
+•	Serveur : Supabase/functions/invite-user/index.ts
+o	auth.admin.inviteUserByEmail (création/ré-utilisation)
+o	Mise à jour public.profiles (user_type_id client, status = 'active').
+o	Secrets Edge : SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, optionnel INVITE_REDIRECT_URL (fallback /connexion).
+•	Activation : plus de « guest » ; arrivée sur /activation-invitation pour définir le mot de passe (accès client déjà actif).
+  
+
