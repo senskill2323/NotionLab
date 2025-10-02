@@ -58,11 +58,16 @@ const ManageUserPage = () => {
         userTypesPromise,
       ]);
 
-      setUser(profileData);
+      const normalizedProfile = {
+        ...profileData,
+        country_code: profileData?.country_code_ref ?? profileData?.country_code ?? '',
+      };
+
+      setUser(normalizedProfile);
       setAllFormations(formationsData);
       setUserFormations(userFormationsData.map(f => f.formation_id));
       setUserTypes(userTypesData);
-      reset(profileData);
+      reset(normalizedProfile);
 
     } catch (error) {
       toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de charger les données de l\'utilisateur.' });
@@ -78,6 +83,9 @@ const ManageUserPage = () => {
   const onProfileSubmit = async (formData) => {
     setIsSubmitting(true);
     const { user_types, created_at, id: userId, last_sign_in_at, ...profileData } = formData;
+    const normalizedCountryCode = profileData.country_code ? profileData.country_code.trim().toUpperCase() : null;
+    profileData.country_code = normalizedCountryCode;
+    profileData.country_code_ref = normalizedCountryCode;
     try {
       const previousStatus = (user?.status || 'guest');
       const nextStatus = (profileData?.status || 'guest');
@@ -266,3 +274,4 @@ const ManageUserPage = () => {
 };
 
 export default ManageUserPage;
+
