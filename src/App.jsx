@@ -5,9 +5,7 @@ import React from 'react';
     import { queryClient } from '@/lib/reactQueryClient';
 
     import { Toaster } from '@/components/ui/toaster';
-    import { AuthProvider, useAuth } from '@/contexts/SupabaseAuthContext';
-import { ClientChatIndicatorProvider } from '@/hooks/useClientChatIndicator.jsx';
-    import { ChatProvider } from '@/contexts/ChatContext';
+    import { AuthProvider } from '@/contexts/SupabaseAuthContext';
     import { AssistantProvider } from '@/contexts/AssistantContext';
     import { PermissionsProvider } from '@/contexts/PermissionsContext';
     import { ComponentStateProvider } from '@/contexts/ComponentStateContext';
@@ -17,7 +15,6 @@ import { ClientChatIndicatorProvider } from '@/hooks/useClientChatIndicator.jsx'
     import Footer from '@/components/Footer';
     import Navigation from '@/components/Navigation';
     import AssistantDrawer from '@/components/assistant/AssistantDrawer';
-    import ChatUnreadNotification from '@/components/ChatUnreadNotification';
     import HomePage from '@/pages/HomePage';
     import FormationsPage from '@/pages/FormationsPage';
     import FormationDetailPage from '@/pages/FormationDetailPage';
@@ -49,7 +46,6 @@ import { ClientChatIndicatorProvider } from '@/hooks/useClientChatIndicator.jsx'
     import TrainingPreferencesWizardPage from '@/pages/TrainingPreferencesWizardPage';
     import ForumTopicPage from '@/pages/ForumTopicPage';
     import CreateForumTopicPage from '@/pages/CreateForumTopicPage';
-    import ClientLiveChatPage from '@/modules/client-live-chat/ClientLiveChatPage';
     import { TooltipProvider } from '@/components/ui/tooltip';
     import DashboardEditorPage from '@/pages/admin/DashboardEditorPage';
     import ClientOnlyRoute from '@/components/ClientOnlyRoute';
@@ -57,7 +53,6 @@ import { ClientChatIndicatorProvider } from '@/hooks/useClientChatIndicator.jsx'
     import StaticPage from '@/pages/StaticPage';
     import ModuleManagerPage from '@/pages/admin/ModuleManagerPage';
     import TabsEditorPage from '@/pages/admin/TabsEditorPage';
-    import AdminLiveChatPage from '@/pages/admin/AdminLiveChatPage';
 
     const MainLayout = ({ children }) => {
       const location = useLocation();
@@ -65,13 +60,12 @@ import { ClientChatIndicatorProvider } from '@/hooks/useClientChatIndicator.jsx'
       const isDashboardRoute = location.pathname.startsWith('/dashboard');
       const isAdminRoute = location.pathname.startsWith('/admin');
       const isDemoDashboard = location.pathname.startsWith('/demo-dashboard');
-      const isChatPage = location.pathname.startsWith('/chat');
       const isFormationDetailPage = location.pathname.match(/^\/formation\/[^/]+$/);
       const { footerVisible } = useLayoutPreferences();
 
       const isHomePage = location.pathname === '/';
       
-      const baseFooterVisible = !isAdminRoute && !isDashboardRoute && !isBuilderPage && !isDemoDashboard && !isChatPage && !isFormationDetailPage && !isHomePage;
+      const baseFooterVisible = !isAdminRoute && !isDashboardRoute && !isBuilderPage && !isDemoDashboard && !isFormationDetailPage && !isHomePage;
       const showFooter = baseFooterVisible && footerVisible;
 
       // Do not block rendering on theme loading; a fallback theme is applied immediately.
@@ -111,7 +105,6 @@ import { ClientChatIndicatorProvider } from '@/hooks/useClientChatIndicator.jsx'
         <Route path="/mes-preferences-formation/editer" element={<ClientOnlyRoute><TrainingPreferencesWizardPage /></ClientOnlyRoute>} />
         <Route path="/dashboard" element={<ClientOnlyRoute><DashboardPage /></ClientOnlyRoute>} />
         <Route path="/compte-client" element={<ClientOnlyRoute><ClientAccountPage /></ClientOnlyRoute>} />
-        <Route path="/chat" element={<ProtectedRoute requiredPermission="chat:view"><ClientLiveChatPage /></ProtectedRoute>} />
         <Route path="/nouveau-ticket" element={<ProtectedRoute requiredPermission="tickets:create"><CreateTicketPage /></ProtectedRoute>} />
         <Route path="/ticket/:id" element={<ProtectedRoute requiredPermission="tickets:view_own"><TicketDetailPage /></ProtectedRoute>} />
         <Route path="/tickets" element={<ProtectedRoute requiredPermission="tickets:view_own"><TicketsPage /></ProtectedRoute>} />
@@ -125,7 +118,6 @@ import { ClientChatIndicatorProvider } from '@/hooks/useClientChatIndicator.jsx'
         <Route path="/admin/ticket/:id" element={<ProtectedRoute requiredPermission="tickets:view_all"><ManageTicketPage /></ProtectedRoute>} />
         <Route path="/admin/user/new" element={<ProtectedRoute requiredPermission="users:edit_any"><CreateUserPage /></ProtectedRoute>} />
         <Route path="/admin/user/:id" element={<ProtectedRoute requiredPermission="users:edit_any"><ManageUserPage /></ProtectedRoute>} />
-        <Route path="/admin/live-chat" element={<ProtectedRoute requiredPermission="chat:view_all"><AdminLiveChatPage /></ProtectedRoute>} />
         <Route path="/admin/pages/new" element={<ProtectedRoute requiredPermission="admin:manage_static_pages"><EditStaticPage /></ProtectedRoute>} />
         <Route path="/admin/pages/:id" element={<ProtectedRoute requiredPermission="admin:manage_static_pages"><EditStaticPage /></ProtectedRoute>} />
         <Route path="/admin/modules" element={<ProtectedRoute requiredPermission="admin:manage_modules"><ModuleManagerPage /></ProtectedRoute>} />
@@ -136,21 +128,14 @@ import { ClientChatIndicatorProvider } from '@/hooks/useClientChatIndicator.jsx'
 
     const AppContent = () => {
       const location = useLocation();
-      const { user } = useAuth();
       const isBuilderPage = location.pathname.startsWith('/formation-builder');
-
-      const clientChatGuestId = user?.profile?.chat_guest_id || null;
-      const clientChatEmail = user?.email || null;
 
       return (
         <LayoutPreferencesProvider>
           <MainLayout>
-            <ClientChatIndicatorProvider guestId={clientChatGuestId} guestEmail={clientChatEmail}>
               {!isBuilderPage && <Navigation />}
               <AssistantDrawer />
-              <ChatUnreadNotification />
               <AppRoutes />
-            </ClientChatIndicatorProvider>
           </MainLayout>
         </LayoutPreferencesProvider>
       );
@@ -164,7 +149,6 @@ import { ClientChatIndicatorProvider } from '@/hooks/useClientChatIndicator.jsx'
               <PermissionsProvider>
                 <ComponentStateProvider>
                   <AssistantProvider>
-                    <ChatProvider>
                       <ResourceCreationProvider>
                         <BuilderCatalogProvider>
                           <TooltipProvider>
@@ -173,7 +157,6 @@ import { ClientChatIndicatorProvider } from '@/hooks/useClientChatIndicator.jsx'
                           </TooltipProvider>
                         </BuilderCatalogProvider>
                       </ResourceCreationProvider>
-                    </ChatProvider>
                   </AssistantProvider>
                 </ComponentStateProvider>
               </PermissionsProvider>

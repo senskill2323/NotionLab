@@ -25,7 +25,6 @@ import TabsEditorPage from '@/pages/admin/TabsEditorPage';
 import FormationManagementPanel from '@/components/admin/FormationManagementPanel';
 import UserFormationSubmissionsPanel from '@/components/admin/UserFormationSubmissionsPanel';
 import OnboardingQuestionsAdminPanel from '@/components/admin/formation-live/OnboardingQuestionsAdminPanel';
-import AdminLiveChatPanel from '@/components/admin/AdminLiveChatPanel';
 import AssistantSettingsPanel from '@/components/admin/AssistantSettingsPanel';
 
 const adminComponentMap = {
@@ -45,7 +44,6 @@ const adminComponentMap = {
   CourseManagementPanel: FormationManagementPanel, // Rétrocompatibilité
   UserFormationSubmissionsPanel,
   OnboardingQuestionsAdminPanel,
-  AdminLiveChatPage: AdminLiveChatPanel,
 };
 
 const KpiCard = ({ title, value, subValue, loading }) => (
@@ -87,10 +85,10 @@ const AdminDashboardPage = () => {
   const missingComponentsRef = useRef(new Set());
   const hasLoadedOnceRef = useRef(false);
 
-  const [kpis, setKpis] = useState({ open_tickets: 0, pending_messages: 0, created_parcours: 0 });
+  const [kpis, setKpis] = useState({ open_tickets: 0, created_parcours: 0 });
   const [kpiLoading, setKpiLoading] = useState(true);
 
-  const [newActivity, setNewActivity] = useState({ tickets: false, chat: false, builder: false });
+  const [newActivity, setNewActivity] = useState({ tickets: false, builder: false });
   const [tabsConfig, setTabsConfig] = useState([]);
   const [tabsLoading, setTabsLoading] = useState(true);
   const [modulesConfig, setModulesConfig] = useState([]);
@@ -166,65 +164,6 @@ const AdminDashboardPage = () => {
       console.error('Unexpected error while checking ticket activity:', err);
     }
   }, []);
-  const checkChatActivity = useCallback(async () => {
-    try {
-      const { data: conversationsData, error: conversationsError } = await supabase
-        .from('chat_conversations')
-        .select('id, admin_last_viewed_at');
-
-      if (conversationsError || !Array.isArray(conversationsData) || conversationsData.length === 0) {
-        if (conversationsError) console.error('Error fetching conversations for activity check:', conversationsError);
-        setNewActivity(prev => ({ ...prev, chat: false }));
-        return;
-      }
-
-      const conversationIds = conversationsData.map(conversation => conversation.id).filter(Boolean);
-      if (conversationIds.length === 0) {
-        setNewActivity(prev => ({ ...prev, chat: false }));
-        return;
-      }
-
-      const { data: messagesData, error: messagesError } = await supabase
-        .from('chat_messages')
-        .select('conversation_id, sender, created_at')
-        .in('conversation_id', conversationIds)
-        .order('created_at', { ascending: false });
-
-      if (messagesError) {
-        console.error('Error fetching chat messages for activity check:', messagesError);
-        return;
-      }
-
-      if (!Array.isArray(messagesData) || messagesData.length === 0) {
-        setNewActivity(prev => ({ ...prev, chat: false }));
-        return;
-      }
-
-      const latestMessageByConversation = new Map();
-      for (const message of messagesData) {
-        if (!latestMessageByConversation.has(message.conversation_id)) {
-          latestMessageByConversation.set(message.conversation_id, message);
-        }
-      }
-
-      const hasNewClientMessage = conversationsData.some(conversation => {
-        const latestMessage = latestMessageByConversation.get(conversation.id);
-        if (!latestMessage) return false;
-        const isClientAuthor = latestMessage.sender !== 'admin';
-        if (!isClientAuthor) return false;
-        if (!conversation.admin_last_viewed_at) return true;
-        try {
-          return new Date(latestMessage.created_at) > new Date(conversation.admin_last_viewed_at);
-        } catch (_) {
-          return false;
-        }
-      });
-
-      setNewActivity(prev => ({ ...prev, chat: hasNewClientMessage }));
-    } catch (err) {
-      console.error('Unexpected error while checking chat activity:', err);
-    }
-  }, []);
 
 
   const DEFAULT_TAB_ID = 'user_submissions';
@@ -238,7 +177,10 @@ const AdminDashboardPage = () => {
       console.error('Error fetching KPIs:', error);
       toast({ title: "Erreur KPIs", description: "Impossible de charger les indicateurs de performance.", variant: "destructive" });
     } else {
-      setKpis(data);
+      setKpis({
+        open_tickets: data?.open_tickets ?? 0,
+        created_parcours: data?.created_parcours ?? 0,
+      });
     }
     setKpiLoading(false);
   }, [toast]);
@@ -277,28 +219,6 @@ const AdminDashboardPage = () => {
 
     const kpiChannel = supabase.channel('admin-dashboard-kpis')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, () => fetchKpis())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_conversations' }, (payload) => {
-        const eventType = payload?.eventType;
-        const newRecord = payload?.new;
-        const oldRecord = payload?.old;
-
-        if (eventType === 'INSERT' || eventType === 'DELETE') {
-          fetchKpis();
-          return;
-        }
-
-        if (!newRecord || !oldRecord) {
-          return;
-        }
-
-        const statusChanged = newRecord.status !== oldRecord.status;
-        const archivedChanged = newRecord.admin_archived !== oldRecord.admin_archived;
-        const staffChanged = newRecord.staff_user_id !== oldRecord.staff_user_id;
-
-        if (statusChanged || archivedChanged || staffChanged) {
-          fetchKpis();
-        }
-      })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'courses', filter: 'course_type=eq.custom' }, () => fetchKpis())
       .subscribe();
       
@@ -315,23 +235,16 @@ const AdminDashboardPage = () => {
 
   useEffect(() => {
     checkTicketActivity();
-    checkChatActivity();
     const ticketActivityChannel = supabase
       .channel('admin-dashboard-ticket-activity')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ticket_replies' }, checkTicketActivity)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tickets' }, checkTicketActivity)
       .subscribe();
-    const chatActivityChannel = supabase
-      .channel('admin-dashboard-chat-activity')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, checkChatActivity)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'chat_conversations' }, checkChatActivity)
-      .subscribe();
 
     return () => {
       supabase.removeChannel(ticketActivityChannel);
-      supabase.removeChannel(chatActivityChannel);
     };
-  }, [checkTicketActivity, checkChatActivity]);
+  }, [checkTicketActivity]);
 
   
   // Exclude legacy tabs and unwanted tabs
@@ -339,7 +252,11 @@ const AdminDashboardPage = () => {
     .filter(tab => hasPermission(tab.permission_required))
     .filter(tab => tab.label !== 'Formations')
     .filter(tab => tab.label !== 'Builder Settings')
-    .filter(tab => tab.label !== 'Parcours');
+    .filter(tab => tab.label !== 'Parcours')
+    .filter(tab => {
+      const label = (tab.label || '').toLowerCase();
+      return label !== 'live chat' && label !== 'chat';
+    });
 
   const assistantTabIds = useMemo(() => {
     if (!Array.isArray(accessibleTabs)) return [];
@@ -395,7 +312,6 @@ const AdminDashboardPage = () => {
     navigate(`/admin/dashboard?${sp.toString()}`, { replace: true });
     if (value === 'tickets') setNewActivity(prev => ({ ...prev, tickets: false }));
     if (value === 'builder-parcours') setNewActivity(prev => ({ ...prev, builder: false }));
-    if (value === 'live-chat') setNewActivity(prev => ({ ...prev, chat: false }));
   };
 
   const renderTabContent = (tabId) => {
@@ -440,10 +356,6 @@ const AdminDashboardPage = () => {
           if (module.component_name === 'TicketManagementPanel') {
             componentProps.onDataChange = handleTicketPanelData;
           }
-          if (module.component_name === 'AdminLiveChatPage') {
-            componentProps.onActivityCleared = () => setNewActivity(prev => ({ ...prev, chat: false }));
-            componentProps.className = 'min-h-[520px] overflow-hidden rounded-xl border border-border/60 bg-card/40';
-          }
           return <Component key={module.module_key} {...componentProps} />;
         })}
       </div>
@@ -462,14 +374,14 @@ const AdminDashboardPage = () => {
     <>
       <Helmet>
         <title>Tableau de Bord Administrateur | Notion Pro</title>
-        <meta name="description" content="Gérez les utilisateurs, les formations, les tickets et les chats depuis le tableau de bord administrateur." />
+        <meta name="description" content="Gérez les utilisateurs, les formations et les tickets depuis le tableau de bord administrateur." />
       </Helmet>
       <div className="min-h-screen bg-background text-foreground">
         <main className="w-full px-4 pt-24 sm:pt-28">
           <div className="space-y-8">
             <header>
               <h1 className="text-xl font-bold tracking-tight">
-                Espace Admin (<span className="gradient-text">{userName}</span>)
+                Espace Administrateur (<span className="gradient-text">{userName}</span>)
               </h1>
             </header>
 
@@ -481,8 +393,7 @@ const AdminDashboardPage = () => {
                       {(tabsByRow[rowKey] || []).sort((a, b) => (a.col_order || 0) - (b.col_order || 0)).map(tab => {
                         const Icon = Icons[tab.icon] || Icons.HelpCircle;
                         const isTicketsTab = tab.tab_id === 'tickets' || tab.label?.toLowerCase() === 'tickets';
-                        const isLiveChatTab = tab.tab_id === 'live-chat' || tab.label?.toLowerCase().includes('chat');
-                        const activityKey = isTicketsTab ? 'tickets' : isLiveChatTab ? 'chat' : tab.tab_id;
+                        const activityKey = isTicketsTab ? 'tickets' : tab.tab_id;
                         const shouldHighlight = !!newActivity[activityKey];
                         const iconClassName = `h-4 w-4 ${shouldHighlight ? 'text-emerald-400 animate-[pulse_1.4s_ease-in-out_infinite]' : ''}`;
                         const labelClassName = shouldHighlight ? 'text-emerald-100 dark:text-emerald-300' : '';
@@ -507,10 +418,9 @@ const AdminDashboardPage = () => {
                   ))}
                 </div>
 
-                <div className="grid grid-cols-3 gap-2 w-full sm:w-auto self-start sm:self-center">
+                <div className="grid grid-cols-2 gap-2 w-full sm:w-auto self-start sm:self-center">
                    <KpiCard title="Tickets Ouverts" value={`${kpis.open_tickets}`} loading={kpiLoading} />
-                   <KpiCard title="Messages à traiter" value={`${kpis.pending_messages}`} loading={kpiLoading} />
-                   <KpiCard title="Parcours Créés" value={`${kpis.created_parcours}`} loading={kpiLoading} />
+                   <KpiCard title="Parcours Crees" value={`${kpis.created_parcours}`} loading={kpiLoading} />
                 </div>
               </div>
               

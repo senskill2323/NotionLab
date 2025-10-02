@@ -439,7 +439,7 @@ const ResourcesPanel = ({ editMode = false }) => {
                   </div>
                 </div>
               )) : (
-                <p className="text-center text-sm text-muted-foreground py-4">Aucune ressource. Créez-en depuis le chat !</p>
+                <p className="text-center text-sm text-muted-foreground py-4">Aucune ressource. Creez-en depuis votre tableau de bord !</p>
               )}
             </div>
           )}

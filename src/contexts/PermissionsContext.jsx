@@ -29,7 +29,6 @@ export const PermissionsProvider = ({ children }) => {
   const isProtectedPath = useCallback((path) => {
     const protectedPrefixes = [
       '/dashboard',
-      '/chat',
       '/nouveau-ticket',
       '/ticket',
       '/tickets',

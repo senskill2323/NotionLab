@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 
 import { useNavigate } from 'react-router-dom';
 
@@ -491,7 +491,7 @@ const UserManagementPanel = () => {
 
               <CardTitle>Gestion des Utilisateurs</CardTitle>
 
-              <CardDescription>Rechercher, filtrer et gÃ©rer tous les utilisateurs.</CardDescription>
+              <CardDescription>Rechercher, filtrer et gérer tous les utilisateurs.</CardDescription>
 
             </div>
 
@@ -621,11 +621,11 @@ const UserManagementPanel = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
-              <Input placeholder="PrÃ©nom..." value={filters.first_name} onChange={(e) => handleFilterChange('first_name', e.target.value)} />
+              <Input placeholder="Prénom" value={filters.first_name} onChange={(e) => handleFilterChange('first_name', e.target.value)} />
 
-              <Input placeholder="Nom..." value={filters.last_name} onChange={(e) => handleFilterChange('last_name', e.target.value)} />
+              <Input placeholder="Nom" value={filters.last_name} onChange={(e) => handleFilterChange('last_name', e.target.value)} />
 
-              <Input placeholder="Email..." value={filters.email} onChange={(e) => handleFilterChange('email', e.target.value)} />
+              <Input placeholder="Email" value={filters.email} onChange={(e) => handleFilterChange('email', e.target.value)} />
 
             </div>
 
@@ -633,7 +633,7 @@ const UserManagementPanel = () => {
 
               {showAdvanced ? <ChevronUp className="mr-2 h-4 w-4" /> : <ChevronDown className="mr-2 h-4 w-4" />}
 
-              Filtres avancÃ©s
+              Filtres avancés
 
             </Button>
 
@@ -645,7 +645,7 @@ const UserManagementPanel = () => {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
 
-                    <Input placeholder="Ville..." value={filters.city} onChange={(e) => handleFilterChange('city', e.target.value)} />
+                    <Input placeholder="Ville" value={filters.city} onChange={(e) => handleFilterChange('city', e.target.value)} />
 
                     <Select value={filters.country_code} onValueChange={(v) => handleFilterChange('country_code', v)}>
 
@@ -739,7 +739,7 @@ const UserManagementPanel = () => {
 
               <TableRow>
 
-                <TableHead><Button variant="ghost" onClick={() => handleSort('first_name')}>PrÃ©nom <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                <TableHead><Button variant="ghost" onClick={() => handleSort('first_name')}>Prénom <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
 
                 <TableHead><Button variant="ghost" onClick={() => handleSort('last_name')}>Nom <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
 
@@ -747,7 +747,7 @@ const UserManagementPanel = () => {
 
                 <TableHead>Type</TableHead>
 
-                <TableHead><Button variant="ghost" onClick={() => handleSort('last_sign_in_at')}>DerniÃ¨re connexion <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                <TableHead><Button variant="ghost" onClick={() => handleSort('last_sign_in_at')}>Dernière connexion <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
 
                 <TableHead className="text-right">Actions</TableHead>
 
@@ -879,7 +879,7 @@ const UserManagementPanel = () => {
 
             <div className="flex items-center gap-2">
 
-              <Button onClick={() => setPagination(p => ({...p, page: p.page - 1}))} disabled={pagination.page <= 1}>PrÃ©cÃ©dent</Button>
+              <Button onClick={() => setPagination(p => ({...p, page: p.page - 1}))} disabled={pagination.page <= 1}>Précédent</Button>
 
               <span>Page {pagination.page}</span>
 

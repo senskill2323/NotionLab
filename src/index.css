@@ -51,9 +51,6 @@
     --colors-border: var(--border);
     --colors-input: var(--input);
     --colors-ring: var(--ring);
-    --colors-chat-surface: var(--background);
-    --colors-chat-bubble-user: var(--muted);
-    --colors-chat-bubble-staff: var(--primary);
   }
 }
   

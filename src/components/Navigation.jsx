@@ -6,7 +6,6 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Button } from '@/components/ui/button';
 import { LogOut, LayoutDashboard, Home, Wrench, Bot } from 'lucide-react';
 import { useAssistant } from '@/contexts/AssistantContext';
-import { useClientChatIndicator } from '@/hooks/useClientChatIndicator.jsx';
 import ManagedComponent from '@/components/ManagedComponent';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import UserAccountPanel from '@/components/UserAccountPanel';
@@ -44,7 +43,6 @@ const NavItem = ({ to, children, componentKey, onClick }) => {
 const Navigation = () => {
   const { user, signOut, authReady } = useAuth();
   const { toggleDrawer: toggleAssistantDrawer, callState: assistantCallState } = useAssistant();
-  const { hasUnread: hasUnreadClientChat } = useClientChatIndicator();
   const assistantActive = ['connected', 'connecting', 'reconnecting'].includes(assistantCallState);
   const navigate = useNavigate();
   const location = useLocation();
@@ -93,28 +91,6 @@ const Navigation = () => {
                 </Button>
               </TooltipTrigger>
               <TooltipContent><p>Forum</p></TooltipContent>
-            </Tooltip>
-          </ManagedComponent>
-
-          <ManagedComponent componentKey="nav:client_chat">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="default"
-                  className={`relative ${hasUnreadClientChat ? 'pr-5' : ''}`}
-                  onClick={() => navigate('/chat')}
-                >
-                  Le Chat
-                  {hasUnreadClientChat && (
-                    <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex h-3 w-3 rounded-full bg-emerald-500"></span>
-                    </span>
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent><p>Chat en direct</p></TooltipContent>
             </Tooltip>
           </ManagedComponent>
         
