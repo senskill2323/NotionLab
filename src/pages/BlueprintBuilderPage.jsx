@@ -8,7 +8,6 @@ import BlueprintCanvas from '@/components/blueprints/BlueprintCanvas';
 import BlueprintInspector from '@/components/blueprints/BlueprintInspector';
 import BlueprintPalette, { getDefaultBlueprintPalette } from '@/components/blueprints/BlueprintPalette';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2 } from 'lucide-react';
 import { useBlueprintBuilder } from '@/hooks/useBlueprintBuilder';
 
@@ -63,7 +62,7 @@ const BlueprintBuilderShell = () => {
   }, [blueprints, searchTerm]);
   if (isLoading) {
     return (
-      <div className="flex h-full flex-1 items-center justify-center">
+      <div className="flex h-screen w-full items-center justify-center overflow-hidden">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
@@ -137,7 +136,7 @@ const BlueprintBuilderShell = () => {
 
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-      <div className="flex h-full w-full">
+      <div className="flex h-screen w-full overflow-hidden">
         <div className="flex w-72 flex-col border-r border-border/60 bg-muted/30">
           <div className="flex items-center justify-between border-b border-border/60 px-4 py-3">
             <p className="text-sm font-semibold text-foreground">Blueprints</p>
@@ -145,7 +144,7 @@ const BlueprintBuilderShell = () => {
               Nouveau
             </Button>
           </div>
-          <ScrollArea className="h-40 border-b border-border/60 px-3 py-3">
+          <div className="max-h-40 border-b border-border/60 px-3 py-3 overflow-hidden">
             <div className="space-y-2">
               {filteredBlueprints.map((item) => (
                 <Button
@@ -167,11 +166,11 @@ const BlueprintBuilderShell = () => {
                 <p className="text-xs text-muted-foreground">Aucun blueprint trouvé.</p>
               )}
             </div>
-          </ScrollArea>
+          </div>
           <BlueprintPalette searchTerm={searchTerm} onSearchChange={setSearchTerm} catalog={paletteCatalog} />
         </div>
 
-        <div className="flex flex-1 flex-col">
+        <div className="flex flex-1 flex-col overflow-hidden">
           <BlueprintBuilderHeader
             blueprint={blueprint}
             autosaveState={autosaveState}
@@ -189,7 +188,7 @@ const BlueprintBuilderShell = () => {
             onExportPng={() => exportImage('png')}
             onExportSvg={() => exportImage('svg')}
           />
-          <div className="flex flex-1">
+          <div className="flex flex-1 overflow-hidden">
             <BlueprintCanvas
               nodes={nodes}
               edges={edges}
@@ -218,15 +217,5 @@ const BlueprintBuilderPage = () => (
 );
 
 export default BlueprintBuilderPage;
-
-
-
-
-
-
-
-
-
-
 
 

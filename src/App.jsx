@@ -73,8 +73,8 @@ import React from 'react';
       // Do not block rendering on theme loading; a fallback theme is applied immediately.
 
       return (
-        <div className="flex flex-col min-h-screen bg-background text-foreground transition-colors duration-300">
-          <main className="flex-grow">
+        <div className={`flex flex-col min-h-screen bg-background text-foreground transition-colors duration-300 ${isBuilderPage ? "overflow-hidden" : ""}`}>
+          <main className={isBuilderPage ? "flex-grow overflow-hidden" : "flex-grow"}>
             {children}
           </main>
           {showFooter && <Footer />}

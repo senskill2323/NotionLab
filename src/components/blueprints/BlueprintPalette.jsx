@@ -299,7 +299,7 @@ const BlueprintPalette = ({ searchTerm, onSearchChange, catalog }) => {
   }, [catalog, normalizedSearch]);
 
   return (
-    <aside className="flex h-full flex-col gap-4 overflow-y-auto border-r border-border/70 bg-muted/20 p-4">
+    <aside className="flex h-full flex-col gap-4 overflow-hidden border-r border-border/70 bg-muted/20 p-4">
       <div className="space-y-2">
         <p className="text-sm font-medium text-foreground">Palette</p>
         <Input

@@ -2,7 +2,6 @@ import React, { useEffect } from 'react';
 import ReactFlow, {
   Background,
   Controls,
-  MiniMap,
   useReactFlow,
   ConnectionMode,
 } from 'reactflow';
@@ -91,14 +90,17 @@ const BlueprintCanvas = ({
         fitViewOptions={{ padding: 0.2, duration: 300 }}
         connectionMode={ConnectionMode.Strict}
         defaultEdgeOptions={blueprintDefaultEdgeOptions}
-        panOnScroll
+        panOnScroll={false}
+        zoomOnScroll={false}
+        panOnDrag={false}
+        zoomOnPinch={false}
+        zoomOnDoubleClick={false}
         selectionOnDrag
         minZoom={0.3}
         maxZoom={1.6}
         className="bg-background"
       >
         <Background variant="dots" gap={18} size={1.2} color="hsl(var(--muted-foreground) / 0.25)" />
-        <MiniMap pannable zoomable className="!bg-card/80 !border !border-border/60" />
         <Controls className="bg-card/90" />
       </ReactFlow>
     </div>
