@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useDebouncedCallback } from 'use-debounce';
 import { useNodesState, useEdgesState, addEdge } from 'reactflow';
 import { v4 as uuidv4 } from 'uuid';
+import { getDefaultBlueprintPalette } from '@/components/blueprints/BlueprintPalette';
 
 import { useToast } from '@/components/ui/use-toast';
 import {
@@ -14,6 +15,7 @@ import {
   createBlueprintSnapshot,
   createBlueprintShare,
   renameBlueprint,
+  fetchBlueprintPalette,
 } from '@/lib/blueprints/blueprintApi';
 
 const ROOT_ELEMENT_KEY = 'root';
@@ -75,6 +77,7 @@ export const useBlueprintBuilder = () => {
   const [lastSavedAt, setLastSavedAt] = useState(null);
   const initialRootId = findRootNodeId(initialNodesRef.current);
   const [selectedNodeId, setSelectedNodeId] = useState(initialRootId);
+  const [palette, setPalette] = useState(() => getDefaultBlueprintPalette());
 
   const blueprintRef = useRef(null);
   const rootNodeIdRef = useRef(initialRootId);
@@ -342,6 +345,33 @@ export const useBlueprintBuilder = () => {
   );
 
   useEffect(() => {
+    let isMounted = true;
+
+    const loadPalette = async () => {
+      try {
+        const data = await fetchBlueprintPalette();
+        if (!isMounted) return;
+        if (Array.isArray(data) && data.length > 0) {
+          setPalette(data);
+        } else {
+          setPalette(getDefaultBlueprintPalette());
+        }
+      } catch (error) {
+        console.error(error);
+        if (isMounted) {
+          setPalette(getDefaultBlueprintPalette());
+        }
+      }
+    };
+
+    loadPalette();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
     fetchBlueprints();
   }, [fetchBlueprints]);
 
@@ -584,6 +614,7 @@ export const useBlueprintBuilder = () => {
       edges,
       blueprint,
       blueprints,
+      palette,
       isLoading,
       isSaving,
       autosaveState,
@@ -616,6 +647,10 @@ export const useBlueprintBuilder = () => {
     },
   };
 };
+
+
+
+
 
 
 

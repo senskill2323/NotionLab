@@ -4,7 +4,7 @@ import { NavLink, Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Button } from '@/components/ui/button';
-import { LogOut, LayoutDashboard, Home, Wrench, Bot } from 'lucide-react';
+import { LogOut, LayoutDashboard, Home, Wrench, Bot, Palette } from 'lucide-react';
 import { useAssistant } from '@/contexts/AssistantContext';
 import ManagedComponent from '@/components/ManagedComponent';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -104,6 +104,19 @@ const Navigation = () => {
               <TooltipContent><p>Blueprint Notion</p></TooltipContent>
             </Tooltip>
           </ManagedComponent>
+          {isAdmin && (
+            <ManagedComponent componentKey="nav:admin_blueprint_palette">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" onClick={() => navigate('/admin/blueprint-palette')}>
+                    <Palette className="h-5 w-5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent><p>Palette Blueprint</p></TooltipContent>
+              </Tooltip>
+            </ManagedComponent>
+          )}
+
           <ManagedComponent componentKey="nav:client_builder" disabledTooltip="Connectez-vous pour utiliser le builder">
              <Tooltip>
               <TooltipTrigger asChild>

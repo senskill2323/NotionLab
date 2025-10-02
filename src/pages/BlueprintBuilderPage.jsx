@@ -32,6 +32,7 @@ const BlueprintBuilderShell = () => {
       selectedNodeId,
       canUndo,
       canRedo,
+      palette,
     },
     setters: {
       onNodesChange,
@@ -55,7 +56,9 @@ const BlueprintBuilderShell = () => {
     },
   } = useBlueprintBuilder();
 
-  const paletteCatalog = useMemo(() => getDefaultBlueprintPalette(), []);
+  const paletteCatalog = useMemo(() => {
+    return palette?.length ? palette : getDefaultBlueprintPalette();
+  }, [palette]);
 
   const filteredBlueprints = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
@@ -223,5 +226,7 @@ const BlueprintBuilderPage = () => (
 );
 
 export default BlueprintBuilderPage;
+
+
 
 

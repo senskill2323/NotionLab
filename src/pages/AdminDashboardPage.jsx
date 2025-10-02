@@ -26,6 +26,7 @@ import FormationManagementPanel from '@/components/admin/FormationManagementPane
 import UserFormationSubmissionsPanel from '@/components/admin/UserFormationSubmissionsPanel';
 import OnboardingQuestionsAdminPanel from '@/components/admin/formation-live/OnboardingQuestionsAdminPanel';
 import AssistantSettingsPanel from '@/components/admin/AssistantSettingsPanel';
+import BlueprintPaletteAdminPage from '@/pages/admin/BlueprintPaletteAdminPage';
 
 const adminComponentMap = {
   UserManagementPanel,
@@ -44,6 +45,7 @@ const adminComponentMap = {
   CourseManagementPanel: FormationManagementPanel, // Rétrocompatibilité
   UserFormationSubmissionsPanel,
   OnboardingQuestionsAdminPanel,
+  BlueprintPaletteAdminPage,
 };
 
 const KpiCard = ({ title, value, subValue, loading }) => (
@@ -438,6 +440,8 @@ const AdminDashboardPage = () => {
 };
 
 export default AdminDashboardPage;
+
+
 
 
 

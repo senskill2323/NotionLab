@@ -152,3 +152,49 @@ export async function updateBlueprintMetadata(blueprintId, patch) {
     .eq('id', blueprintId);
   if (error) throw error;
 }
+
+export async function fetchBlueprintPalette() {
+  const { data, error } = await supabase.rpc('get_blueprint_palette_catalog');
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
+}
+
+export async function upsertPaletteFamily({ id = null, label = null, description = null, sortOrder = null, isActive = null } = {}) {
+  const { data, error } = await supabase.rpc('upsert_blueprint_palette_family', {
+    p_family_id: id,
+    p_label: label,
+    p_description: description,
+    p_sort_order: sortOrder,
+    p_is_active: isActive,
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function deletePaletteFamily(familyId) {
+  const { error } = await supabase.rpc('delete_blueprint_palette_family', {
+    p_family_id: familyId,
+  });
+  if (error) throw error;
+}
+
+export async function upsertPaletteItem({ id = null, familyId = null, label = null, description = null, sortOrder = null, isActive = null } = {}) {
+  const { data, error } = await supabase.rpc('upsert_blueprint_palette_item', {
+    p_item_id: id,
+    p_family_id: familyId,
+    p_label: label,
+    p_description: description,
+    p_sort_order: sortOrder,
+    p_is_active: isActive,
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function deletePaletteItem(itemId) {
+  const { error } = await supabase.rpc('delete_blueprint_palette_item', {
+    p_item_id: itemId,
+  });
+  if (error) throw error;
+}
+

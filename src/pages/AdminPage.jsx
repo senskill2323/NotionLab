@@ -3,12 +3,13 @@ import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, BookOpen, Settings, BarChart3, LifeBuoy, Puzzle, Shield, SlidersHorizontal } from 'lucide-react';
+import { Users, BookOpen, Settings, BarChart3, LifeBuoy, Puzzle, Shield, SlidersHorizontal, Palette } from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useNavigate } from 'react-router-dom';
 import RolesPermissionsPage from '@/pages/admin/RolesPermissionsPage';
 import ModuleManagerPage from '@/pages/admin/ModuleManagerPage';
 import ComponentManagerPage from '@/pages/admin/ComponentManagerPage';
+import BlueprintPaletteAdminPage from '@/pages/admin/BlueprintPaletteAdminPage';
 
 const AdminPage = () => {
   const { user } = useAuth();
@@ -20,6 +21,7 @@ const AdminPage = () => {
     { id: 'permissions', label: 'Droits et Rôles', icon: Shield, component: <RolesPermissionsPage /> },
     { id: 'modules', label: 'Gestion des Modules', icon: Puzzle, component: <ModuleManagerPage /> },
     { id: 'components', label: 'Gestion des Composants', icon: SlidersHorizontal, component: <ComponentManagerPage /> },
+    { id: 'blueprint_palette', label: 'Palette Blueprint', icon: Palette, component: <BlueprintPaletteAdminPage /> },
     { id: 'users', label: 'Utilisateurs', icon: Users, component: <p>Gestion des utilisateurs à venir.</p> },
     { id: 'formations', label: 'Formations', icon: BookOpen, component: <p>Gestion des formations à venir.</p> },
     { id: 'stats', label: 'Statistiques', icon: BarChart3, component: <p>Statistiques à venir.</p> },
@@ -93,3 +95,6 @@ const AdminPage = () => {
 };
 
 export default AdminPage;
+
+
+
