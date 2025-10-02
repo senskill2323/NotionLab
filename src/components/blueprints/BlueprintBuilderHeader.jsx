@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { LinkIcon, RefreshCcw, Save, Undo2, Redo2, Copy, Sparkles, Trash2 } from 'lucide-react';
+import { LinkIcon, RefreshCcw, Save, Undo2, Redo2, Copy, Sparkles, Trash2, Share2, FileJson } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -56,6 +56,8 @@ const BlueprintBuilderHeader = ({
   onDuplicate,
   onDelete,
   onSnapshot,
+  onShare,
+  onExportJson,
   onExportPng,
   onExportSvg,
 }) => {
@@ -63,6 +65,14 @@ const BlueprintBuilderHeader = ({
 
   const handleSnapshot = async () => {
     await onSnapshot?.({ label: `Snapshot ${new Date().toLocaleString('fr-FR')}` });
+  };
+
+  const handleShare = async () => {
+    await onShare?.();
+  };
+
+  const handleExportJson = () => {
+    onExportJson?.();
   };
 
   return (
@@ -107,10 +117,23 @@ const BlueprintBuilderHeader = ({
           </TooltipTrigger>
           <TooltipContent>Cr�er un instantan� JSON</TooltipContent>
         </Tooltip>
+        <Button size="sm" variant="outline" onClick={handleShare}>
+          <Share2 className="mr-1.5 h-4 w-4" />
+          Partager
+        </Button>
         <Button size="sm" variant="outline" onClick={onDuplicate}>
           <RefreshCcw className="mr-1.5 h-4 w-4" />
           Dupliquer
         </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button size="sm" variant="outline" onClick={handleExportJson}>
+              <FileJson className="mr-1.5 h-4 w-4" />
+              Export JSON
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Exporter le blueprint en JSON</TooltipContent>
+        </Tooltip>
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button size="sm" variant="destructive">

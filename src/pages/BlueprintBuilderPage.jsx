@@ -5,6 +5,7 @@ import { ReactFlowProvider, useReactFlow } from 'reactflow';
 
 import BlueprintBuilderHeader from '@/components/blueprints/BlueprintBuilderHeader';
 import BlueprintCanvas from '@/components/blueprints/BlueprintCanvas';
+import BlueprintInspector from '@/components/blueprints/BlueprintInspector';
 import BlueprintPalette, { getDefaultBlueprintPalette } from '@/components/blueprints/BlueprintPalette';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
@@ -192,14 +193,21 @@ const BlueprintBuilderShell = () => {
             onExportSvg={() => exportImage('svg')}
           />
           <div className="flex flex-1 overflow-hidden">
-            <BlueprintCanvas
-              nodes={nodes}
-              edges={edges}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
-              onConnect={onConnect}
-              setSelectedNodeId={setSelectedNodeId}
-              flowWrapperRef={flowWrapperRef}
+            <div className="flex-1">
+              <BlueprintCanvas
+                nodes={nodes}
+                edges={edges}
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                onConnect={onConnect}
+                setSelectedNodeId={setSelectedNodeId}
+                flowWrapperRef={flowWrapperRef}
+              />
+            </div>
+            <BlueprintInspector
+              node={selectedNode}
+              onUpdate={updateNodeData}
+              onDelete={deleteNode}
             />
           </div>
         </div>

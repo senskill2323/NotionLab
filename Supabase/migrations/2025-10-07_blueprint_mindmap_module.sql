@@ -94,6 +94,12 @@ CREATE TABLE IF NOT EXISTS public.blueprint_shares (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
+ALTER TABLE public.blueprint_shares
+  ADD COLUMN last_accessed_at timestamptz;
+
+-- TODO: planifier une routine pour purger ou archiver les tokens expires.
+
+
 CREATE INDEX IF NOT EXISTS blueprint_shares_blueprint_idx ON public.blueprint_shares(blueprint_id);
 CREATE INDEX IF NOT EXISTS blueprint_shares_active_idx ON public.blueprint_shares(token, is_active);
 
