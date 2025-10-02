@@ -1,0 +1,19 @@
+Assistant IA (WebRTC Realtime)
+•	Accès : bouton nav Assistant (component_key nav:assistant) et module dashboard client_ai_assistant.
+•	Contexte : AssistantProvider (wrappé dans App.jsx) expose useAssistant() et encapsule Perfect Negotiation (peer « polite »).
+•	Backend Supabase :
+o	Tables : assistant_settings (config), assistant_limits (quotas par utilisateur), assistant_metrics (journal sessions).
+o	Edge Function assistant-mint-key : clé éphémère Realtime (OpenAI) + ice_servers + flags (aucun secret côté client).
+•	Quotas & métriques :
+o	Garde locale (minutes/jour, sessions concurrentes, images/session) synchronisée avec assistant_limits.
+o	Chaque session met à jour assistant_metrics (durée, images, bytes up/down, erreurs) et rafraîchit les compteurs.
+•	UX : AssistantDrawer.jsx gère Appeler / Raccrocher / Webcam / Montrez-lui (images via DataChannel) ; AssistantPanel.jsx résume l’état et ouvre le drawer.
+
+
+- Assistant IA (client):
+  - React: consommer `useAssistant()` (contexte global) pour ouvrir le drawer ou afficher l'etat dans le dashboard; ne jamais by-passer les gardes `callState`, `quotaError`, `configLoading`.
+  - WebRTC: laisser `AssistantProvider` piloter `usePerfectNegotiation()` (pas de creation directe de `RTCPeerConnection`). Ajouter uniquement des handlers via `setHandlers`.
+  - Edge/API: toute session passe par `supabase.functions.invoke('assistant-mint-key', {...})`. Respecter les entetes CORS (`POST, OPTIONS`) et ne jamais stocker la cle OpenAI cote client.
+  - Quotas: utiliser `ensureAssistantLimits()` et `updateAssistantLimits()` pour initialiser/mettre a jour les compteurs (minutes/jour, sessions, images). Les surcharges se gerent via SQL (`assistant_limits`).
+  - Metrics: ecrire via `insertAssistantMetric` puis `updateAssistantMetric` (bytes up/down, duree, erreurs). Pas de tracking cote client hors Supabase.
+  - UI: `AssistantDrawer` et `AssistantPanel` doivent rester les points d'entree; tout nouveau composant doit consommer l'etat via `useAssistant()` plutot que dupliqer la logique.

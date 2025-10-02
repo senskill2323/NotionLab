@@ -6,7 +6,6 @@ import React from 'react';
 
     import { Toaster } from '@/components/ui/toaster';
     import { AuthProvider } from '@/contexts/SupabaseAuthContext';
-    import { ChatProvider } from '@/contexts/ChatContext';
     import { AssistantProvider } from '@/contexts/AssistantContext';
     import { PermissionsProvider } from '@/contexts/PermissionsContext';
     import { ComponentStateProvider } from '@/contexts/ComponentStateContext';
@@ -47,7 +46,6 @@ import React from 'react';
     import TrainingPreferencesWizardPage from '@/pages/TrainingPreferencesWizardPage';
     import ForumTopicPage from '@/pages/ForumTopicPage';
     import CreateForumTopicPage from '@/pages/CreateForumTopicPage';
-    import ChatPage from '@/pages/ChatPage';
     import { TooltipProvider } from '@/components/ui/tooltip';
     import DashboardEditorPage from '@/pages/admin/DashboardEditorPage';
     import ClientOnlyRoute from '@/components/ClientOnlyRoute';
@@ -55,7 +53,6 @@ import React from 'react';
     import StaticPage from '@/pages/StaticPage';
     import ModuleManagerPage from '@/pages/admin/ModuleManagerPage';
     import TabsEditorPage from '@/pages/admin/TabsEditorPage';
-    import AdminLiveChatPage from '@/pages/admin/AdminLiveChatPage';
 
     const MainLayout = ({ children }) => {
       const location = useLocation();
@@ -63,13 +60,12 @@ import React from 'react';
       const isDashboardRoute = location.pathname.startsWith('/dashboard');
       const isAdminRoute = location.pathname.startsWith('/admin');
       const isDemoDashboard = location.pathname.startsWith('/demo-dashboard');
-      const isChatPage = location.pathname.startsWith('/chat');
       const isFormationDetailPage = location.pathname.match(/^\/formation\/[^/]+$/);
       const { footerVisible } = useLayoutPreferences();
 
       const isHomePage = location.pathname === '/';
       
-      const baseFooterVisible = !isAdminRoute && !isDashboardRoute && !isBuilderPage && !isDemoDashboard && !isChatPage && !isFormationDetailPage && !isHomePage;
+      const baseFooterVisible = !isAdminRoute && !isDashboardRoute && !isBuilderPage && !isDemoDashboard && !isFormationDetailPage && !isHomePage;
       const showFooter = baseFooterVisible && footerVisible;
 
       // Do not block rendering on theme loading; a fallback theme is applied immediately.
@@ -109,7 +105,6 @@ import React from 'react';
         <Route path="/mes-preferences-formation/editer" element={<ClientOnlyRoute><TrainingPreferencesWizardPage /></ClientOnlyRoute>} />
         <Route path="/dashboard" element={<ClientOnlyRoute><DashboardPage /></ClientOnlyRoute>} />
         <Route path="/compte-client" element={<ClientOnlyRoute><ClientAccountPage /></ClientOnlyRoute>} />
-        <Route path="/chat" element={<ProtectedRoute requiredPermission="chat:view"><ChatPage /></ProtectedRoute>} />
         <Route path="/nouveau-ticket" element={<ProtectedRoute requiredPermission="tickets:create"><CreateTicketPage /></ProtectedRoute>} />
         <Route path="/ticket/:id" element={<ProtectedRoute requiredPermission="tickets:view_own"><TicketDetailPage /></ProtectedRoute>} />
         <Route path="/tickets" element={<ProtectedRoute requiredPermission="tickets:view_own"><TicketsPage /></ProtectedRoute>} />
@@ -123,7 +118,6 @@ import React from 'react';
         <Route path="/admin/ticket/:id" element={<ProtectedRoute requiredPermission="tickets:view_all"><ManageTicketPage /></ProtectedRoute>} />
         <Route path="/admin/user/new" element={<ProtectedRoute requiredPermission="users:edit_any"><CreateUserPage /></ProtectedRoute>} />
         <Route path="/admin/user/:id" element={<ProtectedRoute requiredPermission="users:edit_any"><ManageUserPage /></ProtectedRoute>} />
-        <Route path="/admin/live-chat" element={<ProtectedRoute requiredPermission="chat:view_all"><AdminLiveChatPage /></ProtectedRoute>} />
         <Route path="/admin/pages/new" element={<ProtectedRoute requiredPermission="admin:manage_static_pages"><EditStaticPage /></ProtectedRoute>} />
         <Route path="/admin/pages/:id" element={<ProtectedRoute requiredPermission="admin:manage_static_pages"><EditStaticPage /></ProtectedRoute>} />
         <Route path="/admin/modules" element={<ProtectedRoute requiredPermission="admin:manage_modules"><ModuleManagerPage /></ProtectedRoute>} />
@@ -139,9 +133,9 @@ import React from 'react';
       return (
         <LayoutPreferencesProvider>
           <MainLayout>
-            {!isBuilderPage && <Navigation />}
-            <AssistantDrawer />
-            <AppRoutes />
+              {!isBuilderPage && <Navigation />}
+              <AssistantDrawer />
+              <AppRoutes />
           </MainLayout>
         </LayoutPreferencesProvider>
       );
@@ -155,7 +149,6 @@ import React from 'react';
               <PermissionsProvider>
                 <ComponentStateProvider>
                   <AssistantProvider>
-                    <ChatProvider>
                       <ResourceCreationProvider>
                         <BuilderCatalogProvider>
                           <TooltipProvider>
@@ -164,7 +157,6 @@ import React from 'react';
                           </TooltipProvider>
                         </BuilderCatalogProvider>
                       </ResourceCreationProvider>
-                    </ChatProvider>
                   </AssistantProvider>
                 </ComponentStateProvider>
               </PermissionsProvider>

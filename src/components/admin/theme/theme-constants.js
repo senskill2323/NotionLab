@@ -17,5 +17,5 @@ export const initialTranslations = {
   'destructive-foreground': { label: 'Texte sur Actions Destructrices', description: 'La couleur du texte sur un fond de couleur "destructive".' },
   border: { label: 'Bordures', description: 'La couleur des bordures des composants (cartes, champs de saisie, etc.).' },
   input: { label: 'Fond des Champs de Saisie', description: 'La couleur de fond pour les champs de formulaire (input, textarea).' },
-  ring: { label: 'Anneau de Focus', description: 'La couleur de la bordure qui apparaÃ®t autour d\'un Ã©lÃ©ment sÃ©lectionnÃ© (focus).' },
+  ring: { label: 'Anneau de Focus', description: 'La couleur de la bordure qui apparaît autour d\'un élément sélectionné (focus).' },
 };

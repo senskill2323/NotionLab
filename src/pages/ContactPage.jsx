@@ -2,7 +2,8 @@ import React from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { MessageSquare } from 'lucide-react';
+import { LifeBuoy } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const ContactPage = () => {
   return (
@@ -20,17 +21,22 @@ const ContactPage = () => {
               transition={{ duration: 0.8 }}
             >
               <div className="inline-block bg-primary/10 p-4 rounded-full mb-6">
-                <MessageSquare className="w-12 h-12 text-primary" />
+                <LifeBuoy className="w-12 h-12 text-primary" />
               </div>
               <h1 className="text-4xl md:text-5xl font-bold mb-4">
                 Une question ?
               </h1>
               <p className="text-xl text-foreground/80 max-w-2xl mx-auto mb-8">
-                Utilisez notre nouveau chat en bas à droite de l'écran pour nous contacter. Nous sommes là pour vous aider !
+                Ouvrez un ticket de support pour nous poser vos questions. Nous vous repondons rapidement !
               </p>
               <p className="text-muted-foreground">
-                Cliquez sur l'icône de chat pour commencer la conversation.
+                Utilisez le bouton ci-dessous pour acceder au formulaire de ticket ou contactez-nous a l'adresse support@notionlab.fr.
               </p>
+              <div className="mt-6 flex justify-center">
+                <Button size="lg" asChild>
+                  <Link to="/nouveau-ticket">Creer un ticket de support</Link>
+                </Button>
+              </div>
             </motion.div>
           </div>
         </div>

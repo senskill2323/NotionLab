@@ -93,17 +93,6 @@ const Navigation = () => {
               <TooltipContent><p>Forum</p></TooltipContent>
             </Tooltip>
           </ManagedComponent>
-
-          <ManagedComponent componentKey="nav:client_chat">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="default" onClick={() => navigate('/chat')}>
-                  Le Chat
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent><p>Chat en direct</p></TooltipContent>
-            </Tooltip>
-          </ManagedComponent>
         
           <ManagedComponent componentKey="nav:client_builder" disabledTooltip="Connectez-vous pour utiliser le builder">
              <Tooltip>

@@ -1,0 +1,29 @@
+
+
+- Processus de suppression de compte:
+
+Utiliser uniquement supabase.rpc('admin_delete_user_full', { p_user_id }) depuis l’UI (admin et auto-suppression).
+
+Suppression totale et irréversible : auth, identités, profil, données liées.
+
+Permissions :
+
+Un owner peut supprimer un owner.
+
+Owner et admin peuvent supprimer d’autres comptes.
+
+Un utilisateur peut se supprimer lui-même.
+
+Entrées UI (toutes appellent la même RPC) :
+
+src/components/admin/UserManagementPanel.jsx → icône corbeille
+
+src/pages/admin/ManageUserPage.jsx → bouton supprimer
+
+src/components/account/DeleteAccountSection.jsx → auto-suppression
+
+Côté serveur : public.admin_delete_user_full(uuid) (SECURITY DEFINER).
+
+Nettoyage des données liées : formation_module_statuses, user_formation_snapshots, user_formations, formation_submissions, tickets, ticket_replies, action_logs, chat_messages, chat_conversations, courses custom (author_id = user, course_type='custom').
+
+Suppression finale : public.profiles, puis auth.admin.delete_user(p_user_id) (inclut auth.identities).

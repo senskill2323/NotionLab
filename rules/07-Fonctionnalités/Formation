@@ -1,0 +1,84 @@
+Résumé
+
+Gestion formations = catalogue public (FormationsPage, FormationDetailPage) + espace client (FormationsPanel, builder ReactFlow) + panneaux admin (FormationManagementPanel, CourseManagementPanel, formation-live Kanban). Couche Supabase directe sans garde serveur ni validation.
+RLS absente sur tables critiques (public.courses, user_formations, formation_submissions, formation-images) alors que clients peuvent insert/update/delete via clé anon → fuite/altération possible.
+Realtime partiel (channels courses, formation_module_statuses) mais rafraîchissements complets fréquents; builder expose duplication/suppression directes.
+Plusieurs RPC invoquées (get_admin_formations_and_submissions, submit_course_for_validation, etc.) introuvables dans migrations → risque d’utilisation de fonctions non versionnées.
+
+Stack
+
+React 18 + hooks, React Router 6, context maison (useAuth, usePermissions).
+UI shadcn (Card, Tabs, Select…), framer-motion, lucide-react.
+Builder: reactflow, @dnd-kit/core, uuid, dagre.
+Supabase JS (@supabase/supabase-js) pour REST/RPC/Realtime; Supabase Storage utilisé pour images (formation-images).
+Utilitaires: use-debounce, papaparse (exports), dayjs? (non vu), react-helmet.
+
+API publique (exports/props/hooks)
+
+FormationsPage src/pages/FormationsPage.jsx:45.
+FormationDetailPage src/pages/FormationDetailPage.jsx:12 (props via route :id).
+FormationsPanel src/components/dashboard/modules/FormationsPanel.jsx:18.
+UserFormationStatusSelect src/components/dashboard/modules/UserFormationStatusSelect.jsx:14.
+FormationBuilderPage src/pages/FormationBuilderPage.jsx:178 et hook useFormationBuilder src/hooks/useFormationBuilder.js:34.
+FormationManagementPanel, FormationGalleryView, FormationListView, FormationCard src/components/admin/FormationManagementPanel.jsx:16.
+CourseManagementPanel src/components/admin/CourseManagementPanel.jsx:35.
+BuilderManagementPanel (custom parcours) src/components/admin/BuilderManagementPanel.jsx.
+AdminKanbanView, UserKanbanDashboard, OnboardingBriefPanel src/components/admin/formation-live/.
+useSubmissions hook pour file admin src/hooks/useSubmissions.js:7.
+
+Structure (fichiers)
+
+Catalogue client: src/pages/FormationsPage.jsx, src/components/home/FormationsSection.jsx, src/pages/FormationDetailPage.jsx, src/components/formation/*.
+Espace client: src/components/dashboard/modules/FormationsPanel.jsx, UserFormationStatusSelect.jsx, src/lib/builder/parcoursApi.js.
+Builder: src/pages/FormationBuilderPage.jsx, src/hooks/useFormationBuilder.js, src/components/builder/*, src/contexts/BuilderCatalogContext.jsx.
+Admin: src/components/admin/FormationManagementPanel.jsx, CourseManagementPanel.jsx, BuilderManagementPanel.jsx, formation-management/*, formation-live/*.
+Supabase: migrations Supabase/migrations/2025-09-08_*formation*.sql, RPC absentes du repo (à noter).
+Onboarding preferences: Supabase/migrations/2025-09-20_training_onboarding_form.sql et UI correspondants (training_preferences).
+
+Dépendances internes/externes
+
+Internes: useAuth, usePermissions, useToast, ModuleHeader, BuilderCatalogContext, parcoursApi, Onboarding modules.
+Externes majeures: reactflow, @dnd-kit/*, framer-motion, lucide-react, use-debounce, papaparse, Supabase Storage API.
+Stockage Supabase formation-images via supabase.storage.from(...) src/components/admin/formation-management/FormationCard.jsx:61.
+
+Flux de données
+
+Catalogue public: FormationsPage charge courses live/standard et affiche modules issus de nodes JSON (src/pages/FormationsPage.jsx:55-92). FormationDetailPage charge cours + auteur, calcule stats modules (:26-62), vérifie inscription (user_formations) et lance RPC submit_course_for_validation (:79-118).
+Espace client: FormationsPanel agrège formations live + brouillons via RPC get_user_courses_and_parcours et fetchUserParcoursList (src/components/dashboard/modules/FormationsPanel.jsx:31-85), autorise duplication/édition/suppression (:122-225, :312-340). Statuts mis à jour via UserFormationStatusSelect (update/insert user_formations, RPC submit_user_parcours_for_validation) (src/components/dashboard/modules/UserFormationStatusSelect.jsx:24-78).
+Builder: useFormationBuilder gère state ReactFlow, CRUD courses (handleSave, handleDuplicateParcours, handleDeleteParcours) et soumission RPC submit_course_for_validation/handleSubmitForValidation (src/hooks/useFormationBuilder.js:224-363).
+Admin catalogue: CourseManagementPanel load courses + auteurs, update statut, delete (src/components/admin/CourseManagementPanel.jsx:45-166). FormationManagementPanel consomme RPC get_admin_formations_and_submissions, duplique/delete courses, appelle RPC approve_user_parcours_submission, revert_submission_to_pending, reject_user_parcours_submission (src/components/admin/formation-management/FormationCard.jsx:240-337).
+Admin formation-live: AdminKanbanView charge formation_module_statuses, formation_submissions, builder_modules, gère drag-drop et updates formation_module_statuses (src/components/admin/formation-live/AdminKanbanView.jsx:30-207 & :320-372). UserKanbanDashboard agrège submissions par utilisateur (:72-213).
+Onboarding: TrainingPreferences modules consomment tables training_onboarding_* (RLS OK) pour brief.
+
+État & effets
+
+Pages/ panneaux stockent chargements + filtres: e.g., CourseManagementPanel maintient courses, searchTerm, filters + useDebounce (src/components/admin/CourseManagementPanel.jsx:70-115); FormationManagementPanel gère viewMode, type/status filters, useCallback dépendant de searchTerm (:19-85).
+Builder: useFormationBuilder entretient nodes, edges, historique undo/redo via useState + useCallback, useEffect pour initial fetch / autosave (src/hooks/useFormationBuilder.js:54-220).
+Client dashboard: FormationsPanel combine formations + drafts, utilise useEffect double fetch, useMemo pour merge (:103-286).
+Admin Kanban: useState multiples pour colonnes/cartes, useEffect initial fetch, useMemo pour regroupement par statut, useRef pour throttle (src/components/admin/formation-live/AdminKanbanView.jsx:109-308).
+
+I/O DB (PostgREST/RPC/SQL)
+
+Courses catalogue: supabase.from('courses').select('*') (src/pages/FormationsPage.jsx:58), supabase.from('courses').select(...author...) (src/pages/FormationDetailPage.jsx:26).
+Enrolments: supabase.from('user_formations') select/update/insert (src/pages/FormationDetailPage.jsx:70, src/components/dashboard/modules/UserFormationStatusSelect.jsx:35-59).
+RPC: submit_course_for_validation (src/pages/FormationDetailPage.jsx:110), submit_user_parcours_for_validation (src/components/dashboard/modules/UserFormationStatusSelect.jsx:26), get_user_courses_and_parcours (src/components/dashboard/modules/FormationsPanel.jsx:31), get_admin_formations_and_submissions (src/components/admin/FormationManagementPanel.jsx:25), search_user_formation_submissions (src/hooks/useSubmissions.js:20), approve_user_parcours_submission / revert... / reject... (src/components/admin/formation-management/FormationCard.jsx:251-319).
+Admin course CRUD: supabase.from('courses').update/delete multiples (src/components/admin/CourseManagementPanel.jsx:20-151, src/components/admin/FormationManagementPanel.jsx:92-135).
+Builder: supabase.from('courses').update/insert/delete (src/hooks/useFormationBuilder.js:224-359); supabase.storage.from('formation-images') upload/remove (src/components/admin/formation-management/FormationCard.jsx:61-132).
+Kanban: supabase.from('formation_module_statuses') select/update/insert via drag-drop (src/components/admin/formation-live/AdminKanbanView.jsx:174-373); formation_submissions loads (:62-239).
+KPIs/Stats: supabase.rpc('get_user_courses_and_parcours') also dans src/components/dashboard/modules/KPIPanel.jsx:155.
+
+Realtime (listen/broadcast)
+
+FormationManagementPanel dépend rafraîchissement manuel; BuilderManagementPanel souscrit supabase.channel('public:courses:custom') (src/components/admin/BuilderManagementPanel.jsx:68-74).
+BuilderCatalogContext écoute supabase.channel('public:courses') pour reload (src/contexts/BuilderCatalogContext.jsx:64-88).
+Admin Kanban n’utilise pas channel, fetch manuel; Admin dashboard useEffect sur supabase.channel('public:courses') pour KPI (src/components/dashboard/AdminDashboardContent.jsx:58-59).
+Aucun realtime pour client cours list.
+
+Sécurité (RLS, XSS, CSRF)
+
+RLS uniquement sur formation_module_statuses (Supabase/migrations/2025-09-08_fms_policies.sql) et onboarding tables; pas d’alter table ... enable row level security pour public.courses, user_formations, formation_submissions, formation-images → clients et anonymes pouvant toucher aux formations, inscriptions, assets.
+Clients peuvent supabase.from('courses').insert/delete via builder et dashboard sans restriction serveurs (cf. src/hooks/useFormationBuilder.js:327-359, src/components/dashboard/modules/FormationsPanel.jsx:146-225). Sans RLS ni policies, un utilisateur peut supprimer/éditer formations d’autrui.
+RPC non versionnées (submit_course_for_validation, get_admin_formations_and_submissions, etc.) : impossible d’auditer logic; risque de bypass permission si non sécurisées côté SQL.
+Upload formation images: bucket formation-images (non contrôlé ici) ; vérifier policy côté storage sinon tout user peut poster/supprimer.
+XSS limité: contenus description/titres rendus dans React (escape). CSV export (FormationDetailPage) peut servir vecteur formule → préfixer apostrophe recommandé.
+CSRF: appels fetch authentifiés (GoTrue) ; pas de contre-mesures additionnelles nécessaires côté SPA.

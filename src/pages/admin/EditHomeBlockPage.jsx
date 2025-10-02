@@ -96,7 +96,7 @@ const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
     sup_title: 'Ne restez jamais bloqué.',
     sup_subtitle: "Le vrai \"plus\" de mon projet, c'est un système qui vous aide! Vous avez une ligne directe avec un expert Notion, et j'espère à la longue, plusieurs passionnés qui me rejoindront. Rejoignez des milliers d'utilisateurs qui ont déjà révolutionné leur organisation avec Notion. Economisez du temps et de l'énergie en recevant au minimum des astuces pour commencer proprement sur Notion.",
     sup_imageUrl: 'https://horizons-cdn.hostinger.com/33d72ce2-b6b0-4274-b8ce-63300e44633e/capture-daa-c-cran-2025-08-24-235707-02xTj.png',
-    sup_imageAlt: 'Un expert Notion souriant, disponible pour aider via un chat',
+    sup_imageAlt: 'Un expert Notion souriant, pret a vous aider',
     // promise (advanced parity)
     pr_title: 'Ma promesse,',
     pr_titleSuffix: 'simple.',
