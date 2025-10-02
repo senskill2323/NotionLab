@@ -5,7 +5,6 @@ import { ReactFlowProvider, useReactFlow } from 'reactflow';
 
 import BlueprintBuilderHeader from '@/components/blueprints/BlueprintBuilderHeader';
 import BlueprintCanvas from '@/components/blueprints/BlueprintCanvas';
-import BlueprintInspector from '@/components/blueprints/BlueprintInspector';
 import BlueprintPalette, { getDefaultBlueprintPalette } from '@/components/blueprints/BlueprintPalette';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
@@ -27,6 +26,7 @@ const BlueprintBuilderShell = () => {
       isLoading,
       isSaving,
       autosaveState,
+      lastSavedAt,
       selectedNode,
       selectedNodeId,
       canUndo,
@@ -45,6 +45,7 @@ const BlueprintBuilderShell = () => {
       undo,
       redo,
       handleManualSave,
+      handleDeleteBlueprint,
       handleDuplicateBlueprint,
       handleSnapshot,
       handleShare,
@@ -175,6 +176,7 @@ const BlueprintBuilderShell = () => {
             blueprint={blueprint}
             autosaveState={autosaveState}
             isSaving={isSaving}
+            lastSavedAt={lastSavedAt}
             canUndo={canUndo}
             canRedo={canRedo}
             onTitleChange={handleTitleChange}
@@ -182,6 +184,7 @@ const BlueprintBuilderShell = () => {
             onUndo={undo}
             onRedo={redo}
             onDuplicate={handleDuplicateBlueprint}
+            onDelete={handleDeleteBlueprint}
             onShare={handleShare}
             onSnapshot={handleSnapshot}
             onExportJson={handleExportJson}
@@ -197,11 +200,6 @@ const BlueprintBuilderShell = () => {
               onConnect={onConnect}
               setSelectedNodeId={setSelectedNodeId}
               flowWrapperRef={flowWrapperRef}
-            />
-            <BlueprintInspector
-              node={selectedNode}
-              onUpdate={updateNodeData}
-              onDelete={deleteNode}
             />
           </div>
         </div>

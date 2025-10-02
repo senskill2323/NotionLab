@@ -44,7 +44,8 @@ const BlueprintShareContent = () => {
           return;
         }
         const nodes = (data.nodes ?? []).map((node) => ({
-          ...node,
+          id: node.id,
+          type: node.type,
           position: {
             x: Number(node.position_x ?? node.position?.x ?? 0),
             y: Number(node.position_y ?? node.position?.y ?? 0),
@@ -54,13 +55,14 @@ const BlueprintShareContent = () => {
             title: node.title,
             family: node.family,
             subfamily: node.subfamily,
+            elementKey: node.element_key,
             fields: node.fields ?? {},
           },
           draggable: false,
           selectable: false,
         }));
-        const root = nodes.find((node) => node.id === 'root');
-        if (!root && data.blueprint) {
+        const root = nodes.find((node) => node.data?.elementKey === 'root');
+        if (!root && nodes.length === 0 && data.blueprint) {
           nodes.unshift({
             id: 'root',
             type: 'rootNode',

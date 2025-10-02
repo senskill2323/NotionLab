@@ -1,16 +1,43 @@
-import React, { useState } from 'react';
-import { Download, LinkIcon, RefreshCcw, Save, Share2, Undo2, Redo2, Copy, Sparkles } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { LinkIcon, RefreshCcw, Save, Undo2, Redo2, Copy, Sparkles, Trash2 } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+import { fr } from 'date-fns/locale';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
-const AutosaveBadge = ({ autosaveState, isSaving }) => {
+const AutosaveBadge = ({ autosaveState, isSaving, lastSavedAt }) => {
+  const [, setTick] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => setTick((n) => n + 1), 12000);
+    return () => clearInterval(id);
+  }, [lastSavedAt]);
+
   if (isSaving || autosaveState === 'saving') {
     return <span className="text-xs text-primary">Enregistrement…</span>;
   }
   if (autosaveState === 'error') {
-    return <span className="text-xs text-destructive">Erreur d'enregistrement</span>;
+    return <span className="text-xs text-destructive">Erreur d’enregistrement</span>;
+  }
+  if (lastSavedAt) {
+    return (
+      <span className="text-xs text-muted-foreground/70">
+        Enregistré {formatDistanceToNow(lastSavedAt, { addSuffix: true, locale: fr })}
+      </span>
+    );
   }
   return <span className="text-xs text-muted-foreground/70">Sauvegarde automatique active</span>;
 };
@@ -19,6 +46,7 @@ const BlueprintBuilderHeader = ({
   blueprint,
   autosaveState,
   isSaving,
+  lastSavedAt,
   canUndo,
   canRedo,
   onTitleChange,
@@ -26,28 +54,12 @@ const BlueprintBuilderHeader = ({
   onUndo,
   onRedo,
   onDuplicate,
-  onShare,
+  onDelete,
   onSnapshot,
-  onExportJson,
   onExportPng,
   onExportSvg,
 }) => {
-  const [shareStatus, setShareStatus] = useState(null);
-
-  const handleShare = async () => {
-    try {
-      const token = await onShare?.();
-      if (!token) return;
-      const url = `${window.location.origin}/blueprint-share/${token}`;
-      await navigator.clipboard.writeText(url);
-      setShareStatus('Lien copié');
-      setTimeout(() => setShareStatus(null), 2500);
-    } catch (error) {
-      console.error(error);
-      setShareStatus('Impossible de copier');
-      setTimeout(() => setShareStatus(null), 2500);
-    }
-  };
+  
 
   const handleSnapshot = async () => {
     await onSnapshot?.({ label: `Snapshot ${new Date().toLocaleString('fr-FR')}` });
@@ -62,7 +74,7 @@ const BlueprintBuilderHeader = ({
           placeholder="Nom du blueprint"
           className="h-9 w-72"
         />
-        <AutosaveBadge autosaveState={autosaveState} isSaving={isSaving} />
+        <AutosaveBadge autosaveState={autosaveState} isSaving={isSaving} lastSavedAt={lastSavedAt} />
       </div>
 
       <div className="flex items-center gap-2">
@@ -80,7 +92,7 @@ const BlueprintBuilderHeader = ({
               <Redo2 className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Rétablir</TooltipContent>
+          <TooltipContent>R�tablir</TooltipContent>
         </Tooltip>
         <Button size="sm" variant="outline" onClick={onSave} disabled={isSaving}>
           <Save className="mr-1.5 h-4 w-4" />
@@ -93,35 +105,33 @@ const BlueprintBuilderHeader = ({
               Snapshot
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Créer un instantané JSON</TooltipContent>
+          <TooltipContent>Cr�er un instantan� JSON</TooltipContent>
         </Tooltip>
         <Button size="sm" variant="outline" onClick={onDuplicate}>
           <RefreshCcw className="mr-1.5 h-4 w-4" />
           Dupliquer
         </Button>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button size="sm" variant="outline" onClick={handleShare}>
-              <Share2 className="mr-1.5 h-4 w-4" />
-              Partager
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button size="sm" variant="destructive">
+              <Trash2 className="mr-1.5 h-4 w-4" />
+              Supprimer
             </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            Générer un lien lecture seule
-          </TooltipContent>
-        </Tooltip>
-        {shareStatus && (
-          <span className="text-xs text-primary">{shareStatus}</span>
-        )}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button size="sm" variant="outline" onClick={onExportJson}>
-              <Download className="mr-1.5 h-4 w-4" />
-              JSON
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Exporter la structure au format JSON</TooltipContent>
-        </Tooltip>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Supprimer ce blueprint ?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Cette action est irr�versible. Le blueprint et son contenu seront d�finitivement supprim�s.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annuler</AlertDialogCancel>
+              <AlertDialogAction onClick={onDelete} className="bg-destructive hover:bg-destructive/90">Supprimer</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+        
         <Tooltip>
           <TooltipTrigger asChild>
             <Button size="icon" variant="ghost" onClick={onExportPng}>
@@ -144,3 +154,4 @@ const BlueprintBuilderHeader = ({
 };
 
 export default BlueprintBuilderHeader;
+

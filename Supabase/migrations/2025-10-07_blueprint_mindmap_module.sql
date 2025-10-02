@@ -166,8 +166,10 @@ BEGIN
         )
       )
       WITH CHECK (
-        owner_id = (
-          SELECT owner_id FROM public.blueprints b WHERE b.id = public.blueprints.id
+        EXISTS (
+          SELECT 1 FROM public.profiles p
+          WHERE p.id = auth.uid()
+            AND p.user_type IN ('owner','admin')
         )
       )$$;
   END IF;
@@ -873,6 +875,7 @@ SET
   updated_at = now();
 
 COMMIT;
+
 
 
 

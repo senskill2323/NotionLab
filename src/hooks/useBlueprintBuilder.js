@@ -68,9 +68,11 @@ export const useBlueprintBuilder = () => {
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [blueprint, setBlueprint] = useState(null);
   const [blueprints, setBlueprints] = useState([]);
+  const [hasFetchedInitialList, setHasFetchedInitialList] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [autosaveState, setAutosaveState] = useState('idle');
+  const [lastSavedAt, setLastSavedAt] = useState(null);
   const initialRootId = findRootNodeId(initialNodesRef.current);
   const [selectedNodeId, setSelectedNodeId] = useState(initialRootId);
 
@@ -82,6 +84,8 @@ export const useBlueprintBuilder = () => {
   const historyIndexRef = useRef(0);
   const applyingHistoryRef = useRef(false);
   const hasUnsavedChangesRef = useRef(false);
+  const autosaveRetryTimerRef = useRef(null);
+  const autosaveErrorToastShownRef = useRef(false);
 
   const recordHistory = useCallback((nextNodes, nextEdges) => {
     if (applyingHistoryRef.current || isHydratingRef.current) return;
@@ -99,6 +103,7 @@ export const useBlueprintBuilder = () => {
     try {
       const data = await listBlueprints();
       setBlueprints(data ?? []);
+      return data ?? [];
     } catch (error) {
       console.error(error);
       toast({
@@ -106,6 +111,9 @@ export const useBlueprintBuilder = () => {
         description: 'Impossible de charger la liste des blueprints.',
         variant: 'destructive',
       });
+      return [];
+    } finally {
+      setHasFetchedInitialList(true);
     }
   }, [toast]);
 
@@ -146,10 +154,11 @@ export const useBlueprintBuilder = () => {
         if (!blueprintRef.current.id && savedId) {
           blueprintRef.current = { ...blueprintRef.current, id: savedId };
           setBlueprint((prev) => (prev ? { ...prev, id: savedId } : prev));
-          navigate(/blueprint-builder/, { replace: true });
+          navigate(`/blueprint-builder/${savedId}`, { replace: true });
         }
 
         setAutosaveState('idle');
+        setLastSavedAt(new Date());
         hasUnsavedChangesRef.current = false;
         return blueprintRef.current?.id ?? savedId;
       } catch (error) {
@@ -181,6 +190,46 @@ export const useBlueprintBuilder = () => {
   }, 1200);
 
   useEffect(() => {
+    if (autosaveState === 'error') {
+      if (!autosaveErrorToastShownRef.current) {
+        toast({
+          title: 'Sauvegarde automatique en échec',
+          description: 'Nouvelle tentative dans 5 secondes…',
+        });
+        autosaveErrorToastShownRef.current = true;
+      }
+
+      if (autosaveRetryTimerRef.current) {
+        clearTimeout(autosaveRetryTimerRef.current);
+        autosaveRetryTimerRef.current = null;
+      }
+
+      if (hasUnsavedChangesRef.current) {
+        autosaveRetryTimerRef.current = setTimeout(() => {
+          if (hasUnsavedChangesRef.current) {
+            persistGraph({ autosave: true }).catch((e) => {
+              console.error('Autosave retry failed', e);
+            });
+          }
+        }, 5000);
+      }
+    } else {
+      autosaveErrorToastShownRef.current = false;
+      if (autosaveRetryTimerRef.current) {
+        clearTimeout(autosaveRetryTimerRef.current);
+        autosaveRetryTimerRef.current = null;
+      }
+    }
+
+    return () => {
+      if (autosaveRetryTimerRef.current) {
+        clearTimeout(autosaveRetryTimerRef.current);
+        autosaveRetryTimerRef.current = null;
+      }
+    };
+  }, [autosaveState, persistGraph, toast]);
+
+  useEffect(() => {
     if (!hasLoadedOnceRef.current || isHydratingRef.current) return;
     hasUnsavedChangesRef.current = true;
     recordHistory(nodes, edges);
@@ -202,6 +251,7 @@ export const useBlueprintBuilder = () => {
 
       setBlueprint(nextBlueprint);
       blueprintRef.current = nextBlueprint ?? null;
+      setLastSavedAt(nextBlueprint?.updated_at ? new Date(nextBlueprint.updated_at) : null);
 
       setNodes(() => nodesFromPayload);
       setEdges(() => edgesFromPayload);
@@ -274,7 +324,7 @@ export const useBlueprintBuilder = () => {
           autosave: false,
         });
         await fetchBlueprints();
-        navigate(/blueprint-builder/, { replace: true });
+        navigate(`/blueprint-builder/${newId}`, { replace: true });
         return newId;
       } catch (error) {
         console.error(error);
@@ -296,9 +346,11 @@ export const useBlueprintBuilder = () => {
   }, [fetchBlueprints]);
 
   useEffect(() => {
+    if (!hasFetchedInitialList) return;
+
     if (!blueprintId) {
       if (blueprints.length > 0) {
-        navigate(/blueprint-builder/, { replace: true });
+        navigate(`/blueprint-builder/${blueprints[0]?.id ?? ''}`, { replace: true });
       } else {
         createBlueprint();
       }
@@ -311,7 +363,7 @@ export const useBlueprintBuilder = () => {
     }
 
     loadBlueprint(blueprintId);
-  }, [blueprintId, blueprints.length, createBlueprint, loadBlueprint, navigate]);
+  }, [blueprintId, blueprints.length, createBlueprint, hasFetchedInitialList, loadBlueprint, navigate]);
 
   const onConnect = useCallback(
     (connection) => {
@@ -441,7 +493,7 @@ export const useBlueprintBuilder = () => {
       await fetchBlueprints();
       const remaining = blueprints.filter((item) => item.id !== currentId);
       if (remaining.length > 0) {
-        navigate(/blueprint-builder/, { replace: true });
+        navigate(`/blueprint-builder/${remaining[0]?.id ?? ''}`, { replace: true });
       } else {
         navigate('/blueprint-builder', { replace: true });
       }
@@ -457,7 +509,7 @@ export const useBlueprintBuilder = () => {
       const newId = await duplicateBlueprint(blueprintRef.current.id);
       toast({ title: 'Dupliqué', description: 'Une copie du blueprint a été créée.' });
       await fetchBlueprints();
-      navigate(/blueprint-builder/);
+      navigate(`/blueprint-builder/${newId}`);
       return newId;
     } catch (error) {
       console.error(error);
@@ -535,6 +587,7 @@ export const useBlueprintBuilder = () => {
       isLoading,
       isSaving,
       autosaveState,
+      lastSavedAt,
       selectedNode,
       selectedNodeId,
       canUndo: historyIndexRef.current > 0,
@@ -563,4 +616,9 @@ export const useBlueprintBuilder = () => {
     },
   };
 };
+
+
+
+
+
 
