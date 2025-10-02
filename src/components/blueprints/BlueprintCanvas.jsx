@@ -1,0 +1,109 @@
+import React, { useEffect } from 'react';
+import ReactFlow, {
+  Background,
+  Controls,
+  MiniMap,
+  useReactFlow,
+  ConnectionMode,
+} from 'reactflow';
+
+import 'reactflow/dist/style.css';
+
+const MindmapRootNode = ({ data, selected }) => (
+  <div
+    className={`rounded-full border-2 ${selected ? 'border-primary' : 'border-primary/70'} bg-primary/10 px-8 py-6 shadow-lg backdrop-blur`}
+  >
+    <p className="text-base font-semibold text-primary">
+      {data?.title ?? 'Nœud central'}
+    </p>
+    {(data?.fields?.objectif || data?.fields?.contexte) && (
+      <div className="mt-2 text-xs text-primary/70">
+        {data?.fields?.objectif && <p>Objectif : {data.fields.objectif}</p>}
+        {data?.fields?.contexte && <p>Contexte : {data.fields.contexte}</p>}
+      </div>
+    )}
+  </div>
+);
+
+const MindmapBubbleNode = ({ data, selected }) => (
+  <div
+    className={`max-w-[220px] rounded-full border ${selected ? 'border-primary shadow-lg shadow-primary/20' : 'border-border/60'} bg-background/95 px-4 py-3 text-center shadow-sm transition-all`}
+  >
+    <p className="text-sm font-medium text-foreground/90">{data?.title ?? 'Élément'}</p>
+    {data?.family && (
+      <p className="mt-1 text-[11px] uppercase tracking-wide text-muted-foreground/80">
+        {data.family}
+        {data?.subfamily ? ` • ${data.subfamily}` : ''}
+      </p>
+    )}
+  </div>
+);
+
+export const blueprintNodeTypes = {
+  rootNode: MindmapRootNode,
+  bubbleNode: MindmapBubbleNode,
+};
+
+export const blueprintDefaultEdgeOptions = {
+  type: 'smoothstep',
+  style: {
+    stroke: 'hsl(var(--primary))',
+    strokeWidth: 1.5,
+  },
+};
+
+const BlueprintCanvas = ({
+  nodes,
+  edges,
+  onNodesChange,
+  onEdgesChange,
+  onConnect,
+  onPaneClick,
+  onNodeClick,
+  setSelectedNodeId,
+  flowWrapperRef,
+}) => {
+  const instance = useReactFlow();
+
+  useEffect(() => {
+    if (!instance || nodes.length === 0) return;
+    instance.fitView({ padding: 0.2, duration: 200 });
+  }, [instance, nodes]);
+
+  return (
+    <div ref={flowWrapperRef} className="relative h-full w-full">
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onConnect={onConnect}
+        onNodeClick={(_, node) => {
+          setSelectedNodeId?.(node.id);
+          onNodeClick?.(node);
+        }}
+        onPaneClick={() => {
+          setSelectedNodeId?.(null);
+          onPaneClick?.();
+        }}
+        nodeTypes={blueprintNodeTypes}
+        fitView
+        fitViewOptions={{ padding: 0.2, duration: 300 }}
+        connectionMode={ConnectionMode.Strict}
+        defaultEdgeOptions={blueprintDefaultEdgeOptions}
+        panOnScroll
+        selectionOnDrag
+        minZoom={0.3}
+        maxZoom={1.6}
+        className="bg-background"
+      >
+        <Background variant="dots" gap={18} size={1.2} color="hsl(var(--muted-foreground) / 0.25)" />
+        <MiniMap pannable zoomable className="!bg-card/80 !border !border-border/60" />
+        <Controls className="bg-card/90" />
+      </ReactFlow>
+    </div>
+  );
+};
+
+export default BlueprintCanvas;
+

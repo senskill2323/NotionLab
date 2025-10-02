@@ -33,6 +33,7 @@ export const PermissionsProvider = ({ children }) => {
       '/ticket',
       '/tickets',
       '/formation-builder',
+    '/blueprint-builder',
       '/parcours',
       '/forum',
       '/admin',
@@ -284,3 +285,4 @@ export const PermissionsProvider = ({ children }) => {
     </PermissionsContext.Provider>
   );
 };
+

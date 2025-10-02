@@ -14,7 +14,7 @@ const ProtectedRoute = ({ children, allowedUserTypes, requiredPermission }) => {
     if (!perm) return false;
     // Allow UI to render for admin routes; RLS will still enforce data-level security
     if (perm.startsWith('admin:')) return true;
-    return perm === 'tickets:view_own' || perm.startsWith('builder:');
+    return perm === 'tickets:view_own' || perm.startsWith('builder:') || perm.startsWith('client_blueprints:');
   };
 
   // Consider permissions 'loading' until they are ready for blocking routes
@@ -65,3 +65,4 @@ const ProtectedRoute = ({ children, allowedUserTypes, requiredPermission }) => {
 };
 
 export default ProtectedRoute;
+
