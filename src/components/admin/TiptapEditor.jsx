@@ -169,7 +169,7 @@ import React, { useCallback, useState } from 'react';
         },
         editorProps: {
           attributes: {
-            class: 'prose dark:prose-invert prose-sm sm:prose-base lg:prose-lg xl:prose-2xl m-5 focus:outline-none',
+            class: 'prose dark:prose-invert prose-sm sm:prose-base max-w-none m-5 focus:outline-none',
           },
         },
       });
@@ -191,7 +191,7 @@ import React, { useCallback, useState } from 'react';
 
       const editorWrapperClass = isFullscreen
         ? 'fixed inset-0 z-50 bg-background flex flex-col'
-        : 'border rounded-md';
+        : 'border rounded-md flex flex-col min-h-[520px]';
 
       return (
         <div className={editorWrapperClass}>

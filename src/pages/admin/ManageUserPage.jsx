@@ -58,11 +58,16 @@ const ManageUserPage = () => {
         userTypesPromise,
       ]);
 
-      setUser(profileData);
+      const normalizedProfile = {
+        ...profileData,
+        country_code: profileData?.country_code_ref ?? profileData?.country_code ?? '',
+      };
+
+      setUser(normalizedProfile);
       setAllFormations(formationsData);
       setUserFormations(userFormationsData.map(f => f.formation_id));
       setUserTypes(userTypesData);
-      reset(profileData);
+      reset(normalizedProfile);
 
     } catch (error) {
       toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de charger les données de l\'utilisateur.' });
@@ -78,6 +83,9 @@ const ManageUserPage = () => {
   const onProfileSubmit = async (formData) => {
     setIsSubmitting(true);
     const { user_types, created_at, id: userId, last_sign_in_at, ...profileData } = formData;
+    const normalizedCountryCode = profileData.country_code ? profileData.country_code.trim().toUpperCase() : null;
+    profileData.country_code = normalizedCountryCode;
+    profileData.country_code_ref = normalizedCountryCode;
     try {
       const previousStatus = (user?.status || 'guest');
       const nextStatus = (profileData?.status || 'guest');
@@ -141,9 +149,14 @@ const ManageUserPage = () => {
     setIsSubmitting(true);
     try {
       // Use RPC that performs full cleanup (snapshots, formations, submissions) and deletes auth user
-      const { data: rpcData, error: rpcError } = await supabase.rpc('admin_delete_user_full', { p_user_id: user.id });
-      if (rpcError || rpcData?.error) {
-        throw new Error(rpcError?.message || rpcData?.error || "Échec de la suppression de l'utilisateur");
+      const { data: fnData, error: fnError } = await supabase.functions.invoke('delete-user-full', {
+        body: { userId: user.id },
+      });
+      if (fnError) {
+        throw new Error(fnError.message || "Echec de la suppression de l'utilisateur");
+      }
+      if (fnData?.error) {
+        throw new Error(fnData.error);
       }
       toast({ title: 'Succès', description: 'Utilisateur supprimé avec succès.' });
       navigate('/admin/dashboard?tab=users');
@@ -261,3 +274,4 @@ const ManageUserPage = () => {
 };
 
 export default ManageUserPage;
+

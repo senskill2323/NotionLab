@@ -1,14 +1,38 @@
-## Règles de travail
+Objectif
+- SI c'est une analyse que je te demande, produit des analyses/diagnostics fiables avec lecture minimale et ciblée de /rules. N’ouvre PAS tout: Lis l'index (présent ci-dessous), et sélectionne uniquement les entrées pertinentes à la question/analyse/diagnostique/requête, puis lis seulement ces fichiers qui peuvent t'aider à comprendre. Pour plus d'informations, lance une requête pour chercher plus d'informations.
 
-*les fichiers dans ./rules. sont des instructions à lire avant chaque tâches afin de connaitre le contexte. 
-* Priorité: 00-architecture.md, 01-standards.md, 02-programming-languages.md, 03-conventions.md.
-* Traite ./rules comme source autoritative; ne modifie pas sans accord, mais n'abandonne par car les instructions de l'interdisent, demande si tu es bloqué
-* le projet NotionLab est sur le supabase cloud (projet id kiudpvvqpbkzeybogrnq)
-* Conflits : la règle la plus spécifique (dossier dédié) l’emporte sur la plus générale (architecture/standards).
-* Cite toujours les chemins des règles que tu as utilisées (ex. “Règles appliquées : rules/03-frameworks-and-libraries/readme.mdc”).
-* Si une règle paraît obsolète ou contradictoire, signale-la explicitement dans la réponse et propose un correctif minimal, mais n’applique pas un changement non documenté.
-* ne fait pas de requête SQL sans explicitement me le demander
-  
-  FORMAT ATTENDU
-* Réponses alignées avec les règles lues ; liste courte des fichiers de règles consultés.
-* Aucun contenu externe si non mentionné dans les règles ou dans le code du repo.
+Lis toujours /rules/01-standards/readme.mdc avant de faire une action. lis toujours les autres parties de /rules avant chaque action, mais seulement ce qui est relatif à l'action que tu vas réalisé, en te servant de l'index ci-dessous: 
+
+
+Index du dossier /rules: 
+
+# Index des règles:
+
+## 00-architecture
+- `00-architecture/readme.mdc` — Cartographie du shell React/Vite, providers globaux, surfaces Supabase et principaux flux métiers.
+- `00-architecture/Espace administrateur` — Synthèse dédiée à l''espace admin (routing, modules dynamiques, dépendances Supabase, contextes UI).
+
+## 01-standards
+- `01-standards/readme.mdc` — Stack de référence, pratiques CI/CD, scripts SQL, consignes PowerShell et règle de lecture préalable avant modification.
+
+## 03-frameworks-and-libraries
+- `03-frameworks-and-libraries/readme.mdc` — Inventaire exhaustif des dépendances production et développement (synchronisé avec `package.json`).
+
+## 04-database
+- `04-database/readme.mdc` — Placeholder pour nomenclature SQL et politiques RLS (actuellement vide).
+
+## 06-deployment
+- `06-deployment/Déployer un nouveau module client` — Checklist permissions `*:view_module`, enregistrement `modules_registry`, layout par défaut et intégration React côté client/builder.
+- `06-deployment/Déployer un nouveau module admin` — Procédure complète alignant permissions, onglets admin, `admin_modules_registry` et composants React du dashboard d''administration.
+
+## 07-Fonctionnalités
+- `07-Fonctionnalités/Assistant IA` — Fonctionnement de l''assistant WebRTC (useAssistant, quotas, metrics Supabase, edge `assistant-mint-key`).
+- `07-Fonctionnalités/Builder de formation` — Architecture du builder React Flow, catalogue `BuilderCatalogContext`, flux Supabase et sécurisation attendue.
+- `07-Fonctionnalités/Builder de Notion` — Blueprint builder (ReactFlow + Supabase), autosave/undo, RPC de snapshot/partage et sécurisation des tokens.
+- `07-Fonctionnalités/Formation` — Panorama des formations (catalogue public, builder, admin), usages Supabase et lacunes RLS/RPC.
+- `07-Fonctionnalités/Gestion des bloques` — Cycle de vie `content_blocks`, edge `manage-content-block`, RPC de statut/ordre et bibliothèque de modèles.
+- `07-Fonctionnalités/Gestion des tickets` — Diagnostic module tickets client/admin, flux Supabase direct/realtime et risques RLS.
+- `07-Fonctionnalités/Gestion des utilisateurs` — Workflow invitation/suppression (`invite-user`, `admin_delete_user_full`), contextes Auth/Permissions et UI admin/client.
+- `07-Fonctionnalités/Module d''invitation` — Notes d''intégration de l''edge `invite-user`, synchronisation des permissions et expérience d''activation.
+- `07-Fonctionnalités/Module de thèmes` — Gestion ThemeProvider/ThemePanel, CRUD Supabase des tokens et prévisualisation dynamique.
+- `07-Fonctionnalités/Suppression d''un compte` — Rappel d''usage exclusif de `supabase.rpc('admin_delete_user_full')` et périmètre de purge.

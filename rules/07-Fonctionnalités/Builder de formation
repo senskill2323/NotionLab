@@ -1,0 +1,74 @@
+Résumé
+
+Builder piloté par FormationBuilderPage+useFormationBuilder pour mixer React Flow et Supabase côté client/admin.
+Catalogue modules alimenté par BuilderCatalogContext (DnD, Postgres realtime) et exposé via ModuleCatalog.
+Sauvegardes auto (debounce 1,5s) et manuelles vers courses, plus duplication/suppression/validation RPC.
+Admin (FormationManagementPanel) centralise suivi, filtres et duplications via get_admin_formations_and_submissions.
+Clients accèdent depuis BuilderPanel et consultent les parcours validés via get_user_approved_parcours_snapshot.
+Sécurité repose sur permissions builder:* + RLS Supabase; garde-fous frontend (vérif auteur, cleanup debounce) restent à ajouter.
+Stack
+
+React 18, Vite, React Router, Context API, TanStack Query wrapper (src/App.jsx).
+React Flow pour l’éditeur visuel (src/pages/FormationBuilderPage.jsx:26).
+@dnd-kit/* pour le drag & drop du catalogue (src/components/builder/ModuleCatalog.jsx:13).
+Supabase JS client + RPC custom (src/lib/customSupabaseClient.js, src/lib/builder/parcoursApi.js).
+UI: shadcn/ui, framer-motion, lucide-react, date-fns.
+API publique (exports/props/hooks)
+
+FormationBuilderPage (route) + useFormationBuilder() exposant nodes, edges, handlers CRUD (src/hooks/useFormationBuilder.js:218).
+ModuleCatalog({ onAddModuleToFlow }) pour drag depuis le catalogue (src/components/builder/ModuleCatalog.jsx:13).
+BuilderHeader({ parcoursId, parcoursName, handleSave... }) pour actions cours (src/components/builder/BuilderHeader.jsx:10).
+BuilderControls({ onClean, onUndo, onRedo, onDuplicate, onDelete }) overlay React Flow (src/components/builder/BuilderControls.jsx:7).
+BuilderCatalogProvider / useBuilderCatalog() fournissant familles/sous-familles/modules et actions CRUD (src/contexts/BuilderCatalogContext.jsx:17).
+BuilderWelcomeScreen({ userParcours, onCreateNew }) écran d’accueil (src/components/builder/BuilderWelcomeScreen.jsx:11).
+BuilderPanel({ editMode }) tuile dashboard client (src/components/dashboard/modules/BuilderPanel.jsx:7).
+FormationManagementPanel (admin) pour gouvernance des cours (src/components/admin/FormationManagementPanel.jsx:21).
+ParcoursDetailPage lecteur read-only (src/pages/ParcoursDetailPage.jsx:18).
+Structure (fichiers)
+
+src/pages/FormationBuilderPage.jsx (shell React Flow + header/catalog).
+src/hooks/useFormationBuilder.js (state machine, Supabase IO).
+src/components/builder/* (catalogue, nodes, controls, dialogs).
+src/contexts/BuilderCatalogContext.jsx (fetch + realtime + mutations).
+src/lib/builder/parcoursApi.js (helpers Supabase).
+src/components/dashboard/modules/BuilderPanel.jsx & src/pages/ParcoursDetailPage.jsx.
+src/components/admin/FormationManagementPanel.jsx (+ sous-répertoires list/gallery).
+src/pages/admin/* (module manager, etc.) reliant builder côté back-office.
+Dépendances internes/externes
+
+Internes : useToast, PermissionsContext, SupabaseAuthContext, ResourceCreationProvider, modules admin/client.
+Externes : reactflow, dagre, uuid, use-debounce, @dnd-kit/*, framer-motion, date-fns, Supabase RPC/channel APIs, shadcn/ui primitives.
+Flux de données
+
+Chargement du catalogue (families→subfamilies→modules) via BuilderCatalogContext.fetchData() puis injection dans ModuleCatalog (src/contexts/BuilderCatalogContext.jsx:22).
+Drag depuis ModuleItemDraggable sérialise le module vers React Flow (src/components/builder/ModuleItemDraggable.jsx:31) qui appelle handleAddModule (src/hooks/useFormationBuilder.js:185).
+État des nodes/edges maintenu par React Flow hooks et auto-alignement Dagre (src/hooks/useFormationBuilder.js:59).
+Sauvegarde auto/manuelle pousse nodes/edges vers courses (src/hooks/useFormationBuilder.js:218); duplication/suppression créent/suppriment des entrées.
+Admin RPC récupère et transforme courses+soumissions (src/components/admin/FormationManagementPanel.jsx:29) → UI list/gallery → actions (dupliquer/delete).
+Clients consultent snapshot validé via RPC (src/pages/ParcoursDetailPage.jsx:25).
+État & effets
+
+useFormationBuilder: nodes, edges, parcours, userParcours, isLoading, isSaving, undo/redo history (src/hooks/useFormationBuilder.js:20).
+Effects : fetch du parcours, auto layout initial, debounced auto-save, BFS pour total heures, navigation après créations/déletions (src/hooks/useFormationBuilder.js:128-358).
+BuilderCatalogContext: catalog, loading, optimistic updates, drag reorder effect, realtime subscription cleanup (src/contexts/BuilderCatalogContext.jsx:17-260).
+FormationManagementPanel: local filtres/recherches, view mode, supabase RPC + toasts (src/components/admin/FormationManagementPanel.jsx:21-187).
+BuilderWelcomeScreen: navigation simple, list triée via userParcours (src/components/builder/BuilderWelcomeScreen.jsx:11).
+I/O DB (PostgREST/RPC/SQL)
+
+Tables builder_families, builder_subfamilies, builder_modules (select/insert/update/delete/upsert) (src/contexts/BuilderCatalogContext.jsx:22-205).
+Table courses : select by id, update nodes/edges, insert drafts, delete, duplicate, rename (src/hooks/useFormationBuilder.js:144-357).
+RPC submit_course_for_validation(p_course_id) (src/hooks/useFormationBuilder.js:260).
+RPC get_admin_formations_and_submissions() pour admin dashboard (src/components/admin/FormationManagementPanel.jsx:29).
+RPC get_user_courses_and_parcours(p_user_id) + fetchUserParcoursList pour clients (src/components/dashboard/modules/FormationsPanel.jsx:18, src/lib/builder/parcoursApi.js:1).
+RPC get_user_approved_parcours_snapshot(p_course_id) pour lecture read-only (src/pages/ParcoursDetailPage.jsx:25).
+Realtime (listen/broadcast)
+
+builder-catalog-changes channel écoute builder_families/subfamilies/modules/courses et refetch catalogue (src/contexts/BuilderCatalogContext.jsx:60).
+ResourcesPanel possède son propre canal (hors builder) mais builder n’abonne pas courses côté éditeur → risque de conflit multi-onglets.
+Pas de broadcast custom côté client; React Flow dépend du state local.
+Sécurité (RLS, XSS, CSRF)
+
+Routes protégées via ProtectedRoute et permissions builder:view, builder:edit_own_parcours, builder:manage_catalog (src/components/ProtectedRoute.jsx:6, src/App.jsx:84).
+RLS supposées sur tables Supabase (non visibles dans repo) pour filtrer courses/builder tables; frontend ne re-vérifie pas l’auteur après fetch.
+Entrées utilisateur (titres, descriptions) rendues via React (escaped) → XSS mitigé (src/components/builder/CustomNode.jsx:11).
+Actions critiques (delete/duplicate) derrière dialogues + toasts; pas de CSRF car Supabase client-side.

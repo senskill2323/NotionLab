@@ -1,73 +1,41 @@
----
-title: "NotionLab Guide IA - Module Formations"
-version: "2"
-date: "2025-01-18"
-owner: "NEEDS-VERIFY Provide owner or primary contact."
-description: Guides de style, conventions commits, branches, PR, commentaires, README, licences, RFC internes, dépréciation.
----
+Framworks:
 
-<!-- AUTO:BEGIN -->
-<!-- ANCHOR:OVERVIEW -->
-Les regles extraites de readmeIA encadrent les interventions IA, les conventions de nommage et l'usage de Supabase dans le module Formations.
+React + Vite forment le cœur, Tailwind/Radix/TipTap composent la couche UI, Zustand/Tanstack Query gèrent l’état, dnd-kit/React Flow assurent les interactions complexes, et Supabase fournit l’auth, la base temps réel et le stockage — le tout empaqueté via npm/Node 20.
 
-<!-- ANCHOR:STANDARDS -->
-- Reutiliser le client Supabase fourni par src/lib/customSupabaseClient pour beneficier du timeout et du singleton GoTrue.
-- Respecter authReady et authLoading avant redirection afin d'eviter un spinner permanent ou des redirections prematures.
-- Verifier les droits via usePermissions().hasPermission et mettre a jour role_permissions ou modules_registry.required_permission si besoin.
-- Conserver le nommage snake_case et les prefixes get_/set_/search_ pour toute nouvelle fonction SQL ou migration dans Supabase/migrations/.
+Inventaire des technologies utilisée pour le projet: 
+
+Base stack : Frontend React 18 avec Vite 7, backend Supabase (auth, base Postgres, realtime, stockage). Node 20 côté build/CI.
+UI & état : Tailwind CSS + Radix UI comme socle, react-hook-form pour les formulaires, Zustand pour l’état partagé, framer-motion pour les animations, @dnd-kit pour le drag/drop, React Flow pour les builders visuels.
+Accès données : RPC Postgres et fonctions Edge (Deno/TypeScript) pour toute logique privilégiée ; RLS activée sur les tables sensibles. Chat, assistant, modules formation passent par des helpers chatApi/assistantApi.
+Realtime : Channels Supabase en broadcast (ack/self) orchestrés par des helpers (subscriptions unifiées, fallback hydratation).
+CI/CD & scripts : npm (npm ci / npm run build / npm run dev/preview), exécution SQL via npm run db:query/db:file, déploiement FTPS.
+Edge Functions actives : assistant-mint-key / voice-preview, notify-training-onboarding, invite-user, delete-user-full, create-user-with-role, content-blocks-search, manage-content-block, dashboard layout helpers, set-user-password, users-search, etc.
+
+## Workflow Modification 
+
+**** REGLES CRITIQUES - TOUJOURS SUIVRE CES REGLES ****
+
+- Avant de modifier un fichier, tu dois lire minimum 3 fichiers qui vont t'aider à faire quelque chose de cohérent et consistant. c'est non négociable. Tu ne dois pas skip cette étape sous aucune circonstance. 
+Lire des fichiers existants assure: 
+- persistance du code avec les pattern du projet
+- compréhension solide des conventions
+- suivre l'architecutre etablie
+- eviter les changements qui cassent le code. 
+
+***Types de fichiers que tu DOIS lire*** :
+
+1. Fichiers similaires : Lis des fichiers qui offrent une fonctionnalité comparable pour comprendre les patterns et les conventions.
+2. Dépendances importées : Lis la définition/l’implémentation de tout import dont tu n’es pas sûr à 100 % de l’usage correct — comprends leur API, leurs types et leurs modes d’utilisation.
+
+
+** Etapes à suivre **
+1. Lire au minimum 3 fichiers existants et relatifs
+2. comprendre le pattern et les conventions
+3. Uniquement après, procède avec la création/l'édition d'un fichier 
+
+* AUTRES INSTRUCTIONS * 
+
+- Utilise powershell v7.xx installé ("C:\Program Files\PowerShell\7\pwsh.exe")
+- Utilise le script Node scripts/run-sql.js (lancé comme node scripts/run-sql.js "<ta requête SQL>") pour exécuter des requêtes SQL contre Supabase. ID du projet Supabase: kiudpvvqpbkzeybogrnq (Projet NotionLab)
 - Ne jamais exposer SUPABASE_SERVICE_ROLE dans le code client et limiter la diffusion du fichier .env.local.
-- Thèmes UI: versionner les changements dans `Supabase/migrations/<date>_themes_and_rpcs.sql` en conservant les noms RPC `get_active_theme_tokens` et `set_active_theme`. Restreindre `set_active_theme` aux admins/owners via RLS/policies et/ou gardes dans la fonction.
- - Onboarding formation (standards UI):
-   - Cartes cliquables pour single/multi, sliders 1–5 avec ancres, aucune question obligatoire.
-   - FR uniquement (tutoiement), disclaimer minimal sous « Valider » interdisant les données sensibles.
-   - Résumé avec pictogrammes Lucide, sections et items triés par `step_order`/`sort_order`.
- - Onboarding formation (standards d’accès):
-   - Visibilité client actif uniquement (`ClientOnlyRoute`), non-bloquant, CTA « Remplir les préférences » si vide.
- - Notifications: conserver Resend via Edge Function `notify-training-onboarding` avec secrets `RESEND_API_KEY`, `ONBOARDING_NOTIFICATION_EMAIL` (fallback `OWNER_EMAIL`), `ONBOARDING_EMAIL_FROM` (fallback `SENDER_EMAIL`).
-
-<!-- ANCHOR:ACCOUNT_DELETION_STANDARDS -->
-- Utiliser exclusivement l'appel `supabase.rpc('admin_delete_user_full', { p_user_id })` pour supprimer un compte depuis l'UI (Admin et auto‑suppression).
-- Ne plus appeler `auth.admin.deleteUser` directement depuis le client: nécessite la service_role et peut échouer ou laisser des identités orphelines.
-- Les dialogues de confirmation doivent refléter une suppression TOTALE (auth + identités + profil + données liées) et être irréversibles.
-- Permissions: seul un `owner` peut supprimer un `owner`; `owner`/`admin` peuvent supprimer d'autres comptes; un utilisateur peut se supprimer lui‑même.
-- Pré‑vérification d'email d'inscription: privilégier `public.check_email_available(p_email text)` (security definer) ou désactiver via `VITE_SIGNUP_EMAIL_PRECHECK=false` si la RPC n'est pas en place.
-
-<!-- ANCHOR:WORKFLOWS -->
-- Invalider les caches critiques avec emitSessionRefresh ou queryClient.invalidateQueries() apres toute mise a jour de profil, permissions ou layout.
-- Routage : ProtectedRoute, ClientOnlyRoute et PublicOnlyRoute se basent sur allowedUserTypes, requiredPermission et le bypass owner.
-- Cycle parcours : draft client -> soumission -> validation -> init_kanban_statuses_for_submission.
-- Modifications autorisees : UI/UX formation, logique client du builder, styles, permissions (cf. src/components et src/hooks dedies).
-- Modifications interdites sans validation : schema des tables courses et formation_module_statuses, RPC submit_*/approve_*/init_kanban_*, logiques de snapshot et policies RLS.
-- Thèmes: utiliser `ThemePanel` (Admin) pour CRUD/activation; côté client, récupérer les tokens via `supabase.rpc('get_active_theme_tokens')` et appliquer via `ThemeContext.applyTheme()`.
- - Flux Onboarding:
-   - Chargement config: `fetchTrainingOnboardingConfig({ includeInactive: false })` côté wizard; `fetchTrainingOnboardingConfigWithAllQuestions()` côté résumé (client/admin).
-   - Autosauvegarde brouillon: debounce 600 ms, statut « Brouillon enregistré »; toast destructif en cas d’échec.
-   - Soumission: upsert `training_onboarding_responses`, mise à jour de `profiles.profession` depuis `metier_activite`.
-   - Notification: `supabase.functions.invoke('notify-training-onboarding', {...})` avec résumé texte.
-   - Premier envoi: mini NPS (Oui/Non + commentaire), puis redirection.
-
-<!-- ANCHOR:ACCOUNT_DELETION_WORKFLOWS -->
-- Admin Users list (`src/components/admin/UserManagementPanel.jsx`) → corbeille → RPC `admin_delete_user_full`.
-- Admin User page (`src/pages/admin/ManageUserPage.jsx`) → bouton supprimer → RPC `admin_delete_user_full`.
-- Compte utilisateur (`src/components/account/DeleteAccountSection.jsx`) → bouton supprimer → RPC `admin_delete_user_full`.
-
-
-<!-- ANCHOR:EXAMPLES -->
-```javascript
-const { data, error } = await supabase.rpc('get_user_courses_and_parcours', {
-  p_user_id: user.id,
-});
-```
-
-```javascript
-// Lecture tokens de thème et application
-const { data: tokens } = await supabase.rpc('get_active_theme_tokens');
-if (tokens) applyTheme(tokens);
-```
-
-<!-- ANCHOR:LIMITS -->
-- NEEDS-VERIFY : confirmer la presence d'automatisation de tests pour les formations.
-- NEEDS-VERIFY : valider l'encodage des fichiers contenant des caracteres etendus avant edition.
- - Étapes: brief cible 4–6 étapes; seed en 10 sections. Réduire en désactivant des sections/questions côté admin (le wizard masque automatiquement les sections vides) ou regrouper côté UI (évolution).
- - Encodage FR: prévoir une migration de correction d’accents sur titres/libellés `training_onboarding_*` sans toucher aux `slug`/`value`.
-<!-- AUTO:END -->
+- Env via /.env & /.env.local (ex. VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY) ; alerter si manquants ; ne jamais exposer de clés service-role côté client.

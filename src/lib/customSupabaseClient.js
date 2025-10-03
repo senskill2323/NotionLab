@@ -4,7 +4,7 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('Supabase env vars missing. Check .env (VITE_SUPABASE_URL/ANON_KEY).');
+  throw new Error('Supabase env vars missing. Define VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
 }
 
 // Ensure singletons across HMR/tab contexts to avoid multiple GoTrueClient instances.

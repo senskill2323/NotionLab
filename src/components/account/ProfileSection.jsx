@@ -7,7 +7,7 @@ import { useToast } from '@/components/ui/use-toast.js';
 import { Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabasClient';
 
-const EditableField = ({ label, value, field, onUpdate, type = "text" }) => {
+const EditableField = ({ label, value, field, onUpdate, type = "text", containerClassName = '' }) => {
   const [editValue, setEditValue] = useState(value || '');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -40,8 +40,10 @@ const EditableField = ({ label, value, field, onUpdate, type = "text" }) => {
     }
   };
 
+  const wrapperClassName = ['space-y-2', containerClassName].filter(Boolean).join(' ');
+
   return (
-    <div className="space-y-2">
+    <div className={wrapperClassName}>
       <Label htmlFor={field} className="text-sm font-medium">
         {label}
       </Label>
@@ -93,40 +95,41 @@ const ProfileSection = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="grid gap-4 md:grid-cols-2">
       <EditableField
         label="Email"
         value={user.email}
         field="email"
         onUpdate={updateEmail}
         type="email"
+        containerClassName="md:col-span-2"
       />
-      
+
       <EditableField
         label="Nom"
         value={user.profile?.last_name}
         field="last_name"
         onUpdate={updateProfile}
       />
-      
+
       <EditableField
         label="Prénom"
         value={user.profile?.first_name}
         field="first_name"
         onUpdate={updateProfile}
       />
-      
+
       <EditableField
         label="Pseudo"
         value={user.profile?.pseudo}
         field="pseudo"
         onUpdate={updateProfile}
       />
-      
+
       <EditableField
         label="Téléphone"
-        value={user.profile?.phone}
-        field="phone"
+        value={user.profile?.phone_number}
+        field="phone_number"
         onUpdate={updateProfile}
         type="tel"
       />

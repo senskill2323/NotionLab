@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
-import { Loader2, Ticket, MessageSquare, GitBranch, ArrowRight } from 'lucide-react';
+import { Loader2, Ticket, GitBranch, ArrowRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link } from 'react-router-dom';
 
@@ -28,7 +28,6 @@ const AdminDashboardContent = () => {
   const { user } = useAuth();
   const [kpis, setKpis] = useState({
     open_tickets: 0,
-    pending_messages: 0,
     created_parcours: 0,
   });
   const [loading, setLoading] = useState(true);
@@ -38,7 +37,10 @@ const AdminDashboardContent = () => {
     if (error) {
       console.error('Error fetching KPIs:', error);
     } else {
-      setKpis(data);
+      setKpis({
+        open_tickets: data?.open_tickets ?? 0,
+        created_parcours: data?.created_parcours ?? 0,
+      });
     }
     setLoading(false);
   }, []);
@@ -51,10 +53,6 @@ const AdminDashboardContent = () => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, fetchKpis)
       .subscribe();
 
-    const chatChannel = supabase
-      .channel('public:chat_conversations')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_conversations' }, fetchKpis)
-      .subscribe();
 
     const parcoursChannel = supabase
       .channel('public:courses')
@@ -63,7 +61,6 @@ const AdminDashboardContent = () => {
 
     return () => {
       supabase.removeChannel(ticketsChannel);
-      supabase.removeChannel(chatChannel);
       supabase.removeChannel(parcoursChannel);
     };
   }, [fetchKpis]);
@@ -84,7 +81,7 @@ const AdminDashboardContent = () => {
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           ) : (
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-2">
               <StatCard
                 title="Tickets Ouverts"
                 value={kpis.open_tickets}
@@ -93,14 +90,7 @@ const AdminDashboardContent = () => {
                 color="text-orange-500"
               />
               <StatCard
-                title="Messages à traiter"
-                value={kpis.pending_messages}
-                icon={MessageSquare}
-                link="/admin/live-chat"
-                color="text-blue-500"
-              />
-              <StatCard
-                title="Parcours Créés"
+                title="Parcours Crees"
                 value={kpis.created_parcours}
                 icon={GitBranch}
                 link="/admin/dashboard?tab=formations"

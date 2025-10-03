@@ -5,21 +5,23 @@ import React from 'react';
     import { queryClient } from '@/lib/reactQueryClient';
 
     import { Toaster } from '@/components/ui/toaster';
-    import { AuthProvider, useAuth } from '@/contexts/SupabaseAuthContext';
-    import { useTheme } from '@/contexts/ThemeContext';
-    import { ChatProvider } from '@/contexts/ChatContext';
+    import { AuthProvider } from '@/contexts/SupabaseAuthContext';
+    import { AssistantProvider } from '@/contexts/AssistantContext';
     import { PermissionsProvider } from '@/contexts/PermissionsContext';
     import { ComponentStateProvider } from '@/contexts/ComponentStateContext';
     import { ResourceCreationProvider } from '@/contexts/ResourceCreationContext';
     import { BuilderCatalogProvider } from '@/contexts/BuilderCatalogContext';
+    import { LayoutPreferencesProvider, useLayoutPreferences } from '@/contexts/LayoutPreferencesContext';
     import Footer from '@/components/Footer';
     import Navigation from '@/components/Navigation';
+    import AssistantDrawer from '@/components/assistant/AssistantDrawer';
     import HomePage from '@/pages/HomePage';
     import FormationsPage from '@/pages/FormationsPage';
     import FormationDetailPage from '@/pages/FormationDetailPage';
     import AboutPage from '@/pages/AboutPage';
     import LoginPage from '@/pages/LoginPage';
     import RegisterPage from '@/pages/RegisterPage';
+    import InvitationActivationPage from '@/pages/InvitationActivationPage';
     import ConfirmationPage from '@/pages/ConfirmationPage';
     import DashboardPage from '@/pages/DashboardPage';
     import CreateTicketPage from '@/pages/CreateTicketPage';
@@ -37,6 +39,8 @@ import React from 'react';
     import DemoDashboardPage from '@/pages/DemoDashboardPage';
     import TicketsPage from '@/pages/TicketsPage';
     import FormationBuilderPage from '@/pages/FormationBuilderPage';
+    import BlueprintBuilderPage from '@/pages/BlueprintBuilderPage';
+    import BlueprintSharePage from '@/pages/BlueprintSharePage';
     import ClientAccountPage from '@/pages/ClientAccountPage';
     import ParcoursDetailPage from '@/pages/ParcoursDetailPage';
     import ForumPage from '@/pages/ForumPage';
@@ -44,36 +48,33 @@ import React from 'react';
     import TrainingPreferencesWizardPage from '@/pages/TrainingPreferencesWizardPage';
     import ForumTopicPage from '@/pages/ForumTopicPage';
     import CreateForumTopicPage from '@/pages/CreateForumTopicPage';
-    import ChatPage from '@/pages/ChatPage';
     import { TooltipProvider } from '@/components/ui/tooltip';
     import DashboardEditorPage from '@/pages/admin/DashboardEditorPage';
     import ClientOnlyRoute from '@/components/ClientOnlyRoute';
     import EditStaticPage from '@/pages/admin/EditStaticPage';
-    import { Loader2 } from 'lucide-react';
+    import StaticPage from '@/pages/StaticPage';
     import ModuleManagerPage from '@/pages/admin/ModuleManagerPage';
     import TabsEditorPage from '@/pages/admin/TabsEditorPage';
-    import AdminLiveChatPage from '@/pages/admin/AdminLiveChatPage';
 
     const MainLayout = ({ children }) => {
       const location = useLocation();
-      const { user } = useAuth();
-      const { loading: themeLoading } = useTheme();
-
-      const isBuilderPage = location.pathname.startsWith('/formation-builder');
+      const isBuilderPage = location.pathname.startsWith('/formation-builder') || location.pathname.startsWith('/blueprint-builder');
       const isDashboardRoute = location.pathname.startsWith('/dashboard');
       const isAdminRoute = location.pathname.startsWith('/admin');
       const isDemoDashboard = location.pathname.startsWith('/demo-dashboard');
-      const isChatPage = location.pathname.startsWith('/chat');
       const isFormationDetailPage = location.pathname.match(/^\/formation\/[^/]+$/);
+      const { footerVisible } = useLayoutPreferences();
+
       const isHomePage = location.pathname === '/';
       
-      const showFooter = !isAdminRoute && !isDashboardRoute && !isBuilderPage && !isDemoDashboard && !isChatPage && !isFormationDetailPage && !isHomePage;
+      const baseFooterVisible = !isAdminRoute && !isDashboardRoute && !isBuilderPage && !isDemoDashboard && !isFormationDetailPage && !isHomePage;
+      const showFooter = baseFooterVisible && footerVisible;
 
       // Do not block rendering on theme loading; a fallback theme is applied immediately.
 
       return (
-        <div className="flex flex-col min-h-screen bg-background text-foreground transition-colors duration-300">
-          <main className="flex-grow">
+        <div className={`flex flex-col min-h-screen bg-background text-foreground transition-colors duration-300 ${isBuilderPage ? "overflow-hidden" : ""}`}>
+          <main className={isBuilderPage ? "flex-grow overflow-hidden" : "flex-grow"}>
             {children}
           </main>
           {showFooter && <Footer />}
@@ -89,6 +90,7 @@ import React from 'react';
         <Route path="/qui-suis-je" element={<AboutPage />} />
         <Route path="/mes-systemes" element={<SystemsPage />} />
         <Route path="/contact" element={<ContactPage />} />
+        <Route path="/page/:slug" element={<StaticPage />} />
         <Route path="/confirmation" element={<ConfirmationPage />} />
         <Route path="/assistance-a-distance" element={<AssistancePage />} />
         <Route path="/demo-dashboard" element={<DemoDashboardPage />} />
@@ -99,17 +101,21 @@ import React from 'react';
         <Route path="/connexion" element={<PublicOnlyRoute><LoginPage /></PublicOnlyRoute>} />
         <Route path="/inscription" element={<PublicOnlyRoute><RegisterPage /></PublicOnlyRoute>} />
         
+        <Route path="/activation-invitation" element={<InvitationActivationPage />} />
+        
         <Route path="/mes-preferences-formation" element={<ClientOnlyRoute><TrainingPreferencesPage /></ClientOnlyRoute>} />
         <Route path="/mes-preferences-formation/editer" element={<ClientOnlyRoute><TrainingPreferencesWizardPage /></ClientOnlyRoute>} />
         <Route path="/dashboard" element={<ClientOnlyRoute><DashboardPage /></ClientOnlyRoute>} />
         <Route path="/compte-client" element={<ClientOnlyRoute><ClientAccountPage /></ClientOnlyRoute>} />
-        <Route path="/chat" element={<ProtectedRoute requiredPermission="chat:view"><ChatPage /></ProtectedRoute>} />
         <Route path="/nouveau-ticket" element={<ProtectedRoute requiredPermission="tickets:create"><CreateTicketPage /></ProtectedRoute>} />
         <Route path="/ticket/:id" element={<ProtectedRoute requiredPermission="tickets:view_own"><TicketDetailPage /></ProtectedRoute>} />
         <Route path="/tickets" element={<ProtectedRoute requiredPermission="tickets:view_own"><TicketsPage /></ProtectedRoute>} />
         
         <Route path="/formation-builder" element={<ProtectedRoute requiredPermission="builder:view"><FormationBuilderPage /></ProtectedRoute>} />
         <Route path="/formation-builder/:id" element={<ProtectedRoute requiredPermission="builder:edit_own_parcours"><FormationBuilderPage /></ProtectedRoute>} />
+        <Route path="/blueprint-builder" element={<ProtectedRoute requiredPermission="client_blueprints:view_module"><BlueprintBuilderPage /></ProtectedRoute>} />
+        <Route path="/blueprint-builder/:blueprintId" element={<ProtectedRoute requiredPermission="client_blueprints:view_module"><BlueprintBuilderPage /></ProtectedRoute>} />
+        <Route path="/blueprint-share/:token" element={<BlueprintSharePage />} />
         <Route path="/parcours/:id" element={<ProtectedRoute requiredPermission="builder:view"><ParcoursDetailPage /></ProtectedRoute>} />
         
         <Route path="/admin/dashboard" element={<ProtectedRoute requiredPermission="admin:access_dashboard"><AdminDashboardPage /></ProtectedRoute>} />
@@ -117,24 +123,27 @@ import React from 'react';
         <Route path="/admin/ticket/:id" element={<ProtectedRoute requiredPermission="tickets:view_all"><ManageTicketPage /></ProtectedRoute>} />
         <Route path="/admin/user/new" element={<ProtectedRoute requiredPermission="users:edit_any"><CreateUserPage /></ProtectedRoute>} />
         <Route path="/admin/user/:id" element={<ProtectedRoute requiredPermission="users:edit_any"><ManageUserPage /></ProtectedRoute>} />
-        <Route path="/admin/live-chat" element={<ProtectedRoute requiredPermission="chat:view_all"><AdminLiveChatPage /></ProtectedRoute>} />
         <Route path="/admin/pages/new" element={<ProtectedRoute requiredPermission="admin:manage_static_pages"><EditStaticPage /></ProtectedRoute>} />
         <Route path="/admin/pages/:id" element={<ProtectedRoute requiredPermission="admin:manage_static_pages"><EditStaticPage /></ProtectedRoute>} />
         <Route path="/admin/modules" element={<ProtectedRoute requiredPermission="admin:manage_modules"><ModuleManagerPage /></ProtectedRoute>} />
         <Route path="/admin/tabs-editor" element={<ProtectedRoute requiredPermission="admin:manage_tabs_layout"><TabsEditorPage /></ProtectedRoute>} />
+        <Route path="/admin/blueprint-palette" element={<ProtectedRoute requiredPermission="admin_blueprints:manage_palette"><Navigate to="/admin/dashboard?tab=blueprints" replace /></ProtectedRoute>} />
         <Route path="/admin/*" element={<Navigate to="/admin/dashboard" replace />} />
       </Routes>
     );
 
     const AppContent = () => {
       const location = useLocation();
-      const isBuilderPage = location.pathname.startsWith('/formation-builder');
+      const isBuilderPage = location.pathname.startsWith('/formation-builder') || location.pathname.startsWith('/blueprint-builder');
 
       return (
-        <MainLayout>
-          {!isBuilderPage && <Navigation />}
-          <AppRoutes />
-        </MainLayout>
+        <LayoutPreferencesProvider>
+          <MainLayout>
+              {!isBuilderPage && <Navigation />}
+              <AssistantDrawer />
+              <AppRoutes />
+          </MainLayout>
+        </LayoutPreferencesProvider>
       );
     };
 
@@ -145,7 +154,7 @@ import React from 'react';
             <AuthProvider>
               <PermissionsProvider>
                 <ComponentStateProvider>
-                    <ChatProvider>
+                  <AssistantProvider>
                       <ResourceCreationProvider>
                         <BuilderCatalogProvider>
                           <TooltipProvider>
@@ -154,7 +163,7 @@ import React from 'react';
                           </TooltipProvider>
                         </BuilderCatalogProvider>
                       </ResourceCreationProvider>
-                    </ChatProvider>
+                  </AssistantProvider>
                 </ComponentStateProvider>
               </PermissionsProvider>
             </AuthProvider>

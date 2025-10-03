@@ -10,7 +10,7 @@ import { Loader2, KeyRound, Check, ChevronsUpDown } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import countries from '@/data/countries.json';
+import useCountries from '@/hooks/useCountries';
 import { cn } from '@/lib/utils';
 
 const PersonalDataForm = ({ editMode = false }) => {
@@ -19,6 +19,7 @@ const PersonalDataForm = ({ editMode = false }) => {
   const [loading, setLoading] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [countryPopoverOpen, setCountryPopoverOpen] = useState(false);
+  const { data: countries = [], isLoading: countriesLoading } = useCountries();
   const { register, handleSubmit, reset, control, setValue, formState: { errors, isDirty } } = useForm();
 
   useEffect(() => {
@@ -30,7 +31,7 @@ const PersonalDataForm = ({ editMode = false }) => {
         phone_number: user.profile.phone_number || '',
         postal_code: user.profile.postal_code || '',
         city: user.profile.city || '',
-        country_code: user.profile.country_code || '',
+        country_code: user.profile.country_code_ref || user.profile.country_code || '',
       });
     }
   }, [user, reset]);
@@ -49,6 +50,7 @@ const PersonalDataForm = ({ editMode = false }) => {
         postal_code: data.postal_code,
         city: data.city,
         country_code: data.country_code,
+        country_code_ref: data.country_code,
       })
       .eq('id', user.id);
 
@@ -139,7 +141,7 @@ const PersonalDataForm = ({ editMode = false }) => {
                     role="combobox"
                     aria-expanded={countryPopoverOpen}
                     className="w-full justify-between h-8"
-                    disabled={editMode}
+                    disabled={editMode || countriesLoading}
                   >
                     {field.value
                       ? countries.find((country) => country.code === field.value)?.name
@@ -150,7 +152,7 @@ const PersonalDataForm = ({ editMode = false }) => {
                 <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                   <Command>
                     <CommandInput placeholder="Rechercher un pays..." />
-                    <CommandEmpty>Aucun pays trouvé.</CommandEmpty>
+                    <CommandEmpty>{countriesLoading ? 'Chargement...' : 'Aucun pays trouvé.'}</CommandEmpty>
                     <CommandGroup>
                       <ScrollArea className="h-72">
                         {countries.map((country) => (
@@ -196,3 +198,4 @@ const PersonalDataForm = ({ editMode = false }) => {
 };
 
 export default PersonalDataForm;
+

@@ -56,7 +56,10 @@ select 'Default',
             "destructive-foreground": "hsl(210 40% 98%)",
             "border": "hsl(217.2 32.6% 17.5%)",
             "input": "hsl(217.2 32.6% 17.5%)",
-            "ring": "hsl(346.8 77.2% 49.8%)"
+            "ring": "hsl(346.8 77.2% 49.8%)",
+            "chat-surface": "hsl(222.2 54% 8%)",
+            "chat-bubble-user": "hsl(220 32% 20%)",
+            "chat-bubble-staff": "hsl(346.8 70% 45%)"
           },
           "radius": "0.5rem"
         }'::jsonb,

@@ -11,8 +11,7 @@ import {
   User, 
   GraduationCap, 
   Ticket, 
-  LogOut, 
-  MessageCircle,
+  LogOut,
   LayoutDashboard
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -97,7 +96,7 @@ const UserAccountPanel = () => {
     },
     {
       id: 'profile',
-      title: 'Données personnelles',
+      title: 'Donnees personnelles',
       icon: User,
       action: () => handleNavigation('/compte-client')
     },
@@ -114,12 +113,6 @@ const UserAccountPanel = () => {
       badge: '2',
       badgeVariant: 'destructive',
       action: () => handleNavigation('/tickets')
-    },
-    {
-      id: 'chat',
-      title: 'Chat Live',
-      icon: MessageCircle,
-      action: () => handleNavigation('/chat')
     }
   ];
 

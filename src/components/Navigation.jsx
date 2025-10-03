@@ -4,7 +4,8 @@ import { NavLink, Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Button } from '@/components/ui/button';
-import { LogOut, LayoutDashboard, Home, Wrench } from 'lucide-react';
+import { LogOut, LayoutDashboard, Home, Wrench, Bot } from 'lucide-react';
+import { useAssistant } from '@/contexts/AssistantContext';
 import ManagedComponent from '@/components/ManagedComponent';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import UserAccountPanel from '@/components/UserAccountPanel';
@@ -41,6 +42,8 @@ const NavItem = ({ to, children, componentKey, onClick }) => {
 
 const Navigation = () => {
   const { user, signOut, authReady } = useAuth();
+  const { toggleDrawer: toggleAssistantDrawer, callState: assistantCallState } = useAssistant();
+  const assistantActive = ['connected', 'connecting', 'reconnecting'].includes(assistantCallState);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -51,7 +54,6 @@ const Navigation = () => {
     navigate('/');
   };
 
-  const isAdmin = user && ['admin', 'prof', 'owner'].includes(user.profile?.user_type);
 
   return (
     <motion.header
@@ -91,17 +93,17 @@ const Navigation = () => {
             </Tooltip>
           </ManagedComponent>
 
-          <ManagedComponent componentKey="nav:client_chat">
+          <ManagedComponent componentKey="nav:client_blueprints">
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="default" onClick={() => navigate('/chat')}>
-                  Le Chat
+                <Button variant="ghost" size="default" onClick={() => navigate('/blueprint-builder')}>
+                  MyNotion
                 </Button>
               </TooltipTrigger>
-              <TooltipContent><p>Chat en direct</p></TooltipContent>
+              <TooltipContent><p>Blueprint Notion</p></TooltipContent>
             </Tooltip>
           </ManagedComponent>
-        
+
           <ManagedComponent componentKey="nav:client_builder" disabledTooltip="Connectez-vous pour utiliser le builder">
              <Tooltip>
               <TooltipTrigger asChild>
@@ -110,6 +112,23 @@ const Navigation = () => {
                 </Button>
               </TooltipTrigger>
               <TooltipContent><p>Builder</p></TooltipContent>
+            </Tooltip>
+          </ManagedComponent>
+
+          <ManagedComponent componentKey="nav:assistant">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={assistantActive ? 'default' : 'ghost'}
+                  size="default"
+                  onClick={toggleAssistantDrawer}
+                >
+                  <Bot className="h-4 w-4 mr-2" />
+                  Assistant
+                  {assistantActive && <span className="ml-2 inline-flex h-2 w-2 items-center justify-center"><span className="h-2 w-2 rounded-full bg-primary animate-pulse" aria-hidden /></span>}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent><p>Ouvrir l'assistant IA</p></TooltipContent>
             </Tooltip>
           </ManagedComponent>
 

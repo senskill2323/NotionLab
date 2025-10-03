@@ -18,7 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, User, Save, X, Check, ChevronsUpDown } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import countries from '@/data/countries.json';
+import useCountries from '@/hooks/useCountries';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -26,6 +26,7 @@ import { cn } from '@/lib/utils';
 
 const UserProfileForm = ({ user, control, register, setValue, isSubmitting, isDirty, handleSubmit, onProfileSubmit, handleDeleteUser, userTypes }) => {
   const [countryPopoverOpen, setCountryPopoverOpen] = useState(false);
+  const { data: countries = [], isLoading: countriesLoading } = useCountries();
 
   return (
     <form onSubmit={handleSubmit(onProfileSubmit)}>
@@ -71,6 +72,7 @@ const UserProfileForm = ({ user, control, register, setValue, isSubmitting, isDi
           </div>
         </CardHeader>
         <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <input type="hidden" {...register('country_code_ref')} />
           <div className="space-y-2">
             <Label htmlFor="first_name">Prénom</Label>
             <Input id="first_name" {...register('first_name')} />
@@ -145,6 +147,7 @@ const UserProfileForm = ({ user, control, register, setValue, isSubmitting, isDi
                       role="combobox"
                       aria-expanded={countryPopoverOpen}
                       className="w-full justify-between"
+                      disabled={isSubmitting || countriesLoading}
                     >
                       {field.value
                         ? countries.find((country) => country.code === field.value)?.name
@@ -155,7 +158,7 @@ const UserProfileForm = ({ user, control, register, setValue, isSubmitting, isDi
                   <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                     <Command>
                       <CommandInput placeholder="Rechercher un pays..." />
-                      <CommandEmpty>Aucun pays trouvé.</CommandEmpty>
+                      <CommandEmpty>{countriesLoading ? 'Chargement...' : 'Aucun pays trouvé.'}</CommandEmpty>
                       <CommandGroup>
                         <ScrollArea className="h-72">
                           {countries.map((country) => (
@@ -164,6 +167,7 @@ const UserProfileForm = ({ user, control, register, setValue, isSubmitting, isDi
                               value={country.name}
                               onSelect={() => {
                                 setValue("country_code", country.code, { shouldDirty: true });
+                                setValue("country_code_ref", country.code, { shouldDirty: true });
                                 setCountryPopoverOpen(false);
                               }}
                             >
@@ -197,3 +201,11 @@ const UserProfileForm = ({ user, control, register, setValue, isSubmitting, isDi
 };
 
 export default UserProfileForm;
+
+
+
+
+
+
+
+

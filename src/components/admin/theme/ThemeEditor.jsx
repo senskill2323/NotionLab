@@ -60,8 +60,29 @@ export const ThemeEditor = ({ theme, onUpdateTheme, translations }) => {
       })
   }
 
+  const pickerStyles = {
+    default: {
+      picker: {
+        background: 'transparent',
+        boxShadow: 'none',
+        width: '100%',
+        padding: 0,
+      },
+      saturation: {
+        borderRadius: '8px',
+        overflow: 'hidden',
+      },
+      controls: {
+        marginTop: '12px',
+      },
+      color: {
+        display: 'none',
+      },
+    },
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div className="flex items-center gap-2">
         {isEditingName ? (
           <>
@@ -76,16 +97,16 @@ export const ThemeEditor = ({ theme, onUpdateTheme, translations }) => {
           </>
         )}
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-6">
         {Object.entries(theme.tokens.colors).map(([key, value]) => {
           const translation = currentTranslations[key] || { label: key.replace(/-/g, ' '), description: 'Pas de description.' };
           return (
-            <div key={key} className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Label className="text-sm font-medium capitalize">{translation.label}</Label>
+            <div key={key} className="rounded-lg border border-border/40 bg-card/30 p-3 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <Label className="text-sm font-medium capitalize truncate">{translation.label}</Label>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-6 w-6">
+                    <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground">
                       <Info className="h-4 w-4 text-muted-foreground cursor-help" />
                     </Button>
                   </PopoverTrigger>
@@ -111,7 +132,9 @@ export const ThemeEditor = ({ theme, onUpdateTheme, translations }) => {
                   onChangeComplete={(color) => handleColorChange(color, `colors.${key}`)}
                   presetColors={[]}
                   width="100%"
-                  className="!bg-card !shadow-lg"
+                  disableAlpha
+                  className="theme-color-picker"
+                  styles={pickerStyles}
                 />
               </div>
             </div>
