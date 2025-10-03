@@ -1,8 +1,33 @@
-•	Droits & Permission – Crée une entrée admin:* cohérente dans role_permissions (booléens par type + display_order) via migration ou scripts/run-sql ; voir l’exemple admin:manage_static_pages dans Supabase/migrations/2025-09-30_static_pages_module.sql:68. Assure-toi ensuite de rattacher cette permission à l’onglet cible (permission_required) comme dans Supabase/migrations/2025-09-27_admin_assistant_permissions.sql:4 et :34.
-•	Création/assignation d’onglet – Si l’onglet n’existe pas, insère-le dans admin_dashboard_tabs avec tab_id, label, icon, row_order, col_order, permission (cf. bloc DO dans Supabase/migrations/2025-09-25_admin_assistant_settings_module.sql:16-25). Sinon, mets à jour permission_required ou l’ordre (ex. Supabase/migrations/2025-09-30_static_pages_module.sql:94-104). La répartition visuelle peut ensuite être ajustée depuis l’éditeur d’onglets (src/pages/admin/TabsEditorPage.jsx:101 et :212).
-•	Registry des modules – Insère (ou upsert) la ligne dans admin_modules_registry avec module_key, tab_id, component_name, métadonnées, display_order, is_active (ex. Supabase/migrations/2025-09-30_static_pages_module.sql:109 ou Supabase/migrations/2025-09-25_admin_assistant_settings_module.sql:26-41). Pour déplacer un module existant entre onglets, mets simplement à jour tab_id et l’ordre (Supabase/migrations/2025-09-21_admin_move_onboarding_to_new_tab.sql:37-44).
-•	Implémentation React – Crée ou mets à jour le composant dans src/components/admin/… puis enregistre-le dans adminComponentMap pour que le rendu dynamique fonctionne (src/pages/AdminDashboardPage.jsx:31). Si le composant doit exposer des callbacks spéciaux (ex. tickets), gère-les dans la boucle de rendu (src/pages/AdminDashboardPage.jsx:349-366).
-•	Chargement & temps réel – Le dashboard récupère admin_dashboard_tabs + admin_modules_registry et écoute les changements Supabase pour refléter l’activation/désactivation en direct (src/pages/AdminDashboardPage.jsx:196-230). Aucun reload manuel n’est requis une fois les migrations appliquées.
-•	Filtrage par permission – Les onglets ne s’affichent que si usePermissions().hasPermission valide permission_required (src/pages/AdminDashboardPage.jsx:254-264). N’oublie pas de cocher la permission pour les rôles concernés via l’UI “Droits et Types d’utilisateurs” ou un script SQL.
-•	Documentation & rappel – Le doc interne rappelle de garder role_permissions, admin_dashboard_tabs et admin_modules_registry synchronisés pour chaque module admin (rules/07-Fonctionnalités/Module d'invitation:6-8). Pense à consigner la procédure (CHANGELOG/doc) et à vérifier les icônes/assets utilisés.
-•	Chaque module admin est toujours rendu à l’intérieur de la page AdminDashboardPage, dans le contenu de l’onglet courant. Le flux est : on récupère admin_modules_registry, on mappe chaque entrée vers son composant via adminComponentMap, puis on les affiche dans le TabsContent du tableau de bord (voir src/pages/AdminDashboardPage.jsx:196, :254, :319, :339). Il n’y a pas de navigation vers une nouvelle page : on injecte simplement le composant dans l’onglet actif.
+Checklist de deploiement d'un module admin
+==========================================
+
+1. Permissions et regles d'acces
+- Creer ou mettre a jour l'entree 'admin:*' dans role_permissions en definissant les booleens par type d'utilisateur ainsi que le display_order (exemple : Supabase/migrations/2025-09-30_static_pages_module.sql:68).
+- Lier cette permission a l'onglet cible via permission_required (voir Supabase/migrations/2025-09-27_admin_assistant_permissions.sql:4 et :34).
+
+2. Onglet du dashboard admin
+- Inspecter l'existant (SELECT tab_id, label, row_order, col_order FROM public.admin_dashboard_tabs ORDER BY row_order, col_order).
+- Choisir explicitement row_order et col_order : ligne 1 = row_order 0, ligne 2 = row_order 1.
+- TabsEditorPage.jsx ne gere que les rangs 0 et 1 ; eviter row_order > 1 sauf si l'UI evolue en consequence.
+- Utiliser un bloc DO $$ ... $$ pour calculer la position voulue (row/col) plutot que MAX(row_order)+1 si l'on veut rejoindre une ligne existante (voir Supabase/migrations/2025-10-25_blueprint_palette_admin_module_row_fix.sql).
+- Si l'onglet existe deja, mettre a jour label, icone et permission sans changer la position par inadvertance.
+
+3. Table admin_modules_registry
+- Upserter la ligne du module avec module_key, tab_id, component_name, metadonnees, display_order, is_active (exemples : Supabase/migrations/2025-09-30_static_pages_module.sql:109 et 2025-09-25_admin_assistant_settings_module.sql:26-41).
+- Pour deplacer un module entre onglets, ne modifier que tab_id et display_order (cf. Supabase/migrations/2025-09-21_admin_move_onboarding_to_new_tab.sql:37-44).
+
+4. Implementation React
+- Creer ou mettre a jour le composant dans src/components/admin/ ou src/pages/admin/.
+- Ajouter le composant a adminComponentMap dans src/pages/AdminDashboardPage.jsx pour le rendu dynamique.
+- Gerer les callbacks specifiques (ex. tickets) dans la boucle de rendu (AdminDashboardPage.jsx:339+).
+
+5. Routage et navigation
+- Declarer la permission dans src/App.jsx seulement si le module a une page dediee ; pour un module du dashboard, preferer Navigate vers /admin/dashboard?tab=<id>.
+- Nettoyer src/components/Navigation.jsx afin que l'acces se fasse depuis l'onglet admin plutot que via un bouton global si ce n'est pas requis.
+
+6. Chargement temps reel et permissions
+- AdminDashboardPage.jsx ecoute admin_dashboard_tabs et admin_modules_registry (lignes 196-230) : s'assurer que les roles cibles possedent la permission via l'UI Droits et Types d'utilisateurs ou via SQL.
+
+7. Documentation et suivi
+- Mettre a jour cette checklist a chaque nouveau cas particulier.
+- Consigner les changements (CHANGELOG, docs internes) et verifier les icones et assets utilises.

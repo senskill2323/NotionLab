@@ -9,30 +9,30 @@ Index du dossier /rules:
 # Index des règles:
 
 ## 00-architecture
-- `00-architecture/readme.mdc` : Cartographie complète du shell React/Vite, de ses providers, des surfaces Supabase (clients, tables, edge functions) et des principaux flux métiers.
+- `00-architecture/readme.mdc` — Cartographie du shell React/Vite, providers globaux, surfaces Supabase et principaux flux métiers.
+- `00-architecture/Espace administrateur` — Synthèse dédiée à l''espace admin (routing, modules dynamiques, dépendances Supabase, contextes UI).
 
 ## 01-standards
-- `01-standards/readme.mdc` : Stack de référence (React/Vite/Supabase), pratiques CI/CD, scripts SQL, consignes PowerShell et règle de lecture préalable avant toute modification.
+- `01-standards/readme.mdc` — Stack de référence, pratiques CI/CD, scripts SQL, consignes PowerShell et règle de lecture préalable avant modification.
 
 ## 03-frameworks-and-libraries
-- `03-frameworks-and-libraries/readme.mdc` : Inventaire exhaustif des dépendances production et développement synchronisé avec `package.json`.
+- `03-frameworks-and-libraries/readme.mdc` — Inventaire exhaustif des dépendances production et développement (synchronisé avec `package.json`).
 
 ## 04-database
-- `04-database/readme.mdc` : Placeholder réservé à la nomenclature SQL et aux politiques RLS (actuellement vide).
+- `04-database/readme.mdc` — Placeholder pour nomenclature SQL et politiques RLS (actuellement vide).
 
 ## 06-deployment
-- `06-deployment/readme.mdc` : Placeholder pour la procédure de déploiement globale (actuellement vide).
-- `06-deployment/Déployer un nouveau module client` : Checklist permission `*:view_module`, enregistrement `modules_registry`, layout par défaut et intégration React côté client/builder.
-- `06-deployment/Déployer un nouveau module admin` : Procédure complète pour aligner permissions, onglets admin, `admin_modules_registry` et composants React du dashboard d'administration.
+- `06-deployment/Déployer un nouveau module client` — Checklist permissions `*:view_module`, enregistrement `modules_registry`, layout par défaut et intégration React côté client/builder.
+- `06-deployment/Déployer un nouveau module admin` — Procédure complète alignant permissions, onglets admin, `admin_modules_registry` et composants React du dashboard d''administration.
 
 ## 07-Fonctionnalités
-- `07-Fonctionnalités/Assistant IA` : Fonctionnement de l'assistant WebRTC (useAssistant, quotas, metrics Supabase, edge function `assistant-mint-key`).
-- `07-Fonctionnalités/Builder de formation` : Architecture du builder React Flow, catalogue `BuilderCatalogContext`, flux Supabase et sécurisation attendue.
-- `07-Fonctionnalités/Builder de Notion` : Blueprint builder (ReactFlow + Supabase), autosave/undo, RPC de snapshot/partage et sécurisation des tokens.
-- `07-Fonctionnalités/Formation` : Panorama complet formations (catalogue public, builder, admin), usages Supabase et lacunes RLS/RPC.
-- `07-Fonctionnalités/Gestion des bloques` : Lifecycle des `content_blocks`, edge `manage-content-block`, RPC de statut/ordre et bibliothèque de modèles.
-- `07-Fonctionnalités/Gestion des tickets` : Diagnostic module tickets (client/admin), flux Supabase direct, realtime et risques RLS absents.
-- `07-Fonctionnalités/Gestion des utilisateurs` : Workflow invitation/suppression (`invite-user`, `admin_delete_user_full`), contextes Auth/Permissions et UI admin/client.
-- `07-Fonctionnalités/Module d'invitation` : Notes d'intégration de l'edge `invite-user`, synchronisation des permissions et expériences d'activation.
-- `07-Fonctionnalités/Module de thèmes` : Gestion ThemeProvider/ThemePanel, CRUD Supabase des tokens et prévisualisation dynamique.
-- `07-Fonctionnalités/Suppression d'un compte` : Rappel d'usage exclusif de `supabase.rpc('admin_delete_user_full')` et périmètre de purge des données.
+- `07-Fonctionnalités/Assistant IA` — Fonctionnement de l''assistant WebRTC (useAssistant, quotas, metrics Supabase, edge `assistant-mint-key`).
+- `07-Fonctionnalités/Builder de formation` — Architecture du builder React Flow, catalogue `BuilderCatalogContext`, flux Supabase et sécurisation attendue.
+- `07-Fonctionnalités/Builder de Notion` — Blueprint builder (ReactFlow + Supabase), autosave/undo, RPC de snapshot/partage et sécurisation des tokens.
+- `07-Fonctionnalités/Formation` — Panorama des formations (catalogue public, builder, admin), usages Supabase et lacunes RLS/RPC.
+- `07-Fonctionnalités/Gestion des bloques` — Cycle de vie `content_blocks`, edge `manage-content-block`, RPC de statut/ordre et bibliothèque de modèles.
+- `07-Fonctionnalités/Gestion des tickets` — Diagnostic module tickets client/admin, flux Supabase direct/realtime et risques RLS.
+- `07-Fonctionnalités/Gestion des utilisateurs` — Workflow invitation/suppression (`invite-user`, `admin_delete_user_full`), contextes Auth/Permissions et UI admin/client.
+- `07-Fonctionnalités/Module d''invitation` — Notes d''intégration de l''edge `invite-user`, synchronisation des permissions et expérience d''activation.
+- `07-Fonctionnalités/Module de thèmes` — Gestion ThemeProvider/ThemePanel, CRUD Supabase des tokens et prévisualisation dynamique.
+- `07-Fonctionnalités/Suppression d''un compte` — Rappel d''usage exclusif de `supabase.rpc('admin_delete_user_full')` et périmètre de purge.
