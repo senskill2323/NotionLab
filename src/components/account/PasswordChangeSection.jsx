@@ -132,7 +132,7 @@ const PasswordChangeSection = () => {
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="space-y-1 pb-3">
         <CardTitle className="flex items-center gap-2">
           <Key className="h-5 w-5" />
           Changer le mot de passe
@@ -141,8 +141,8 @@ const PasswordChangeSection = () => {
           Modifiez votre mot de passe pour sécuriser votre compte
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
+      <CardContent className="pt-4">
+        <form onSubmit={handleSubmit} className="space-y-3">
           {/* Mot de passe actuel */}
           <div className="space-y-2">
             <Label htmlFor="currentPassword">Mot de passe actuel</Label>
@@ -159,7 +159,7 @@ const PasswordChangeSection = () => {
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                className="absolute right-0 top-0 h-full px-2 py-1.5 hover:bg-transparent"
                 onClick={() => setShowCurrentPassword(!showCurrentPassword)}
                 disabled={isLoading}
               >
@@ -191,7 +191,7 @@ const PasswordChangeSection = () => {
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                className="absolute right-0 top-0 h-full px-2 py-1.5 hover:bg-transparent"
                 onClick={() => setShowNewPassword(!showNewPassword)}
                 disabled={isLoading}
               >
@@ -219,7 +219,7 @@ const PasswordChangeSection = () => {
                 </div>
                 <div className="text-xs text-muted-foreground">
                   <p>Le mot de passe doit contenir :</p>
-                  <ul className="list-disc list-inside mt-1 space-y-1">
+                  <ul className="mt-1 grid gap-y-1 gap-x-2 md:grid-cols-2">
                     <li className={formData.newPassword.length >= 8 ? "text-green-600" : ""}>
                       Au moins 8 caractères
                     </li>
@@ -261,7 +261,7 @@ const PasswordChangeSection = () => {
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                className="absolute right-0 top-0 h-full px-2 py-1.5 hover:bg-transparent"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 disabled={isLoading}
               >
@@ -278,12 +278,6 @@ const PasswordChangeSection = () => {
           </div>
 
           {/* Informations de sécurité */}
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              Après avoir changé votre mot de passe, vous devrez vous reconnecter sur tous vos appareils.
-            </AlertDescription>
-          </Alert>
 
           {/* Bouton de soumission */}
           <Button 
@@ -314,3 +308,4 @@ const PasswordChangeSection = () => {
 };
 
 export default PasswordChangeSection;
+

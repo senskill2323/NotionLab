@@ -39,6 +39,8 @@ import React from 'react';
     import DemoDashboardPage from '@/pages/DemoDashboardPage';
     import TicketsPage from '@/pages/TicketsPage';
     import FormationBuilderPage from '@/pages/FormationBuilderPage';
+    import BlueprintBuilderPage from '@/pages/BlueprintBuilderPage';
+    import BlueprintSharePage from '@/pages/BlueprintSharePage';
     import ClientAccountPage from '@/pages/ClientAccountPage';
     import ParcoursDetailPage from '@/pages/ParcoursDetailPage';
     import ForumPage from '@/pages/ForumPage';
@@ -56,7 +58,7 @@ import React from 'react';
 
     const MainLayout = ({ children }) => {
       const location = useLocation();
-      const isBuilderPage = location.pathname.startsWith('/formation-builder');
+      const isBuilderPage = location.pathname.startsWith('/formation-builder') || location.pathname.startsWith('/blueprint-builder');
       const isDashboardRoute = location.pathname.startsWith('/dashboard');
       const isAdminRoute = location.pathname.startsWith('/admin');
       const isDemoDashboard = location.pathname.startsWith('/demo-dashboard');
@@ -71,8 +73,8 @@ import React from 'react';
       // Do not block rendering on theme loading; a fallback theme is applied immediately.
 
       return (
-        <div className="flex flex-col min-h-screen bg-background text-foreground transition-colors duration-300">
-          <main className="flex-grow">
+        <div className={`flex flex-col min-h-screen bg-background text-foreground transition-colors duration-300 ${isBuilderPage ? "overflow-hidden" : ""}`}>
+          <main className={isBuilderPage ? "flex-grow overflow-hidden" : "flex-grow"}>
             {children}
           </main>
           {showFooter && <Footer />}
@@ -111,6 +113,9 @@ import React from 'react';
         
         <Route path="/formation-builder" element={<ProtectedRoute requiredPermission="builder:view"><FormationBuilderPage /></ProtectedRoute>} />
         <Route path="/formation-builder/:id" element={<ProtectedRoute requiredPermission="builder:edit_own_parcours"><FormationBuilderPage /></ProtectedRoute>} />
+        <Route path="/blueprint-builder" element={<ProtectedRoute requiredPermission="client_blueprints:view_module"><BlueprintBuilderPage /></ProtectedRoute>} />
+        <Route path="/blueprint-builder/:blueprintId" element={<ProtectedRoute requiredPermission="client_blueprints:view_module"><BlueprintBuilderPage /></ProtectedRoute>} />
+        <Route path="/blueprint-share/:token" element={<BlueprintSharePage />} />
         <Route path="/parcours/:id" element={<ProtectedRoute requiredPermission="builder:view"><ParcoursDetailPage /></ProtectedRoute>} />
         
         <Route path="/admin/dashboard" element={<ProtectedRoute requiredPermission="admin:access_dashboard"><AdminDashboardPage /></ProtectedRoute>} />
@@ -122,13 +127,14 @@ import React from 'react';
         <Route path="/admin/pages/:id" element={<ProtectedRoute requiredPermission="admin:manage_static_pages"><EditStaticPage /></ProtectedRoute>} />
         <Route path="/admin/modules" element={<ProtectedRoute requiredPermission="admin:manage_modules"><ModuleManagerPage /></ProtectedRoute>} />
         <Route path="/admin/tabs-editor" element={<ProtectedRoute requiredPermission="admin:manage_tabs_layout"><TabsEditorPage /></ProtectedRoute>} />
+        <Route path="/admin/blueprint-palette" element={<ProtectedRoute requiredPermission="admin_blueprints:manage_palette"><Navigate to="/admin/dashboard?tab=blueprints" replace /></ProtectedRoute>} />
         <Route path="/admin/*" element={<Navigate to="/admin/dashboard" replace />} />
       </Routes>
     );
 
     const AppContent = () => {
       const location = useLocation();
-      const isBuilderPage = location.pathname.startsWith('/formation-builder');
+      const isBuilderPage = location.pathname.startsWith('/formation-builder') || location.pathname.startsWith('/blueprint-builder');
 
       return (
         <LayoutPreferencesProvider>

@@ -62,14 +62,11 @@ const ClientAccountPage = () => {
           <h1 className="text-3xl font-bold text-foreground mb-2">
             Mes données personnelles
           </h1>
-          <p className="text-muted-foreground">
-            Gérez vos informations personnelles et paramètres de compte
-          </p>
         </motion.div>
 
-        <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-3">
+        <div className="grid gap-5 md:grid-cols-1 lg:grid-cols-3">
           {/* Colonne principale */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-5">
             {/* Section Avatar et Profil */}
             <motion.div
               initial={{ opacity: 0, x: -20 }}
@@ -80,13 +77,9 @@ const ClientAccountPage = () => {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <User className="h-5 w-5" />
-                    Informations de profil
-                  </CardTitle>
-                  <CardDescription>
-                    Vos informations personnelles et photo de profil
-                  </CardDescription>
+                    Informations de profil</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="space-y-5">
                   <AvatarUpload />
                   <Separator />
                   <ProfileSection />
@@ -116,14 +109,6 @@ const ClientAccountPage = () => {
               </Card>
             </motion.div>
 
-            {/* Section Changement de mot de passe */}
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5, delay: 0.3 }}
-            >
-              <PasswordChangeSection />
-            </motion.div>
           </div>
 
           {/* Sidebar */}
@@ -154,6 +139,16 @@ const ClientAccountPage = () => {
               </Card>
             </motion.div>
 
+            {/* Bloc mot de passe */}
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.45 }}
+            >
+              <PasswordChangeSection />
+            </motion.div>
+
+
             {/* Zone de danger */}
             <motion.div
               initial={{ opacity: 0, x: 20 }}
@@ -166,9 +161,6 @@ const ClientAccountPage = () => {
                     <Trash2 className="h-5 w-5" />
                     Zone de danger
                   </CardTitle>
-                  <CardDescription>
-                    Actions irréversibles sur votre compte
-                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <DeleteAccountSection />
@@ -183,3 +175,5 @@ const ClientAccountPage = () => {
 };
 
 export default ClientAccountPage;
+
+

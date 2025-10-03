@@ -34,7 +34,7 @@ import { Label } from '@/components/ui/label';
 
 import { useDebounce } from 'use-debounce';
 
-import countries from '@/data/countries.json';
+import useCountries from '@/hooks/useCountries';
 
 const initialFilters = {
 
@@ -95,6 +95,8 @@ const UserManagementPanel = () => {
   const [inviteForm, setInviteForm] = useState(createInviteState);
 
   const [inviteLoading, setInviteLoading] = useState(false);
+  const countriesQuery = useCountries();
+  const countries = countriesQuery.data || [];
 
   const { user: currentUser } = useAuth();
 
@@ -418,7 +420,7 @@ const UserManagementPanel = () => {
 
       .filter(Boolean);
 
-  }, [filters, userTypes, formations]);
+  }, [filters, userTypes, formations, countries]);
 
   const handleUserTypeChange = async (userId, newTypeId) => {
 
@@ -655,7 +657,15 @@ const UserManagementPanel = () => {
 
                         <SelectItem value="all">Tous les pays</SelectItem>
 
-                        {countries.map(c => <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>)}
+                        {countriesQuery.isLoading ? (
+                          <SelectItem value="__loading" disabled>Chargement...</SelectItem>
+                        ) : (
+                          countries.map((c) => (
+                            <SelectItem key={c.code} value={c.code}>
+                              {c.name}
+                            </SelectItem>
+                          ))
+                        )}
 
                       </SelectContent>
 
@@ -900,3 +910,4 @@ const UserManagementPanel = () => {
 };
 
 export default UserManagementPanel;
+

@@ -54,7 +54,6 @@ const Navigation = () => {
     navigate('/');
   };
 
-  const isAdmin = user && ['admin', 'prof', 'owner'].includes(user.profile?.user_type);
 
   return (
     <motion.header
@@ -93,7 +92,18 @@ const Navigation = () => {
               <TooltipContent><p>Forum</p></TooltipContent>
             </Tooltip>
           </ManagedComponent>
-        
+
+          <ManagedComponent componentKey="nav:client_blueprints">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="default" onClick={() => navigate('/blueprint-builder')}>
+                  MyNotion
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent><p>Blueprint Notion</p></TooltipContent>
+            </Tooltip>
+          </ManagedComponent>
+
           <ManagedComponent componentKey="nav:client_builder" disabledTooltip="Connectez-vous pour utiliser le builder">
              <Tooltip>
               <TooltipTrigger asChild>
