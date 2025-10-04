@@ -1,6 +1,6 @@
 # Blueprint Palette – État des migrations
 
-## Étapes déjà effectuées
+## Étapes déjà effectuées ok
 - Création des tables `public.blueprint_palette_families` et `public.blueprint_palette_items` avec index, triggers `set_updated_at`, RLS et droits (`Supabase/migrations/2025-10-20_blueprint_palette_catalog.sql`).
 - Seed initial de trois familles et six items représentatifs (`Supabase/migrations/2025-10-20_blueprint_palette_seed.sql`).
 - Ajout des RPC Supabase :
