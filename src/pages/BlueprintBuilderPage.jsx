@@ -11,6 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import { useBlueprintBuilder } from '@/hooks/useBlueprintBuilder';
 
+import { emitBlueprintAutosaveTelemetry } from '@/lib/blueprints/telemetry';
+
 const BlueprintBuilderShell = () => {
   const navigate = useNavigate();
   const { project } = useReactFlow();
@@ -101,20 +103,45 @@ const BlueprintBuilderShell = () => {
     addNodeFromPalette(active.data.current.item, position);
   };
 
-  const handleExportJson = () => {
+  const handleExportJson = async () => {
+    const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
     const payload = {
       blueprint,
       nodes,
       edges,
       exportedAt: new Date().toISOString(),
     };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = `${(blueprint?.title ?? 'blueprint').replace(/\s+/g, '-')}.json`;
-    anchor.click();
-    URL.revokeObjectURL(url);
+    const payloadString = JSON.stringify(payload, null, 2);
+    const durationNow = () => {
+      const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+      return Math.round(now - startedAt);
+    };
+
+    try {
+      const blob = new Blob([payloadString], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `${(blueprint?.title ?? 'blueprint').replace(/\s+/g, '-')}.json`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+
+      emitBlueprintAutosaveTelemetry('export', {
+        format: 'json',
+        duration_ms: durationNow(),
+        node_count: nodes.length,
+        edge_count: edges.length,
+      });
+    } catch (error) {
+      console.error('Export JSON failed', error);
+      emitBlueprintAutosaveTelemetry('export_failed', {
+        format: 'json',
+        duration_ms: durationNow(),
+        node_count: nodes.length,
+        edge_count: edges.length,
+        error_message: error?.message ?? null,
+      });
+    }
   };
 
   const exportImage = async (format) => {
@@ -123,6 +150,12 @@ const BlueprintBuilderShell = () => {
     if (!target) return;
 
     const { toPng, toSvg } = await import('html-to-image');
+    const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    const durationNow = () => {
+      const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+      return Math.round(now - startedAt);
+    };
+
     const download = (dataUrl, extension) => {
       const anchor = document.createElement('a');
       anchor.href = dataUrl;
@@ -130,12 +163,32 @@ const BlueprintBuilderShell = () => {
       anchor.click();
     };
 
-    if (format === 'png') {
-      const dataUrl = await toPng(target, { pixelRatio: 2, backgroundColor: '#0f172a' });
-      download(dataUrl, 'png');
-    } else if (format === 'svg') {
-      const dataUrl = await toSvg(target, { backgroundColor: '#0f172a' });
-      download(dataUrl, 'svg');
+    try {
+      if (format === 'png') {
+        const dataUrl = await toPng(target, { pixelRatio: 2, backgroundColor: '#0f172a' });
+        download(dataUrl, 'png');
+      } else if (format === 'svg') {
+        const dataUrl = await toSvg(target, { backgroundColor: '#0f172a' });
+        download(dataUrl, 'svg');
+      } else {
+        throw new Error(`Unsupported export format: ${format}`);
+      }
+
+      emitBlueprintAutosaveTelemetry('export', {
+        format,
+        duration_ms: durationNow(),
+        node_count: nodes.length,
+        edge_count: edges.length,
+      });
+    } catch (error) {
+      console.error('Export image failed', { format, error });
+      emitBlueprintAutosaveTelemetry('export_failed', {
+        format,
+        duration_ms: durationNow(),
+        node_count: nodes.length,
+        edge_count: edges.length,
+        error_message: error?.message ?? null,
+      });
     }
   };
 
