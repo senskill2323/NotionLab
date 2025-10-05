@@ -36,7 +36,7 @@ const MindmapBubbleNode = ({ data, selected, isConnectable }) => (
     {data?.family && (
       <p className="mt-1 text-[11px] uppercase tracking-wide text-muted-foreground/80">
         {data.family}
-        {data?.subfamily ? ` \u0007 ${data.subfamily}` : ''}
+        {data?.subfamily ? ` • ${data.subfamily}` : ''}
       </p>
     )}
     <Handle type="target" position={Position.Left} isConnectable={isConnectable} />
@@ -96,10 +96,10 @@ const BlueprintCanvas = ({
         fitViewOptions={{ padding: 0.2, duration: 300 }}
         connectionMode={ConnectionMode.Strict}
         defaultEdgeOptions={blueprintDefaultEdgeOptions}
-        panOnScroll={false}
-        zoomOnScroll={false}
-        panOnDrag={false}
-        zoomOnPinch={false}
+        panOnScroll
+        zoomOnScroll
+        panOnDrag
+        zoomOnPinch
         zoomOnDoubleClick={false}
         selectionOnDrag
         minZoom={0.3}

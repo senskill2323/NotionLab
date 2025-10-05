@@ -75,10 +75,15 @@ export async function upsertBlueprintGraph({
   metadata = {},
   nodes,
   edges,
+  deletedNodeIds = [],
+  deletedEdgeIds = [],
   autosave = true,
+  expectedAutosaveVersion = null,
 }) {
   const nodesPayload = (nodes ?? []).map(mapNodeForPersistence);
   const edgesPayload = (edges ?? []).map(mapEdgeForPersistence);
+  const deletedNodeIdsPayload = Array.isArray(deletedNodeIds) ? deletedNodeIds.filter(Boolean) : [];
+  const deletedEdgeIdsPayload = Array.isArray(deletedEdgeIds) ? deletedEdgeIds.filter(Boolean) : [];
 
   const { data, error } = await supabase.rpc('blueprints_upsert_graph', {
     p_blueprint_id: blueprintId ?? null,
@@ -88,7 +93,10 @@ export async function upsertBlueprintGraph({
     p_metadata: metadata,
     p_nodes: nodesPayload,
     p_edges: edgesPayload,
+    p_deleted_node_ids: deletedNodeIdsPayload,
+    p_deleted_edge_ids: deletedEdgeIdsPayload,
     p_autosave: autosave,
+    p_expected_autosave_version: expectedAutosaveVersion,
   });
 
   if (error) throw error;
@@ -128,7 +136,11 @@ export async function createBlueprintShare(blueprintId, options = {}) {
     p_metadata: metadata,
   });
   if (error) throw error;
-  return data;
+  if (!data) return null;
+  return {
+    token: data.token ?? null,
+    expiresAt: data.expires_at ?? null,
+  };
 }
 
 export async function getBlueprintPublic(token) {
@@ -137,12 +149,17 @@ export async function getBlueprintPublic(token) {
   return data;
 }
 
-export async function renameBlueprint(blueprintId, nextTitle) {
-  const { error } = await supabase
-    .from('blueprints')
-    .update({ title: nextTitle, updated_at: new Date().toISOString() })
-    .eq('id', blueprintId);
+export async function renameBlueprint({ blueprintId, nextTitle, expectedAutosaveVersion } = {}) {
+  const { data, error } = await supabase.rpc('rename_blueprint_with_version', {
+    p_blueprint_id: blueprintId,
+    p_next_title: nextTitle ?? null,
+    p_expected_autosave_version:
+      typeof expectedAutosaveVersion === 'number' && Number.isFinite(expectedAutosaveVersion)
+        ? expectedAutosaveVersion
+        : null,
+  });
   if (error) throw error;
+  return Array.isArray(data) && data.length > 0 ? data[0] : null;
 }
 
 export async function updateBlueprintMetadata(blueprintId, patch) {
@@ -197,4 +214,5 @@ export async function deletePaletteItem(itemId) {
   });
   if (error) throw error;
 }
+
 
