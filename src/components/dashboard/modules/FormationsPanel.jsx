@@ -248,13 +248,13 @@ const FormationsPanel = () => {
           <div className="flex items-center gap-3" />
           <div className="flex gap-2">
             <Link to="/formation-builder">
-              <Button size="sm">
-                <PlusCircle className="mr-2 h-4 w-4" />
+              <Button size="sm" className="h-6 px-2 text-[0.65rem]">
+                <PlusCircle className="mr-1.5 h-3 w-3" />
                 Créer un parcours personnalisé
               </Button>
             </Link>
             <Link to="/formations">
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" className="h-6 px-2 text-[0.65rem]">
                 Choisir une formation
               </Button>
             </Link>
@@ -357,3 +357,4 @@ const FormationsPanel = () => {
 };
 
 export default FormationsPanel;
+

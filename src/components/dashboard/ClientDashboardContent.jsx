@@ -187,7 +187,7 @@ const ClientDashboardContent = () => {
             <h1 className="text-xl md:text-2xl font-semibold mb-1.5">
               Bonjour <span className="gradient-text">{user.profile?.pseudo || user.profile?.first_name || user.email.split('@')[0]}</span> !
             </h1>
-            <p className="text-sm md:text-base text-foreground/80">Bienvenue sur votre espace de formation! Si vous avez une question, n'hésitez pas à me contacter, cette plateforme est nouvelle pour nous tous!</p>
+            <p className="text-[0.7rem] md:text-sm text-foreground/80 leading-snug">Bienvenue sur votre espace de formation! Si vous avez une question, n'hésitez pas à me contacter, cette plateforme est nouvelle pour nous tous!</p>
           </motion.div>
           
           <div className="space-y-4">

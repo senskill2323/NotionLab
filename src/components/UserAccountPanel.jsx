@@ -7,12 +7,15 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import ManagedComponent from '@/components/ManagedComponent';
 import { 
   User, 
   GraduationCap, 
   Ticket, 
   LogOut,
-  LayoutDashboard
+  LayoutDashboard,
+  Wrench,
+  BookOpen
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -93,6 +96,20 @@ const UserAccountPanel = () => {
       title: 'Mon Dashboard',
       icon: LayoutDashboard,
       action: () => handleNavigation(resolveDashboardPath())
+    },
+    {
+      id: 'blueprints',
+      title: 'MyNotion',
+      icon: BookOpen,
+      componentKey: 'nav:client_blueprints',
+      action: () => handleNavigation('/blueprint-builder')
+    },
+    {
+      id: 'builder',
+      title: 'Builder',
+      icon: Wrench,
+      componentKey: 'nav:client_builder',
+      action: () => handleNavigation('/formation-builder')
     },
     {
       id: 'profile',
@@ -195,9 +212,8 @@ const UserAccountPanel = () => {
                 {menuItems.map((item) => {
                   const Icon = item.icon;
                   
-                  return (
+                  const menuButton = (
                     <Button
-                      key={item.id}
                       variant="ghost"
                       className="w-full justify-start p-4 h-auto rounded-none hover:bg-muted/50 max-sm:p-3"
                       onClick={item.action}
@@ -216,6 +232,20 @@ const UserAccountPanel = () => {
                       </div>
                     </Button>
                   );
+
+                  if (item.componentKey) {
+                    return (
+                      <ManagedComponent
+                        key={item.id}
+                        componentKey={item.componentKey}
+                        disabledTooltip={item.disabledTooltip}
+                      >
+                        {menuButton}
+                      </ManagedComponent>
+                    );
+                  }
+
+                  return React.cloneElement(menuButton, { key: item.id });
                 })}
               </div>
 
