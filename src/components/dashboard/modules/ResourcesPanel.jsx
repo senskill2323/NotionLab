@@ -317,11 +317,23 @@ const ResourcesPanel = ({ editMode = false }) => {
     <>
       <Card className="glass-effect h-full">
         <CardHeader className="p-3 pb-2">
-          <ModuleHeader
-            title="Mes Ressources"
-            Icon={FolderKanban}
-            variant="slate"
-          />
+          <div className="flex items-center gap-3">
+            <ModuleHeader
+              title="Mes Ressources"
+              Icon={FolderKanban}
+              variant="slate"
+            />
+            {!editMode && (
+              <Button
+                size="sm"
+                onClick={() => setIsEditDialogOpen(true)}
+                className="ml-auto bg-green-600/90 hover:bg-green-700 text-white h-9 px-3 text-xs font-medium rounded-full shadow-sm transition-all duration-200 hover:shadow"
+              >
+                <PlusCircle className="h-3 w-3 mr-1.5" />
+                Créer une ressource
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <div className="px-4 pb-3">
           <div className="flex items-center justify-between">
@@ -363,13 +375,6 @@ const ResourcesPanel = ({ editMode = false }) => {
                     </div>
                   )}
                 </div>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              {!editMode && (
-                <Button size="sm" variant="ghost" onClick={() => setIsEditDialogOpen(true)} className="h-7 w-7 p-0">
-                  <PlusCircle className="h-4 w-4" />
-                </Button>
               )}
             </div>
           </div>

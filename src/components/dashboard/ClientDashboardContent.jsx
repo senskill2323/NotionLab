@@ -181,13 +181,13 @@ const ClientDashboardContent = () => {
 
   return (
     <div className="min-h-screen">
-      <div className="pt-32 pb-16">
+      <div className="pt-10 pb-8">
         <div className="w-full px-4">
-          <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }} className="mb-8">
-            <h1 className="text-2xl md:text-3xl font-bold mb-2">
+          <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }} className="mb-5">
+            <h1 className="text-xl md:text-2xl font-semibold mb-1.5">
               Bonjour <span className="gradient-text">{user.profile?.pseudo || user.profile?.first_name || user.email.split('@')[0]}</span> !
             </h1>
-            <p className="text-base text-foreground/80">Bienvenue sur votre espace de formation! Si vous avez une question, n'hésitez pas à me contacter, cette plateforme est nouvelle pour nous tous!</p>
+            <p className="text-sm md:text-base text-foreground/80">Bienvenue sur votre espace de formation! Si vous avez une question, n'hésitez pas à me contacter, cette plateforme est nouvelle pour nous tous!</p>
           </motion.div>
           
           <div className="space-y-4">
