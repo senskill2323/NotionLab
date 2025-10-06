@@ -153,6 +153,29 @@
 [data-radix-scroll-area-viewport]::-webkit-scrollbar {
   display: none; /* Safari/Chrome */
 }
+.blueprint-palette-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--muted) / 0.35) transparent;
+}
+.blueprint-palette-scroll:hover {
+  scrollbar-color: hsl(var(--primary)) hsl(var(--muted) / 0.25);
+}
+.blueprint-palette-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.blueprint-palette-scroll::-webkit-scrollbar-track {
+  background: hsl(var(--muted) / 0.2);
+  border-radius: 9999px;
+}
+.blueprint-palette-scroll::-webkit-scrollbar-thumb {
+  background: hsl(var(--primary) / 0.7);
+  border: 2px solid transparent;
+  border-radius: 9999px;
+  background-clip: content-box;
+}
+.blueprint-palette-scroll::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--primary));
+}
 @layer utilities {
   .backdrop-filter,
   .backdrop-blur,

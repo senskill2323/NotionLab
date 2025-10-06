@@ -23,10 +23,10 @@ BEGIN
     RAISE EXCEPTION 'Authentication required';
   END IF;
 
-  SELECT bp.owner_id, bp.autosave_version
+  SELECT owner_id, autosave_version
   INTO v_owner, v_current_version
-  FROM public.blueprints AS bp
-  WHERE bp.id = p_blueprint_id
+  FROM public.blueprints
+  WHERE id = p_blueprint_id
   FOR UPDATE;
 
   IF v_owner IS NULL THEN
@@ -42,17 +42,15 @@ BEGIN
     RAISE EXCEPTION USING ERRCODE = 'P0001', MESSAGE = 'Autosave conflict detected', DETAIL = format('expected version %s but found %s', p_expected_autosave_version, v_current_version);
   END IF;
 
-  UPDATE public.blueprints AS bp
+  UPDATE public.blueprints
   SET title = v_next_title,
       autosave_version = v_current_version + 1,
       updated_at = now()
-  WHERE bp.id = p_blueprint_id;
+  WHERE id = p_blueprint_id;
 
   RETURN QUERY
-  SELECT p_blueprint_id AS blueprint_id, v_current_version + 1 AS autosave_version;
+  SELECT p_blueprint_id, v_current_version + 1;
 END;
 $function$;
-
-GRANT EXECUTE ON FUNCTION public.rename_blueprint_with_version(uuid, text, integer) TO authenticated;
 
 COMMIT;

@@ -165,7 +165,7 @@ const BlueprintPalette = ({ searchTerm, onSearchChange, catalog }) => {
   }, [catalog, normalizedSearch]);
 
   return (
-    <aside className="flex h-full flex-col gap-4 overflow-hidden border-r border-border/70 bg-muted/20 p-4">
+    <aside className="flex h-full min-h-0 flex-col gap-4 overflow-hidden border-r border-border/70 bg-muted/20 p-4">
       <div className="space-y-2">
         <p className="text-sm font-medium text-foreground">Palette</p>
         <Input
@@ -175,7 +175,7 @@ const BlueprintPalette = ({ searchTerm, onSearchChange, catalog }) => {
           className="h-9"
         />
       </div>
-      <div className="space-y-6">
+      <div className="blueprint-palette-scroll flex-1 space-y-6 overflow-y-auto pr-1">
         {filteredFamilies.map(({ family, items }) => (
           <PaletteSection key={family.id} family={family} items={items} />
         ))}
