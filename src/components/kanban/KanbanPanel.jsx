@@ -245,13 +245,13 @@ const KanbanPanel = () => {
 
   return (
     <div className="space-y-4">
-      <div className="relative overflow-hidden rounded-xl border-2 border-gradient-to-r from-violet-500/20 via-blue-500/20 to-emerald-500/20 bg-gradient-to-br from-violet-50 via-blue-50 to-emerald-50 dark:from-violet-900/20 dark:via-blue-900/20 dark:to-emerald-900/20 p-4 shadow-xl">
+      <div className="relative overflow-hidden rounded-xl border-2 border-gradient-to-r from-violet-500/20 via-blue-500/20 to-emerald-500/20 bg-gradient-to-br from-violet-50 via-blue-50 to-emerald-50 dark:from-violet-900/20 dark:via-blue-900/20 dark:to-emerald-900/20 p-2.5 shadow-xl">
         <div className="absolute inset-0 bg-gradient-to-r from-violet-500/10 via-blue-500/10 to-emerald-500/10 opacity-50"></div>
-        <div className="relative flex items-center gap-4">
+        <div className="relative flex items-center gap-2.5">
           <div className="relative">
             <div className="absolute inset-0 rounded-full bg-gradient-to-r from-violet-500 via-blue-500 to-emerald-500 opacity-20 blur-lg"></div>
-            <div className="relative flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-r from-violet-500 via-blue-500 to-emerald-500 shadow-lg">
-              <Workflow className="h-6 w-6 text-white" />
+            <div className="relative flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-r from-violet-500 via-blue-500 to-emerald-500 shadow-lg">
+              <Workflow className="h-3.5 w-3.5 text-white" />
             </div>
           </div>
           <div className="flex-1">

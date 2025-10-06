@@ -374,7 +374,7 @@ const ResourcesPanel = ({ editMode = false }) => {
             <div className="space-y-0">
               {displayResources.length > 0 ? (
                 <>
-                  <div className="px-2 py-1 mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/80 bg-muted/40 border border-border/60 rounded-md sm:hidden flex items-center gap-2">
+                  <div className="px-2 py-1 mb-1 text-[11px] font-semibold uppercase tracking-wide text-white bg-muted/40 border border-border/60 rounded-md sm:hidden flex items-center gap-2">
                     <span className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/5">
                       <Checkbox
                         checked={isAllSelected}
@@ -459,7 +459,7 @@ const ResourcesPanel = ({ editMode = false }) => {
                   </div>
 
                   {/* Unified desktop grid: header + rows */}
-                  <div className="hidden sm:grid grid-cols-[28px_minmax(0,1fr)_150px_120px] gap-0.5 items-center rounded-md border border-border/60 bg-muted/40 px-2 py-1 mb-1">
+                  <div className="hidden sm:grid grid-cols-[28px_minmax(0,1fr)_150px_120px] gap-0.5 items-center rounded-md border border-border/60 bg-muted/40 px-2 py-1 mb-1 text-white">
                     <div className="flex items-center justify-center pb-0">
                       <span className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/5">
                         <Checkbox
@@ -469,9 +469,9 @@ const ResourcesPanel = ({ editMode = false }) => {
                         />
                       </span>
                     </div>
-                    <div className="pb-0 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/80">Nom de la ressource</div>
-                    <div className="pb-0 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/80">Date d'ajout</div>
-                    <div className="text-right pr-2 pb-0 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/80">Actions</div>
+                    <div className="pb-0 text-[11px] font-semibold uppercase tracking-wide text-white">Nom de la ressource</div>
+                    <div className="pb-0 text-[11px] font-semibold uppercase tracking-wide text-white/90">Date d'ajout</div>
+                    <div className="text-right pr-2 pb-0 text-[11px] font-semibold uppercase tracking-wide text-white/90">Actions</div>
                   </div>
 
                   <div className="hidden sm:flex sm:flex-col sm:gap-0">

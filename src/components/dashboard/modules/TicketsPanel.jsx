@@ -376,7 +376,7 @@ import { Checkbox } from '@/components/ui/checkbox';
         return (
           <>
             <div className="sm:hidden space-y-0">
-              <div className="flex items-center gap-2 px-2 py-1 mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/80 bg-muted/40 border border-border/60 rounded-md">
+              <div className="flex items-center gap-2 px-2 py-1 mb-1 text-[11px] font-semibold uppercase tracking-wide text-white bg-muted/40 border border-border/60 rounded-md">
                 <span className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/5">
                   <Checkbox
                     checked={listFullySelected}
@@ -441,7 +441,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 
             <div className="hidden sm:flex sm:flex-col sm:gap-0">
               <div className={cn(
-                'grid items-center gap-0.5 px-3 py-1 mb-1 rounded-md border border-border/60 bg-muted/40 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/80',
+                'grid items-center gap-0.5 px-3 py-1 mb-1 rounded-md border border-border/60 bg-muted/40 text-[11px] font-semibold uppercase tracking-wide text-white',
                 DESKTOP_GRID_TEMPLATE
               )}>
                 {columnsConfig.map((col) => (
