@@ -25,21 +25,33 @@ const MindmapRootNode = ({ data, selected, isConnectable }) => (
         {data?.fields?.contexte && <p>Contexte : {data.fields.contexte}</p>}
       </div>
     )}
-    <Handle id="left-target" type="target" position={Position.Left} isConnectable={isConnectable} />
-    <Handle id="right-source" type="source" position={Position.Right} isConnectable={isConnectable} />
     <Handle
-      id="top-target"
+      id="center-target"
       type="target"
       position={Position.Top}
       isConnectable={isConnectable}
-      style={{ top: -6, left: '50%', transform: 'translateX(-50%)' }}
+      style={{
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        width: 16,
+        height: 16,
+        opacity: 0,
+      }}
     />
     <Handle
-      id="bottom-source"
+      id="center-source"
       type="source"
       position={Position.Bottom}
       isConnectable={isConnectable}
-      style={{ bottom: -6, left: '50%', transform: 'translateX(-50%)' }}
+      style={{
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        width: 16,
+        height: 16,
+        opacity: 0,
+      }}
     />
   </div>
 );
@@ -55,21 +67,33 @@ const MindmapBubbleNode = ({ data, selected, isConnectable }) => (
         {data?.subfamily ? ` • ${data.subfamily}` : ''}
       </p>
     )}
-    <Handle id="left-target" type="target" position={Position.Left} isConnectable={isConnectable} />
-    <Handle id="right-source" type="source" position={Position.Right} isConnectable={isConnectable} />
     <Handle
-      id="top-target"
+      id="center-target"
       type="target"
       position={Position.Top}
       isConnectable={isConnectable}
-      style={{ top: -6, left: '50%', transform: 'translateX(-50%)' }}
+      style={{
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        width: 14,
+        height: 14,
+        opacity: 0,
+      }}
     />
     <Handle
-      id="bottom-source"
+      id="center-source"
       type="source"
       position={Position.Bottom}
       isConnectable={isConnectable}
-      style={{ bottom: -6, left: '50%', transform: 'translateX(-50%)' }}
+      style={{
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        width: 14,
+        height: 14,
+        opacity: 0,
+      }}
     />
   </div>
 );

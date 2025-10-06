@@ -1165,10 +1165,28 @@ const scheduleHistorySnapshot = useCallback(
         ...nds.map((node) => ({ ...node, selected: node.id === targetParent })),
         newNode,
       ]);
+      if (targetParent && targetParent !== nodeId) {
+        const connection = attachEdgeHelpers({
+          id: uuidv4(),
+          source: targetParent,
+          target: nodeId,
+          type: 'blueprintEdge',
+          sourceHandle: 'center-source',
+          targetHandle: 'center-target',
+          data: {
+            metadata: {
+              sourceHandle: 'center-source',
+              targetHandle: 'center-target',
+            },
+            onDeleteEdge: removeEdgeById,
+          },
+        });
+        setEdges((eds) => addEdge(connection, eds.map(attachEdgeHelpers)));
+      }
       setSelectedNodeId(nodeId);
       scheduleHistorySnapshot();
     },
-    [scheduleHistorySnapshot, selectedNodeId, setNodes, setSelectedNodeId],
+    [attachEdgeHelpers, removeEdgeById, scheduleHistorySnapshot, selectedNodeId, setEdges, setNodes, setSelectedNodeId],
   );
 
   const updateNodeData = useCallback(
