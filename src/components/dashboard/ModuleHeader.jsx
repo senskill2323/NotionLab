@@ -28,6 +28,7 @@ export default function ModuleHeader({
   actions,
   variant = "slate",
   className,
+  iconClassName = "text-primary",
 }) {
   const gradient = variantClasses[variant] || variantClasses.slate;
 
@@ -42,7 +43,7 @@ export default function ModuleHeader({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3 min-w-0">
           {Icon ? (
-            <Icon className="h-5 w-5 text-primary shrink-0" aria-hidden="true" />
+            <Icon className={cn("h-5 w-5 shrink-0", iconClassName)} aria-hidden="true" />
           ) : (
             <div className="h-5 w-5 shrink-0 rounded-sm bg-primary/20" aria-hidden="true" />
           )}

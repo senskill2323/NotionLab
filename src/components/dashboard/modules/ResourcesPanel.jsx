@@ -322,6 +322,7 @@ const ResourcesPanel = ({ editMode = false }) => {
               title="Mes Ressources"
               Icon={FolderKanban}
               variant="slate"
+              iconClassName="text-emerald-400"
             />
             {!editMode && (
               <Button

@@ -241,6 +241,7 @@ const FormationsPanel = () => {
           title="Mes Formations"
           Icon={GraduationCap}
           variant="slate"
+          iconClassName="text-emerald-400"
         />
       </CardHeader>
       <div className="px-4 pb-3">

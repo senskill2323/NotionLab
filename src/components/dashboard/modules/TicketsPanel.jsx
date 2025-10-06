@@ -520,6 +520,7 @@ import { Checkbox } from '@/components/ui/checkbox';
             title="Mes Tickets"
             Icon={Ticket}
             variant="slate"
+            iconClassName="text-emerald-400"
           />
           {!editMode && (
             <Button
