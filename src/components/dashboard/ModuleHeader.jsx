@@ -34,7 +34,7 @@ export default function ModuleHeader({
   return (
     <div
       className={cn(
-        "w-full rounded-md border border-border/60 bg-gradient-to-r px-3 py-2 shadow-sm min-h-[48px]",
+        "w-full rounded-md border border-border/60 bg-gradient-to-r px-2.5 py-1 shadow-sm min-h-[28px]",
         gradient,
         className
       )}
@@ -42,9 +42,9 @@ export default function ModuleHeader({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3 min-w-0">
           {Icon ? (
-            <Icon className="h-8 w-8 text-primary shrink-0" aria-hidden="true" />
+            <Icon className="h-5 w-5 text-primary shrink-0" aria-hidden="true" />
           ) : (
-            <div className="h-8 w-8 shrink-0 rounded-sm bg-primary/20" aria-hidden="true" />
+            <div className="h-5 w-5 shrink-0 rounded-sm bg-primary/20" aria-hidden="true" />
           )}
           <div className="min-w-0">
             <h3 className="text-base font-semibold leading-tight truncate">{title}</h3>
