@@ -486,7 +486,7 @@ import { Checkbox } from '@/components/ui/checkbox';
   return (
     <Card className="h-full flex flex-col glass-effect">
       <CardHeader className="p-3 pb-2">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
           <ModuleHeader
             title="Mes Tickets"
             Icon={Ticket}
@@ -496,7 +496,7 @@ import { Checkbox } from '@/components/ui/checkbox';
             <Button
               size="sm"
               onClick={() => navigate('/nouveau-ticket')}
-              className="bg-green-600 hover:bg-green-700 text-white h-7 px-2.5 text-xs"
+              className="ml-auto bg-green-600/90 hover:bg-green-700 text-white h-9 px-3 text-xs font-medium rounded-full shadow-sm transition-all duration-200 hover:shadow"
             >
               <PlusCircle className="h-3 w-3 mr-1.5" />
               Créer un ticket
@@ -559,3 +559,4 @@ import { Checkbox } from '@/components/ui/checkbox';
 };
 
 export default TicketsPanel;
+
