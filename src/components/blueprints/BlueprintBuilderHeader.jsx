@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Copy, FileJson, LinkIcon, Loader2, RefreshCcw, Save, Share2, Sparkles, Trash2, Undo2, Redo2 } from 'lucide-react';
+import { Copy, LinkIcon, RefreshCcw, Save, Trash2, Undo2, Redo2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -59,28 +59,11 @@ const BlueprintBuilderHeader = ({
   onRedo,
   onDuplicate,
   onDelete,
-  onSnapshot,
-  onShare,
-  isShareLoading = false,
-  onExportJson,
   onExportPng,
   onExportSvg,
   onResolveConflict,
 }) => {
   const isConflict = autosaveState === 'conflict';
-
-  const handleSnapshot = async () => {
-    await onSnapshot?.({ label: `Snapshot ${new Date().toLocaleString('fr-FR')}` });
-  };
-
-  const handleShare = async () => {
-    if (isShareLoading) return;
-    await onShare?.();
-  };
-
-  const handleExportJson = () => {
-    onExportJson?.();
-  };
 
   return (
     <header className="border-b border-border/70 bg-card/80 px-4 py-3 backdrop-blur">
@@ -128,41 +111,10 @@ const BlueprintBuilderHeader = ({
               <Save className="mr-1.5 h-4 w-4" />
               Sauvegarder
             </Button>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button size="sm" variant="outline" onClick={handleSnapshot} disabled={isConflict}>
-                  <Sparkles className="mr-1.5 h-4 w-4" />
-                  Snapshot
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Creer un instantane JSON</TooltipContent>
-            </Tooltip>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleShare}
-              disabled={isConflict || isShareLoading}
-            >
-              {isShareLoading ? (
-                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-              ) : (
-                <Share2 className="mr-1.5 h-4 w-4" />
-              )}
-              {isShareLoading ? 'Génération...' : 'Partager'}
-            </Button>
             <Button size="sm" variant="outline" onClick={onDuplicate} disabled={isConflict}>
               <RefreshCcw className="mr-1.5 h-4 w-4" />
               Dupliquer
             </Button>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button size="sm" variant="outline" onClick={handleExportJson} disabled={isConflict}>
-                  <FileJson className="mr-1.5 h-4 w-4" />
-                  Export JSON
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Exporter le blueprint en JSON</TooltipContent>
-            </Tooltip>
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button size="sm" variant="destructive" disabled={isConflict}>

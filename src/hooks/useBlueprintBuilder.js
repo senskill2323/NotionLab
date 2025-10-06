@@ -1161,7 +1161,7 @@ export const useBlueprintBuilder = () => {
 
     try {
       await persistGraph({ autosave: false });
-      toast({ title: 'Enregistr�', description: 'Blueprint sauvegard�.' });
+      toast({ title: 'Enregistré', description: 'Blueprint sauvegardé.' });
       await fetchBlueprints();
     } catch (error) {
       void error;

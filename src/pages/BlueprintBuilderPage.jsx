@@ -9,7 +9,7 @@ import BlueprintInspector from '@/components/blueprints/BlueprintInspector';
 import BlueprintPalette, { getDefaultBlueprintPalette } from '@/components/blueprints/BlueprintPalette';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Plus } from 'lucide-react';
 import { useBlueprintBuilder } from '@/hooks/useBlueprintBuilder';
 
 import { emitBlueprintAutosaveTelemetry } from '@/lib/blueprints/telemetry';
@@ -52,8 +52,6 @@ const BlueprintBuilderShell = () => {
       handleManualSave,
       handleDeleteBlueprint,
       handleDuplicateBlueprint,
-      handleSnapshot,
-      handleShare,
       handleTitleChange,
       createBlueprint,
     },
@@ -207,7 +205,7 @@ const BlueprintBuilderShell = () => {
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
       <div className="flex h-screen w-full overflow-hidden">
         <div className="flex w-72 flex-col border-r border-border/60 bg-muted/30">
-          <div className="flex items-center justify-between border-b border-border/60 px-4 py-3">
+          <div className="border-b border-border/60 px-4 py-3 space-y-3">
             <Button
               variant="ghost"
               size="sm"
@@ -217,32 +215,38 @@ const BlueprintBuilderShell = () => {
               <ArrowLeft className="h-4 w-4" />
               Retour au dashboard
             </Button>
-            <Button size="sm" variant="outline" onClick={() => createBlueprint()}>
-              Nouveau
-            </Button>
-          </div>
-          <div className="border-b border-border/60 px-4 py-3">
-            <Select value={selectValue} onValueChange={handleSelectBlueprint}>
-              <SelectTrigger className="h-9 w-full justify-between">
-                <SelectValue
-                  placeholder={
-                    filteredBlueprints.length ? 'Sélectionner un blueprint' : 'Aucun blueprint disponible'
-                  }
-                />
-              </SelectTrigger>
-              <SelectContent>
-                {filteredBlueprints.map((item) => (
-                  <SelectItem key={item.id} value={item.id}>
-                    {item.title}
-                  </SelectItem>
-                ))}
-                {filteredBlueprints.length === 0 && (
-                  <SelectItem value="__empty" disabled>
-                    Aucun blueprint trouvé.
-                  </SelectItem>
-                )}
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-3">
+              <Select value={selectValue} onValueChange={handleSelectBlueprint}>
+                <SelectTrigger className="h-9 flex-1 justify-between">
+                  <SelectValue
+                    placeholder={
+                      filteredBlueprints.length ? 'Selectionner un blueprint' : 'Aucun blueprint disponible'
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {filteredBlueprints.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {item.title}
+                    </SelectItem>
+                  ))}
+                  {filteredBlueprints.length === 0 && (
+                    <SelectItem value="__empty" disabled>
+                      Aucun blueprint trouvé.
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                size="icon"
+                onClick={() => createBlueprint()}
+                className="h-10 w-10 rounded-full bg-emerald-500 text-white shadow-sm transition hover:bg-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60"
+                aria-label="Creer un blueprint"
+              >
+                <Plus className="h-5 w-5" />
+              </Button>
+            </div>
           </div>
           <BlueprintPalette searchTerm={searchTerm} onSearchChange={setSearchTerm} catalog={paletteCatalog} />
         </div>
@@ -261,9 +265,6 @@ const BlueprintBuilderShell = () => {
             onRedo={redo}
             onDuplicate={handleDuplicateBlueprint}
             onDelete={handleDeleteBlueprint}
-            onShare={handleShare}
-            onSnapshot={handleSnapshot}
-            onExportJson={handleExportJson}
             onExportPng={() => exportImage('png')}
             onExportSvg={() => exportImage('svg')}
           />
