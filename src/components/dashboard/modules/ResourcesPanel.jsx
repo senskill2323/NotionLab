@@ -62,6 +62,13 @@ const getFileIcon = (format) => {
     }
 };
 
+const formatResourceDate = (isoDate) => {
+  if (!isoDate) return '--';
+  const date = new Date(isoDate);
+  if (Number.isNaN(date.getTime())) return '--';
+  return date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
 const ResourcesPanel = ({ editMode = false }) => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -369,76 +376,165 @@ const ResourcesPanel = ({ editMode = false }) => {
         </div>
         <CardContent className="p-4 pt-0">
           {loading ? <div className="flex justify-center items-center h-20"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div> : (
-            <div className="space-y-1.5">
-              {displayResources.length > 0 ? displayResources.map((resource) => (
-                <div 
-                  key={resource.source_id} 
-                  className={`
-                    relative group overflow-hidden border border-border/60 rounded-md p-1.5 flex items-center justify-between gap-2 
-                    transition-all duration-200 hover:bg-muted/40 cursor-pointer
-                    ${selectedIds.has(resource.source_id) ? 'ring-1 ring-primary/30 bg-muted/20' : ''}
-                    motion-safe:hover:shadow-sm
-                  `}
-                  onClick={() => handleToggleSelect(resource.source_id)}
-                >
-                  {/* Cross-over effect */}
-                  <div className="pointer-events-none absolute inset-0 -skew-x-6 bg-gradient-to-r from-transparent via-primary/8 to-transparent translate-x-[-100%] opacity-0 transition-all duration-500 motion-safe:group-hover:translate-x-[100%] motion-safe:group-hover:opacity-100" />
-                  
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <Checkbox
-                      checked={selectedIds.has(resource.source_id)}
-                      onCheckedChange={() => handleToggleSelect(resource.source_id)}
-                      className="h-3.5 w-3.5"
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                    {getFileIcon(resource.format)}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center">
-                        <h4 className="font-medium text-xs truncate">{resource.name}</h4>
-                        <StarRating rating={resource.rating} onRate={handleRate} resourceId={resource.resource_id} editMode={editMode} />
-                      </div>
-                    </div>
+            <div className="space-y-0">
+              {displayResources.length > 0 ? (
+                <>
+                  <div className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/80 sm:hidden">
+                    Nom de la ressource
                   </div>
-                  <div className="flex items-center gap-1">
-                      <TooltipProvider>
-                          <Tooltip>
+                  {/* Mobile list */}
+                  <div className="sm:hidden space-y-0">
+                    {displayResources.map((resource) => (
+                      <div
+                        key={resource.source_id}
+                        className={`
+                          relative group overflow-hidden px-2 py-0.5 flex items-center justify-between gap-1 
+                          transition-all duration-200 hover:bg-muted/40 cursor-pointer
+                          ${selectedIds.has(resource.source_id) ? 'ring-1 ring-primary/30 bg-muted/20' : ''}
+                          motion-safe:hover:shadow-sm
+                        `}
+                        onClick={() => handleToggleSelect(resource.source_id)}
+                      >
+                        {/* Cross-over effect - mobile only */}
+                        <div className="pointer-events-none absolute inset-0 -skew-x-6 bg-gradient-to-r from-transparent via-primary/8 to-transparent translate-x-[-100%] opacity-0 transition-all duration-500 motion-safe:group-hover:translate-x-[100%] motion-safe:group-hover:opacity-100" />
+
+                        <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                          <Checkbox
+                            checked={selectedIds.has(resource.source_id)}
+                            onCheckedChange={() => handleToggleSelect(resource.source_id)}
+                            className="h-3.5 w-3.5"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          {getFileIcon(resource.format)}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs truncate">{resource.name}</span>
+                              <StarRating rating={resource.rating} onRate={handleRate} resourceId={resource.resource_id} editMode={editMode} />
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-0.5">{formatResourceDate(resource.created_at)}</div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <TooltipProvider>
+                            <Tooltip>
                               <TooltipTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleAction('Consulter', resource); }}>
-                                      <Eye className="w-3.5 h-3.5" />
-                                  </Button>
+                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleAction('Consulter', resource); }}>
+                                  <Eye className="w-3.5 h-3.5" />
+                                </Button>
                               </TooltipTrigger>
                               <TooltipContent><p>Consulter</p></TooltipContent>
-                          </Tooltip>
-                          {resource.source_type === 'created' && (
-                               <Tooltip>
-                                  <TooltipTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleAction('Modifier', resource); }}>
-                                          <Pencil className="w-3.5 h-3.5" />
-                                      </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent><p>Modifier</p></TooltipContent>
-                              </Tooltip>
-                          )}
-                          <Tooltip>
-                              <TooltipTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleAction('Exporter', resource); }}>
-                                      <FileSpreadsheet className="w-3.5 h-3.5" />
+                            </Tooltip>
+                            {resource.source_type === 'created' && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleAction('Modifier', resource); }}>
+                                    <Pencil className="w-3.5 h-3.5" />
                                   </Button>
+                                </TooltipTrigger>
+                                <TooltipContent><p>Modifier</p></TooltipContent>
+                              </Tooltip>
+                            )}
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleAction('Exporter', resource); }}>
+                                  <FileSpreadsheet className="w-3.5 h-3.5" />
+                                </Button>
                               </TooltipTrigger>
                               <TooltipContent><p>Exporter en CSV</p></TooltipContent>
-                          </Tooltip>
-                          <Tooltip>
+                            </Tooltip>
+                            <Tooltip>
                               <TooltipTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); handleAction('Supprimer', resource); }}>
-                                      <Trash2 className="w-3.5 h-3.5" />
-                                  </Button>
+                                <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); handleAction('Supprimer', resource); }}>
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
                               </TooltipTrigger>
                               <TooltipContent><p>Supprimer</p></TooltipContent>
-                          </Tooltip>
-                      </TooltipProvider>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </div>
-              )) : (
+
+                  {/* Unified desktop grid: header + rows */}
+                  <div className="hidden sm:grid grid-cols-[minmax(0,1fr)_150px_120px] gap-0.5">
+                    <div className="pl-8 pb-0 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/80">Nom de la ressource</div>
+                    <div className="pl-1 pb-0 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/80">Date d'ajout</div>
+                    <div className="text-right pr-2 pb-0 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/80">Actions</div>
+
+                    {displayResources.map((resource) => {
+                      const isSelected = selectedIds.has(resource.source_id);
+                      return (
+                        <div
+                          key={resource.source_id}
+                          className={`col-span-3 relative group rounded-md transition-all duration-200 cursor-pointer hover:bg-muted/40 ${isSelected ? 'bg-muted/20 ring-1 ring-primary/30' : ''}`}
+                          onClick={() => handleToggleSelect(resource.source_id)}
+                        >
+                          <span className="pointer-events-none absolute inset-0 -skew-x-6 rounded-md bg-gradient-to-r from-transparent via-primary/8 to-transparent translate-x-[-100%] opacity-0 transition-all duration-500 motion-safe:group-hover:translate-x-[100%] motion-safe:group-hover:opacity-100" />
+                          <div className="relative z-10 grid grid-cols-[minmax(0,1fr)_150px_120px] gap-0.5 px-2 py-0.5 items-center">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <Checkbox
+                                checked={isSelected}
+                                onCheckedChange={() => handleToggleSelect(resource.source_id)}
+                                className="h-3.5 w-3.5"
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                              {getFileIcon(resource.format)}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs truncate">{resource.name}</span>
+                                  <StarRating rating={resource.rating} onRate={handleRate} resourceId={resource.resource_id} editMode={editMode} />
+                                </div>
+                              </div>
+                            </div>
+                            <div className="pl-1 text-left text-xs text-muted-foreground sm:text-sm">
+                              {formatResourceDate(resource.created_at)}
+                            </div>
+                            <div className="flex items-center gap-1 justify-end pr-2">
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleAction('Consulter', resource); }}>
+                                      <Eye className="w-3.5 h-3.5" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent><p>Consulter</p></TooltipContent>
+                                </Tooltip>
+                                {resource.source_type === 'created' && (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleAction('Modifier', resource); }}>
+                                        <Pencil className="w-3.5 h-3.5" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent><p>Modifier</p></TooltipContent>
+                                  </Tooltip>
+                                )}
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleAction('Exporter', resource); }}>
+                                      <FileSpreadsheet className="w-3.5 h-3.5" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent><p>Exporter en CSV</p></TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); handleAction('Supprimer', resource); }}>
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent><p>Supprimer</p></TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              ) : (
                 <p className="text-center text-sm text-muted-foreground py-4">Aucune ressource. Creez-en depuis votre tableau de bord !</p>
               )}
             </div>

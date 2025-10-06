@@ -5,7 +5,6 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
     import { Card, CardHeader, CardContent } from '@/components/ui/card';
     import { Button } from '@/components/ui/button';
     import { Badge } from '@/components/ui/badge';
-    import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
     import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
     import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
     import { Loader2, PlusCircle, AlertCircle, Inbox, User, Ticket, Copy, Trash2 } from 'lucide-react';
@@ -14,6 +13,7 @@ import { Checkbox } from '@/components/ui/checkbox';
     import { usePermissions } from '@/contexts/PermissionsContext';
     import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
     import ModuleHeader from '@/components/dashboard/ModuleHeader';
+    import { cn } from '@/lib/utils';
 
     const TicketsPanel = ({ editMode = false }) => {
       const { user } = useAuth();
@@ -32,13 +32,13 @@ import { Checkbox } from '@/components/ui/checkbox';
         switch (status) {
           case 'A traiter': return 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
           case 'En cours': return 'bg-orange-200 text-orange-800 dark:bg-orange-800/50 dark:text-orange-200';
-          case 'Résolu': return 'bg-green-200 text-green-800 dark:bg-green-800/50 dark:text-green-200';
+          case 'Resolu': return 'bg-green-200 text-green-800 dark:bg-green-800/50 dark:text-green-200';
           case 'Fermé': case 'Abandonné': return 'bg-purple-200 text-purple-800 dark:bg-purple-800/50 dark:text-purple-200';
           default: return 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
         }
       };
 
-      const getPriorityBadgeConfig = (priority) => {
+      const getPrioritéyBadgeConfig = (priority) => {
         switch (priority) {
           case 'Bas': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300';
           case 'Moyen': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300';
@@ -50,7 +50,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 
       const canCreateTickets = permissions && permissions['tickets:create'];
       const canChangeStatus = permissions && permissions['tickets:change_status'];
-      const canChangePriority = permissions && permissions['tickets:change_priority'];
+      const canChangePrioritéy = permissions && permissions['tickets:change_priority'];
 
       const fetchTickets = useCallback(async () => {
         if (!user || editMode) return;
@@ -223,19 +223,27 @@ import { Checkbox } from '@/components/ui/checkbox';
         fetchTickets();
       };
 
-      const archivedStatuses = ['Résolu', 'Abandonné', 'Fermé'];
-      const inProgressTickets = tickets.filter(t => !archivedStatuses.includes(t.status));
-      const archivedTickets = tickets.filter(t => archivedStatuses.includes(t.status));
+      const normalizeStatus = (status) =>
+        (status || '')
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .toLowerCase();
+
+      const archivedStatusSet = new Set(['resolu', 'ferme', 'abandonne', 'closed']);
+
+      const inProgressTickets = tickets.filter((t) => !archivedStatusSet.has(normalizeStatus(t.status)));
+      const archivedTickets = tickets.filter((t) => archivedStatusSet.has(normalizeStatus(t.status)));
       
       const demoInProgressTicket = {id: 1, reference_number: 'CS-031', title: "Exemple de ticket en cours", status: "En cours", priority: "Haut", created_at: new Date().toISOString(), assigned_to_profile: { first_name: 'Yann', last_name: 'V.' } };
-      const demoArchivedTicket = {id: 2, reference_number: 'CS-030', title: "Exemple de ticket archivé", status: "Résolu", priority: "Bas", created_at: new Date(Date.now() - 86400000).toISOString(), assigned_to_profile: { first_name: 'Yann', last_name: 'V.' } };
+      const demoArchivedTicket = {id: 2, reference_number: 'CS-030', title: "Exemple de ticket archivé", status: "Resolu", priority: "Bas", created_at: new Date(Date.now() - 86400000).toISOString(), assigned_to_profile: { first_name: 'Yann', last_name: 'V.' } };
 
-      // Single source of truth for headers and cells to prevent any misalignment
+      const DESKTOP_GRID_TEMPLATE = 'grid-cols-[32px_110px_minmax(0,1fr)_150px_120px_110px_90px]';
       const columnsConfig = [
         {
           key: 'select',
           header: '',
-          className: 'w-8',
+          headerClassName: 'justify-center',
+          cellClassName: 'flex items-center justify-center',
           render: (ticket) => (
             <Checkbox
               checked={selectedIds.has(ticket.id)}
@@ -247,20 +255,22 @@ import { Checkbox } from '@/components/ui/checkbox';
         },
         {
           key: 'reference_number',
-          header: 'N° de ticket',
-          className: 'font-mono text-xs text-muted-foreground w-20',
+          header: 'N de ticket',
+          headerClassName: 'justify-start text-left',
+          cellClassName: 'font-mono text-xs text-muted-foreground flex items-center',
           render: (ticket) => ticket.reference_number || '-'
         },
         {
           key: 'title',
           header: 'Description du ticket',
-          className: 'font-normal truncate',
+          headerClassName: 'justify-start text-left',
+          cellClassName: 'flex items-center gap-2 min-w-0 text-sm',
           render: (ticket) => (
-            <div className="flex items-center gap-2">
-              <span className="truncate max-w-[220px] lg:max-w-[280px]">{ticket.title}</span>
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="truncate max-w-[240px] xl:max-w-[320px]">{ticket.title}</span>
               {ticket.hasNewAdminReply && !editMode && (
-                <span className="text-[10px] uppercase tracking-wide font-semibold text-primary border border-primary/40 bg-primary/10 rounded px-2 py-0.5">
-                  Reponse admin
+                <span className="text-[10px] uppercase tracking-wide font-semibold text-primary border border-primary/40 bg-primary/10 rounded px-2 py-0.5 flex-shrink-0">
+                  Réponse admin
                 </span>
               )}
             </div>
@@ -269,7 +279,8 @@ import { Checkbox } from '@/components/ui/checkbox';
         {
           key: 'status',
           header: 'Statut',
-          className: 'w-32',
+          headerClassName: 'justify-start',
+          cellClassName: 'flex items-center',
           render: (ticket) => (
             <Select
               defaultValue={ticket.status}
@@ -277,42 +288,43 @@ import { Checkbox } from '@/components/ui/checkbox';
               disabled={editMode}
               onClick={(e) => e.stopPropagation()}
             >
-              <SelectTrigger className="h-7 w-28 text-xs border-none shadow-none focus:ring-1 focus:ring-primary/20 [&>svg]:hidden">
+              <SelectTrigger className="h-7 w-full max-w-[140px] text-xs border-none shadow-none focus:ring-1 focus:ring-primary/20 [&>svg]:hidden">
                 <SelectValue asChild>
                   <Badge variant="outline" className={`text-xs px-2 py-0.5 border-none ${getStatusBadgeConfig(ticket.status)}`}>
                     {ticket.status}
                   </Badge>
                 </SelectValue>
               </SelectTrigger>
-              <SelectContent className="min-w-[120px]">
-                <SelectItem value="A traiter">À traiter</SelectItem>
+              <SelectContent className="min-w-[140px]">
+                <SelectItem value="A traiter"> traiter</SelectItem>
                 <SelectItem value="En cours">En cours</SelectItem>
-                <SelectItem value="Résolu">Résolu</SelectItem>
-                <SelectItem value="Fermé">Fermé</SelectItem>
-                <SelectItem value="Abandonné">Abandonné</SelectItem>
+                <SelectItem value="Rsolu">Rsolu</SelectItem>
+                <SelectItem value="Ferm">Ferm</SelectItem>
+                <SelectItem value="Abandonn">Abandonn</SelectItem>
               </SelectContent>
             </Select>
           )
         },
         {
           key: 'priority',
-          header: 'Priorité',
-          className: 'w-24',
+          header: 'Prioritéé',
+          headerClassName: 'justify-start',
+          cellClassName: 'flex items-center',
           render: (ticket) => (
             <Select
               defaultValue={ticket.priority}
-              onValueChange={(newPriority) => handleFieldChange(ticket.id, 'priority', newPriority)}
+              onValueChange={(newPrioritéy) => handleFieldChange(ticket.id, 'priority', newPrioritéy)}
               disabled={editMode}
               onClick={(e) => e.stopPropagation()}
             >
-              <SelectTrigger className="h-7 w-20 text-xs border-none shadow-none focus:ring-1 focus:ring-primary/20 [&>svg]:hidden">
+              <SelectTrigger className="h-7 w-full max-w-[120px] text-xs border-none shadow-none focus:ring-1 focus:ring-primary/20 [&>svg]:hidden">
                 <SelectValue asChild>
-                  <Badge variant="outline" className={`text-xs px-2 py-0.5 border-none ${getPriorityBadgeConfig(ticket.priority)}`}>
+                  <Badge variant="outline" className={`text-xs px-2 py-0.5 border-none ${getPrioritéyBadgeConfig(ticket.priority)}`}>
                     {ticket.priority}
                   </Badge>
                 </SelectValue>
               </SelectTrigger>
-              <SelectContent className="min-w-[100px]">
+              <SelectContent className="min-w-[120px]">
                 <SelectItem value="Bas">Bas</SelectItem>
                 <SelectItem value="Moyen">Moyen</SelectItem>
                 <SelectItem value="Haut">Haut</SelectItem>
@@ -324,13 +336,15 @@ import { Checkbox } from '@/components/ui/checkbox';
         {
           key: 'date',
           header: 'Date',
-          className: 'text-xs w-20',
+          headerClassName: 'justify-start',
+          cellClassName: 'text-xs text-muted-foreground',
           render: (ticket) => formatDate(ticket.created_at)
         },
         {
           key: 'time',
           header: 'Heure',
-          className: 'text-xs w-16',
+          headerClassName: 'justify-start',
+          cellClassName: 'text-xs text-muted-foreground',
           render: (ticket) => formatTime(ticket.created_at)
         }
       ];
@@ -340,53 +354,118 @@ import { Checkbox } from '@/components/ui/checkbox';
           return (
             <div className="flex flex-col justify-center items-center h-40 text-muted-foreground">
               <Inbox className="w-8 h-8 mb-2" />
-              <p>Aucun ticket dans cette catégorie.</p>
+              <p>Aucun ticket dans cette catgorie.</p>
             </div>
           );
         }
+
+        const selectColumn = columnsConfig.find((col) => col.key === 'select');
+        const statusColumn = columnsConfig.find((col) => col.key === 'status');
+        const priorityColumn = columnsConfig.find((col) => col.key === 'priority');
+        const referenceColumn = columnsConfig.find((col) => col.key === 'reference_number');
+
         return (
-          <Table>
-            <colgroup>
-              <col className="w-8" />
-              <col className="w-20" />
-              <col />
-              <col className="w-32" />
-              <col className="w-24" />
-              <col className="w-20" />
-              <col className="w-16" />
-            </colgroup>
-            <TableHeader>
-              <TableRow>
-                {columnsConfig.map(col => (
-                  <TableHead key={`head-${col.key}`} className={col.className}>{col.header}</TableHead>
+          <>
+            <div className="sm:hidden space-y-0">
+              {ticketList.map((ticket) => {
+                const isSelected = selectedIds.has(ticket.id);
+                const hasNewReply = ticket.hasNewAdminReply && !editMode;
+                const mobileClasses = cn(
+                  'relative flex flex-col gap-1 rounded-md border border-border/60 bg-card/40 px-3 py-1 transition-all duration-200 cursor-pointer',
+                  isSelected && 'ring-1 ring-primary/40 bg-primary/5',
+                  hasNewReply && 'bg-primary/10 dark:bg-primary/20 animate-[pulse_1.6s_ease-in-out_infinite]'
+                );
+
+                return (
+                  <div
+                    key={`mobile-${ticket.id}`}
+                    className={mobileClasses}
+                    onClick={() => {
+                      if (editMode) return;
+                      if (ticket.hasNewAdminReply) {
+                        setTickets((prev) => prev.map((t) => t.id === ticket.id ? { ...t, hasNewAdminReply: false } : t));
+                      }
+                      navigate(`/ticket/${ticket.id}`);
+                    }}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div onClick={(e) => e.stopPropagation()}>
+                        {selectColumn?.render(ticket)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                          <span className="font-mono">{referenceColumn?.render(ticket)}</span>
+                          <span>{`${formatDate(ticket.created_at)} - ${formatTime(ticket.created_at)}`}</span>
+                        </div>
+                        <p className="mt-1 text-sm font-medium truncate">{ticket.title}</p>
+                        {ticket.hasNewAdminReply && !editMode && (
+                          <span className="mt-1 inline-flex text-[10px] uppercase tracking-wide font-semibold text-primary border border-primary/40 bg-primary/10 rounded px-2 py-0.5">
+                            Réponse admin
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1 text-xs">
+                      <div className="flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
+                        <span className="text-muted-foreground/80 uppercase tracking-wide text-[10px]">Statut</span>
+                        {statusColumn?.render(ticket)}
+                      </div>
+                      <div className="flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
+                        <span className="text-muted-foreground/80 uppercase tracking-wide text-[10px]">Priorité</span>
+                        {priorityColumn?.render(ticket)}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="hidden sm:flex sm:flex-col sm:gap-0">
+              <div className={cn(
+                'grid items-center gap-0.5 px-3 pb-0 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/80',
+                DESKTOP_GRID_TEMPLATE
+              )}>
+                {columnsConfig.map((col) => (
+                  <div key={`header-${col.key}`} className={cn('flex', col.headerClassName)}>
+                    {col.header}
+                  </div>
                 ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {ticketList.map((ticket) => (
-                <TableRow
-                  key={ticket.id}
-                  className={`group cursor-pointer transition-colors hover:bg-muted/30 motion-safe:hover:shadow-sm ${ticket.hasNewAdminReply && !editMode ? 'bg-primary/10 dark:bg-primary/20 animate-[pulse_1.6s_ease-in-out_infinite]' : ''}`}
-                  onClick={() => {
-                    if (editMode) return;
-                    if (ticket.hasNewAdminReply) {
-                      setTickets(prev => prev.map(t => t.id === ticket.id ? { ...t, hasNewAdminReply: false } : t));
-                    }
-                    navigate(`/ticket/${ticket.id}`);
-                  }}
-                >
-                  {columnsConfig.map((col) => (
-                    <TableCell key={`${ticket.id}-${col.key}`} className={col.className}>
-                      {col.render(ticket)}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </div>
+              {ticketList.map((ticket) => {
+                const isSelected = selectedIds.has(ticket.id);
+                const hasNewReply = ticket.hasNewAdminReply && !editMode;
+                const rowClasses = cn(
+                  'group relative grid items-center gap-0.5 px-3 py-0.5 rounded-md transition-all duration-200 cursor-pointer hover:bg-muted/30 motion-safe:hover:shadow-sm',
+                  DESKTOP_GRID_TEMPLATE,
+                  isSelected && 'bg-muted/20 ring-1 ring-primary/30',
+                  hasNewReply && 'bg-primary/10 dark:bg-primary/20 animate-[pulse_1.6s_ease-in-out_infinite]'
+                );
+
+                return (
+                  <div
+                    key={ticket.id}
+                    className={rowClasses}
+                    onClick={() => {
+                      if (editMode) return;
+                      if (ticket.hasNewAdminReply) {
+                        setTickets((prev) => prev.map((t) => t.id === ticket.id ? { ...t, hasNewAdminReply: false } : t));
+                      }
+                      navigate(`/ticket/${ticket.id}`);
+                    }}
+                  >
+                    <span className="pointer-events-none absolute inset-0 -skew-x-6 rounded-md bg-gradient-to-r from-transparent via-primary/8 to-transparent translate-x-[-100%] opacity-0 transition-all duration-500 motion-safe:group-hover:translate-x-[100%] motion-safe:group-hover:opacity-100" />
+                    {columnsConfig.map((col) => (
+                      <div key={`${ticket.id}-${col.key}`} className={cn('min-w-0', col.cellClassName)}>
+                        {col.render(ticket)}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          </>
         );
       };
-
       const renderContent = () => {
         const effectiveLoading = loading || (!editMode && permissionsLoading && !hasLoadedOnceRef.current);
         if (effectiveLoading) return <div className="flex justify-center items-center h-40"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
@@ -414,10 +493,10 @@ import { Checkbox } from '@/components/ui/checkbox';
             variant="slate"
           />
           {!editMode && (
-            <Button 
-              size="sm" 
-              onClick={() => navigate('/nouveau-ticket')} 
-              className="bg-green-600 hover:bg-green-700 text-white h-7 px-3 text-xs"
+            <Button
+              size="sm"
+              onClick={() => navigate('/nouveau-ticket')}
+              className="bg-green-600 hover:bg-green-700 text-white h-7 px-2.5 text-xs"
             >
               <PlusCircle className="h-3 w-3 mr-1.5" />
               Créer un ticket
@@ -480,4 +559,3 @@ import { Checkbox } from '@/components/ui/checkbox';
 };
 
 export default TicketsPanel;
-
