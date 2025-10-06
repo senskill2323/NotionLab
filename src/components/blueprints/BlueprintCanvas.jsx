@@ -14,7 +14,7 @@ import BlueprintEdge from '@/components/blueprints/BlueprintEdge';
 
 const MindmapRootNode = ({ data, selected, isConnectable }) => (
   <div
-    className={`relative rounded-full border-2 ${selected ? 'border-primary' : 'border-primary/70'} bg-primary/10 px-8 py-6 shadow-lg backdrop-blur`}
+    className={`relative rounded-lg border-2 ${selected ? 'border-primary' : 'border-primary/70'} bg-primary/10 px-8 py-6 shadow-lg backdrop-blur`}
   >
     <p className="text-base font-semibold text-primary">
       {data?.title ?? 'Noud central'}
@@ -46,7 +46,7 @@ const MindmapRootNode = ({ data, selected, isConnectable }) => (
 
 const MindmapBubbleNode = ({ data, selected, isConnectable }) => (
   <div
-    className={`relative max-w-[220px] rounded-full border ${selected ? 'border-primary shadow-lg shadow-primary/20' : 'border-border/60'} bg-background/95 px-4 py-3 text-center shadow-sm transition-all`}
+    className={`relative max-w-[220px] rounded-md border ${selected ? 'border-primary shadow-lg shadow-primary/20' : 'border-border/60'} bg-background/95 px-4 py-3 text-center shadow-sm transition-all`}
   >
     <p className="text-sm font-medium text-foreground/90">{data?.title ?? '�l�ment'}</p>
     {data?.family && (
