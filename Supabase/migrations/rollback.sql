@@ -39,7 +39,9 @@ BEGIN
 
   IF p_expected_autosave_version IS NOT NULL AND p_expected_autosave_version <> v_current_version THEN
     PERFORM set_config('response.status', '409', true);
-    RAISE EXCEPTION USING ERRCODE = 'P0001', MESSAGE = 'Autosave conflict detected', DETAIL = format('expected version %s but found %s', p_expected_autosave_version, v_current_version);
+    RAISE EXCEPTION USING ERRCODE = 'P0001',
+      MESSAGE = 'Autosave conflict detected',
+      DETAIL = format('expected version %s but found %s', p_expected_autosave_version, v_current_version);
   END IF;
 
   UPDATE public.blueprints
