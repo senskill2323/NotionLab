@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import ReactFlow, {
   Background,
   Controls,
@@ -9,6 +9,8 @@ import ReactFlow, {
 } from 'reactflow';
 
 import 'reactflow/dist/style.css';
+
+import BlueprintEdge from '@/components/blueprints/BlueprintEdge';
 
 const MindmapRootNode = ({ data, selected, isConnectable }) => (
   <div
@@ -23,8 +25,22 @@ const MindmapRootNode = ({ data, selected, isConnectable }) => (
         {data?.fields?.contexte && <p>Contexte : {data.fields.contexte}</p>}
       </div>
     )}
-    <Handle type="target" position={Position.Left} isConnectable={isConnectable} />
-    <Handle type="source" position={Position.Right} isConnectable={isConnectable} />
+    <Handle id="left-target" type="target" position={Position.Left} isConnectable={isConnectable} />
+    <Handle id="right-source" type="source" position={Position.Right} isConnectable={isConnectable} />
+    <Handle
+      id="top-target"
+      type="target"
+      position={Position.Top}
+      isConnectable={isConnectable}
+      style={{ top: -6, left: '50%', transform: 'translateX(-50%)' }}
+    />
+    <Handle
+      id="bottom-source"
+      type="source"
+      position={Position.Bottom}
+      isConnectable={isConnectable}
+      style={{ bottom: -6, left: '50%', transform: 'translateX(-50%)' }}
+    />
   </div>
 );
 
@@ -39,8 +55,22 @@ const MindmapBubbleNode = ({ data, selected, isConnectable }) => (
         {data?.subfamily ? ` • ${data.subfamily}` : ''}
       </p>
     )}
-    <Handle type="target" position={Position.Left} isConnectable={isConnectable} />
-    <Handle type="source" position={Position.Right} isConnectable={isConnectable} />
+    <Handle id="left-target" type="target" position={Position.Left} isConnectable={isConnectable} />
+    <Handle id="right-source" type="source" position={Position.Right} isConnectable={isConnectable} />
+    <Handle
+      id="top-target"
+      type="target"
+      position={Position.Top}
+      isConnectable={isConnectable}
+      style={{ top: -6, left: '50%', transform: 'translateX(-50%)' }}
+    />
+    <Handle
+      id="bottom-source"
+      type="source"
+      position={Position.Bottom}
+      isConnectable={isConnectable}
+      style={{ bottom: -6, left: '50%', transform: 'translateX(-50%)' }}
+    />
   </div>
 );
 
@@ -50,7 +80,7 @@ export const blueprintNodeTypes = {
 };
 
 export const blueprintDefaultEdgeOptions = {
-  type: 'smoothstep',
+  type: 'blueprintEdge',
   style: {
     stroke: 'hsl(var(--primary))',
     strokeWidth: 1.5,
@@ -69,6 +99,7 @@ const BlueprintCanvas = ({
   flowWrapperRef,
 }) => {
   const instance = useReactFlow();
+  const edgeTypes = useMemo(() => ({ blueprintEdge: BlueprintEdge }), []);
 
   useEffect(() => {
     if (!instance || nodes.length === 0) return;
@@ -92,6 +123,7 @@ const BlueprintCanvas = ({
           onPaneClick?.();
         }}
         nodeTypes={blueprintNodeTypes}
+        edgeTypes={edgeTypes}
         fitView
         fitViewOptions={{ padding: 0.2, duration: 300 }}
         connectionMode={ConnectionMode.Strict}

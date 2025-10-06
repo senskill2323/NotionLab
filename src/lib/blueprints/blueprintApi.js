@@ -16,13 +16,28 @@ const mapNodeForPersistence = (node) => ({
   metadata: node.data?.metadata ?? {},
 });
 
-const mapEdgeForPersistence = (edge) => ({
-  id: edge.id,
-  source: edge.source,
-  target: edge.target,
-  label: edge.label ?? null,
-  metadata: edge.data?.metadata ?? {},
-});
+const mapEdgeForPersistence = (edge) => {
+  const metadata = edge.data?.metadata ? { ...edge.data.metadata } : {};
+
+  if ('onDeleteEdge' in metadata) {
+    delete metadata.onDeleteEdge;
+  }
+
+  if (edge.sourceHandle) {
+    metadata.sourceHandle = edge.sourceHandle;
+  }
+  if (edge.targetHandle) {
+    metadata.targetHandle = edge.targetHandle;
+  }
+
+  return {
+    id: edge.id,
+    source: edge.source,
+    target: edge.target,
+    label: edge.label ?? null,
+    metadata,
+  };
+};
 
 export async function listBlueprints() {
   const { data, error } = await supabase.rpc('list_blueprints');
@@ -54,16 +69,38 @@ export async function getBlueprintById(id) {
       },
       draggable: node.metadata?.locked ? false : true,
     })),
-    edges: (data.edges ?? []).map((edge) => ({
-      id: edge.id,
-      source: edge.source,
-      target: edge.target,
-      label: edge.label ?? undefined,
-      data: {
-        metadata: edge.metadata ?? {},
-      },
-      type: 'smoothstep',
-    })),
+    edges: (data.edges ?? []).map((edge) => {
+      const metadata = edge.metadata ?? {};
+      const sourceHandle = metadata.sourceHandle ?? metadata.source_handle ?? null;
+      const targetHandle = metadata.targetHandle ?? metadata.target_handle ?? null;
+
+      if ('source_handle' in metadata) {
+        delete metadata.source_handle;
+      }
+      if ('target_handle' in metadata) {
+        delete metadata.target_handle;
+      }
+
+      const mappedEdge = {
+        id: edge.id,
+        source: edge.source,
+        target: edge.target,
+        label: edge.label ?? undefined,
+        data: {
+          metadata,
+        },
+        type: 'blueprintEdge',
+      };
+
+      if (sourceHandle) {
+        mappedEdge.sourceHandle = sourceHandle;
+      }
+      if (targetHandle) {
+        mappedEdge.targetHandle = targetHandle;
+      }
+
+      return mappedEdge;
+    }),
   };
 }
 

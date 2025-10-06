@@ -96,16 +96,27 @@ const createPersistableNode = (node) => ({
   },
 });
 
-const createPersistableEdge = (edge) => ({
-  id: edge.id,
-  source: edge.source,
-  target: edge.target,
-  type: edge.type ?? 'smoothstep',
-  label: edge.label ?? undefined,
-  data: {
-    metadata: { ...(edge.data?.metadata ?? {}) },
-  },
-});
+const createPersistableEdge = (edge) => {
+  const persistable = {
+    id: edge.id,
+    source: edge.source,
+    target: edge.target,
+    type: edge.type ?? 'blueprintEdge',
+    label: edge.label ?? undefined,
+    data: {
+      metadata: { ...(edge.data?.metadata ?? {}) },
+    },
+  };
+
+  if (edge.sourceHandle) {
+    persistable.sourceHandle = edge.sourceHandle;
+  }
+  if (edge.targetHandle) {
+    persistable.targetHandle = edge.targetHandle;
+  }
+
+  return persistable;
+};
 
 const computeGraphSignature = (nodes, edges) =>
   JSON.stringify({
@@ -239,13 +250,13 @@ export const useBlueprintBuilder = () => {
     [],
   );
 
-  const scheduleHistorySnapshot = useCallback(
-    ({ immediate = false } = {}) => {
-      if (applyingHistoryRef.current || isHydratingRef.current) return;
+const scheduleHistorySnapshot = useCallback(
+  ({ immediate = false } = {}) => {
+    if (applyingHistoryRef.current || isHydratingRef.current) return;
 
-      if (immediate) {
-        pushHistorySnapshot(nodesRef.current, edgesRef.current, { immediate: true });
-        return;
+    if (immediate) {
+      pushHistorySnapshot(nodesRef.current, edgesRef.current, { immediate: true });
+      return;
       }
 
       if (historyFrameRef.current !== null) {
@@ -263,8 +274,117 @@ export const useBlueprintBuilder = () => {
       } else {
         pushHistorySnapshot(nodesRef.current, edgesRef.current);
       }
+  },
+  [pushHistorySnapshot],
+);
+
+  const removeEdgeById = useCallback(
+    (edgeId) => {
+      if (!edgeId) return;
+
+      let removed = false;
+
+      setEdges((eds) => {
+        let didRemove = false;
+        const nextEdges = eds.filter((edge) => {
+          if (edge?.id === edgeId) {
+            didRemove = true;
+            if (lastPersistedEdgeIdsRef.current.has(edgeId)) {
+              deletedEdgeIdsRef.current.add(edgeId);
+            }
+            return false;
+          }
+          return true;
+        });
+
+        removed = didRemove;
+        return didRemove ? nextEdges : eds;
+      });
+
+      if (removed) {
+        scheduleHistorySnapshot({ immediate: true });
+      }
     },
-    [pushHistorySnapshot],
+    [scheduleHistorySnapshot, setEdges],
+  );
+
+  const attachEdgeHelpers = useCallback(
+    (edge) => {
+      if (!edge) return edge;
+
+      const metadata = { ...(edge.data?.metadata ?? {}) };
+      const metadataSourceHandle = metadata.sourceHandle ?? metadata.source_handle ?? null;
+      const metadataTargetHandle = metadata.targetHandle ?? metadata.target_handle ?? null;
+      const sourceHandle = edge.sourceHandle ?? metadataSourceHandle ?? null;
+      const targetHandle = edge.targetHandle ?? metadataTargetHandle ?? null;
+
+      let needsUpdate = false;
+
+      if (edge.type !== 'blueprintEdge') {
+        needsUpdate = true;
+      }
+
+      if (edge.data?.onDeleteEdge !== removeEdgeById) {
+        needsUpdate = true;
+      }
+
+      if (metadata.sourceHandle !== sourceHandle) {
+        if (sourceHandle) {
+          metadata.sourceHandle = sourceHandle;
+        } else {
+          delete metadata.sourceHandle;
+        }
+        needsUpdate = true;
+      }
+
+      if (metadata.targetHandle !== targetHandle) {
+        if (targetHandle) {
+          metadata.targetHandle = targetHandle;
+        } else {
+          delete metadata.targetHandle;
+        }
+        needsUpdate = true;
+      }
+
+      if ('source_handle' in metadata) {
+        delete metadata.source_handle;
+        needsUpdate = true;
+      }
+
+      if ('target_handle' in metadata) {
+        delete metadata.target_handle;
+        needsUpdate = true;
+      }
+
+      if (!needsUpdate) {
+        return edge;
+      }
+
+      const nextEdge = {
+        ...edge,
+        type: 'blueprintEdge',
+        data: {
+          ...(edge.data ?? {}),
+          metadata,
+          onDeleteEdge: removeEdgeById,
+        },
+      };
+
+      if (sourceHandle) {
+        nextEdge.sourceHandle = sourceHandle;
+      } else if ('sourceHandle' in nextEdge) {
+        delete nextEdge.sourceHandle;
+      }
+
+      if (targetHandle) {
+        nextEdge.targetHandle = targetHandle;
+      } else if ('targetHandle' in nextEdge) {
+        delete nextEdge.targetHandle;
+      }
+
+      return nextEdge;
+    },
+    [removeEdgeById],
   );
 
   const fetchBlueprints = useCallback(async () => {
@@ -611,10 +731,14 @@ export const useBlueprintBuilder = () => {
         edgesChanged,
       } = sanitizeBlueprintGraph({ nodes: rawNodes, edges: rawEdges });
 
+      let processedEdges = sanitizedEdges;
+
       if (nodesChanged || edgesChanged) {
         applyingHistoryRef.current = true;
         setNodes(sanitizedNodes);
-        setEdges(sanitizedEdges);
+        const sanitizedEdgesWithHelpers = sanitizedEdges.map(attachEdgeHelpers);
+        setEdges(sanitizedEdgesWithHelpers);
+        processedEdges = sanitizedEdgesWithHelpers;
 
         if (nodesChanged) {
           const mappedRootId =
@@ -643,10 +767,10 @@ export const useBlueprintBuilder = () => {
         if (historyRef.current.length > 0 && historyIndexRef.current >= 0) {
           const sanitizedSnapshot = {
             nodes: cloneNodes(sanitizedNodes),
-            edges: cloneEdges(sanitizedEdges),
+            edges: cloneEdges(sanitizedEdgesWithHelpers),
           };
           historyRef.current[historyIndexRef.current] = sanitizedSnapshot;
-          lastRecordedSignatureRef.current = computeGraphSignature(sanitizedNodes, sanitizedEdges);
+          lastRecordedSignatureRef.current = computeGraphSignature(sanitizedNodes, sanitizedEdgesWithHelpers);
         }
         if (historyDebounceTimerRef.current) {
           clearTimeout(historyDebounceTimerRef.current);
@@ -665,7 +789,7 @@ export const useBlueprintBuilder = () => {
       }
 
       const jobNodes = cloneNodes(sanitizedNodes);
-      const jobEdges = cloneEdges(sanitizedEdges);
+      const jobEdges = cloneEdges(processedEdges);
       const currentNodeIdsSet = new Set(jobNodes.map((node) => node.id).filter(Boolean));
       const currentEdgeIdsSet = new Set(jobEdges.map((edge) => edge.id).filter(Boolean));
       const deletedNodeIds = Array.from(lastPersistedNodeIdsRef.current).filter((id) => id && !currentNodeIdsSet.has(id));
@@ -703,7 +827,7 @@ export const useBlueprintBuilder = () => {
         processAutosaveQueue();
       });
     },
-    [edges, nodes, processAutosaveQueue, setAutosaveState, setEdges, setIsSaving, setNodes, setSelectedNodeId, updateAutosaveBusyState],
+    [attachEdgeHelpers, edges, nodes, processAutosaveQueue, setAutosaveState, setEdges, setIsSaving, setNodes, setSelectedNodeId, updateAutosaveBusyState],
   );
 
   const debouncedAutosave = useDebouncedCallback(async () => {
@@ -792,10 +916,12 @@ export const useBlueprintBuilder = () => {
       setIsSaving(false);
       autosaveSessionIdRef.current = uuidv4();
 
+      const edgesWithHelpers = edgesFromPayload.map(attachEdgeHelpers);
+
       setNodes(() => nodesFromPayload);
-      setEdges(() => edgesFromPayload);
+      setEdges(() => edgesWithHelpers);
       nodesRef.current = nodesFromPayload;
-      edgesRef.current = edgesFromPayload;
+      edgesRef.current = edgesWithHelpers;
 
       const rootId = findRootNodeId(nodesFromPayload);
       rootNodeIdRef.current = rootId;
@@ -803,13 +929,13 @@ export const useBlueprintBuilder = () => {
 
       const initialSnapshot = {
         nodes: cloneNodes(nodesFromPayload),
-        edges: cloneEdges(edgesFromPayload),
+        edges: cloneEdges(edgesWithHelpers),
       };
       historyRef.current = [initialSnapshot];
       historyIndexRef.current = 0;
       hasUnsavedChangesRef.current = false;
       hasLoadedOnceRef.current = true;
-      lastRecordedSignatureRef.current = computeGraphSignature(nodesFromPayload, edgesFromPayload);
+      lastRecordedSignatureRef.current = computeGraphSignature(nodesFromPayload, edgesWithHelpers);
       if (historyDebounceTimerRef.current) {
         clearTimeout(historyDebounceTimerRef.current);
         historyDebounceTimerRef.current = null;
@@ -830,7 +956,7 @@ export const useBlueprintBuilder = () => {
         }
       });
     },
-    [setEdges, setNodes, setAutosaveState, setIsSaving, updateAutosaveBusyState],
+    [attachEdgeHelpers, setEdges, setNodes, setAutosaveState, setIsSaving, updateAutosaveBusyState],
   );
 
   const loadBlueprint = useCallback(
@@ -983,23 +1109,31 @@ export const useBlueprintBuilder = () => {
 
   const onConnect = useCallback(
     (connection) => {
-      const safeConnection = {
+      const metadata = connection?.data?.metadata ? { ...connection.data.metadata } : {};
+
+      if (connection.sourceHandle) {
+        metadata.sourceHandle = connection.sourceHandle;
+      }
+      if (connection.targetHandle) {
+        metadata.targetHandle = connection.targetHandle;
+      }
+
+      const safeConnection = attachEdgeHelpers({
         ...connection,
         id: uuidv4(),
-        type: 'smoothstep',
-      };
+        type: 'blueprintEdge',
+        sourceHandle: connection.sourceHandle ?? undefined,
+        targetHandle: connection.targetHandle ?? undefined,
+        data: {
+          metadata,
+          onDeleteEdge: removeEdgeById,
+        },
+      });
 
-      safeConnection.data = connection?.data
-        ? {
-            ...connection.data,
-            metadata: { ...(connection.data?.metadata ?? {}) },
-          }
-        : { metadata: {} };
-
-      setEdges((eds) => addEdge(safeConnection, eds));
+      setEdges((eds) => addEdge(safeConnection, eds.map(attachEdgeHelpers)));
       scheduleHistorySnapshot();
     },
-    [scheduleHistorySnapshot, setEdges],
+    [attachEdgeHelpers, removeEdgeById, scheduleHistorySnapshot, setEdges],
   );
 
   const addNodeFromPalette = useCallback(
@@ -1008,10 +1142,11 @@ export const useBlueprintBuilder = () => {
         parentId || selectedNodeId || rootNodeIdRef.current || findRootNodeId(nodesRef.current);
       const nodeId = uuidv4();
       const elementKey = item.elementKey ?? nodeId;
+      const normalizedPosition = normalizePosition(position);
       const newNode = {
         id: nodeId,
         type: 'bubbleNode',
-        position,
+        position: normalizedPosition,
         data: {
           title: item.label,
           family: item.family,
@@ -1030,22 +1165,10 @@ export const useBlueprintBuilder = () => {
         ...nds.map((node) => ({ ...node, selected: node.id === targetParent })),
         newNode,
       ]);
-      setEdges((eds) => {
-        if (!targetParent) return eds;
-        const nextEdge = {
-          id: uuidv4(),
-          source: targetParent,
-          target: nodeId,
-          type: 'smoothstep',
-          label: item.edgeLabel ?? null,
-          data: { metadata: { createdFromPalette: true } },
-        };
-        return addEdge(nextEdge, eds);
-      });
       setSelectedNodeId(nodeId);
       scheduleHistorySnapshot();
     },
-    [scheduleHistorySnapshot, selectedNodeId, setEdges, setNodes, setSelectedNodeId],
+    [scheduleHistorySnapshot, selectedNodeId, setNodes, setSelectedNodeId],
   );
 
   const updateNodeData = useCallback(
@@ -1079,7 +1202,21 @@ export const useBlueprintBuilder = () => {
     (nodeId) => {
       if (!nodeId || nodeId === rootNodeIdRef.current) return;
       setNodes((nds) => nds.filter((node) => node.id !== nodeId));
-      setEdges((eds) => eds.filter((edge) => edge.source !== nodeId && edge.target !== nodeId));
+      setEdges((eds) => {
+        let mutated = false;
+        const nextEdges = eds.filter((edge) => {
+          const shouldRemove = edge.source === nodeId || edge.target === nodeId;
+          if (shouldRemove) {
+            mutated = true;
+            if (lastPersistedEdgeIdsRef.current.has(edge.id)) {
+              deletedEdgeIdsRef.current.add(edge.id);
+            }
+          }
+          return !shouldRemove;
+        });
+
+        return mutated ? nextEdges : eds;
+      });
       const fallback = rootNodeIdRef.current || findRootNodeId(nodesRef.current);
       if (fallback) {
         setSelectedNodeId(fallback);
@@ -1106,14 +1243,15 @@ export const useBlueprintBuilder = () => {
     const snapshot = historyRef.current[historyIndexRef.current];
     const snapshotNodes = cloneNodes(snapshot.nodes);
     const snapshotEdges = cloneEdges(snapshot.edges);
+    const hydratedEdges = snapshotEdges.map(attachEdgeHelpers);
     applyingHistoryRef.current = true;
     setNodes(snapshotNodes);
-    setEdges(snapshotEdges);
-    lastRecordedSignatureRef.current = computeGraphSignature(snapshotNodes, snapshotEdges);
+    setEdges(hydratedEdges);
+    lastRecordedSignatureRef.current = computeGraphSignature(snapshotNodes, hydratedEdges);
     window.requestAnimationFrame(() => {
       applyingHistoryRef.current = false;
     });
-  }, [setEdges, setNodes]);
+  }, [attachEdgeHelpers, setEdges, setNodes]);
 
   const redo = useCallback(() => {
     if (historyIndexRef.current >= historyRef.current.length - 1) return;
@@ -1132,14 +1270,15 @@ export const useBlueprintBuilder = () => {
     const snapshot = historyRef.current[historyIndexRef.current];
     const snapshotNodes = cloneNodes(snapshot.nodes);
     const snapshotEdges = cloneEdges(snapshot.edges);
+    const hydratedEdges = snapshotEdges.map(attachEdgeHelpers);
     applyingHistoryRef.current = true;
     setNodes(snapshotNodes);
-    setEdges(snapshotEdges);
-    lastRecordedSignatureRef.current = computeGraphSignature(snapshotNodes, snapshotEdges);
+    setEdges(hydratedEdges);
+    lastRecordedSignatureRef.current = computeGraphSignature(snapshotNodes, hydratedEdges);
     window.requestAnimationFrame(() => {
       applyingHistoryRef.current = false;
     });
-  }, [setEdges, setNodes]);
+  }, [attachEdgeHelpers, setEdges, setNodes]);
 
   const handleManualSave = useCallback(async () => {
     if (autosaveState === 'conflict') {
