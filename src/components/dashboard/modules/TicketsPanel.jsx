@@ -167,13 +167,20 @@ import { Checkbox } from '@/components/ui/checkbox';
         setSelectedIds(newSelected);
       };
 
-      const handleSelectAll = () => {
-        const currentTickets = activeTab === 'inProgress' ? inProgressTickets : archivedTickets;
-        if (selectedIds.size === currentTickets.length && currentTickets.length > 0) {
-          setSelectedIds(new Set());
+      const handleSelectAll = (ticketList) => {
+        const currentTickets = ticketList ?? (activeTab === 'inProgress' ? inProgressTickets : archivedTickets);
+        if (currentTickets.length === 0) return;
+
+        const allSelected = currentTickets.every((ticket) => selectedIds.has(ticket.id));
+        const newSelected = new Set(selectedIds);
+
+        if (allSelected) {
+          currentTickets.forEach((ticket) => newSelected.delete(ticket.id));
         } else {
-          setSelectedIds(new Set(currentTickets.map(t => t.id)));
+          currentTickets.forEach((ticket) => newSelected.add(ticket.id));
         }
+
+        setSelectedIds(newSelected);
       };
 
       const handleBulkDelete = async () => {
@@ -363,10 +370,22 @@ import { Checkbox } from '@/components/ui/checkbox';
         const statusColumn = columnsConfig.find((col) => col.key === 'status');
         const priorityColumn = columnsConfig.find((col) => col.key === 'priority');
         const referenceColumn = columnsConfig.find((col) => col.key === 'reference_number');
+        const listFullySelected = ticketList.length > 0 && ticketList.every((ticket) => selectedIds.has(ticket.id));
+        const handleSelectAllForList = () => handleSelectAll(ticketList);
 
         return (
           <>
             <div className="sm:hidden space-y-0">
+              <div className="flex items-center gap-2 px-2 py-1 mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/80 bg-muted/40 border border-border/60 rounded-md">
+                <span className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/5">
+                  <Checkbox
+                    checked={listFullySelected}
+                    onCheckedChange={handleSelectAllForList}
+                    className="h-3.5 w-3.5 border-primary/40"
+                  />
+                </span>
+                <span>Tickets</span>
+              </div>
               {ticketList.map((ticket) => {
                 const isSelected = selectedIds.has(ticket.id);
                 const hasNewReply = ticket.hasNewAdminReply && !editMode;
@@ -422,12 +441,22 @@ import { Checkbox } from '@/components/ui/checkbox';
 
             <div className="hidden sm:flex sm:flex-col sm:gap-0">
               <div className={cn(
-                'grid items-center gap-0.5 px-3 pb-0 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/80',
+                'grid items-center gap-0.5 px-3 py-1 mb-1 rounded-md border border-border/60 bg-muted/40 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/80',
                 DESKTOP_GRID_TEMPLATE
               )}>
                 {columnsConfig.map((col) => (
                   <div key={`header-${col.key}`} className={cn('flex', col.headerClassName)}>
-                    {col.header}
+                    {col.key === 'select' ? (
+                      <span className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/5">
+                        <Checkbox
+                          checked={listFullySelected}
+                          onCheckedChange={handleSelectAllForList}
+                          className="h-3.5 w-3.5 border-primary/40"
+                        />
+                      </span>
+                    ) : (
+                      col.header
+                    )}
                   </div>
                 ))}
               </div>
@@ -513,39 +542,28 @@ import { Checkbox } from '@/components/ui/checkbox';
                 <TabsTrigger value="archived" className="text-xs px-2 py-1">Archivés</TabsTrigger>
               </TabsList>
             </Tabs>
-            <div className="flex items-center gap-2">
-              <Checkbox
-                checked={(() => {
-                  const currentTickets = activeTab === 'inProgress' ? inProgressTickets : archivedTickets;
-                  return currentTickets.length > 0 && selectedIds.size === currentTickets.length;
-                })()}
-                onCheckedChange={handleSelectAll}
-                className="h-4 w-4"
-              />
-              <span className="text-xs text-muted-foreground">Tout sélectionner</span>
-              {selectedIds.size > 0 && (
-                <div className="flex items-center gap-1 ml-2">
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button size="sm" variant="ghost" onClick={handleBulkDuplicate} className="h-6 w-6 p-0">
-                          <Copy className="h-3 w-3" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent><p>Dupliquer</p></TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button size="sm" variant="ghost" onClick={handleBulkDelete} className="h-6 w-6 p-0 text-destructive hover:text-destructive">
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent><p>Supprimer</p></TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-              )}
-            </div>
+            {selectedIds.size > 0 && (
+              <div className="flex items-center gap-1">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button size="sm" variant="ghost" onClick={handleBulkDuplicate} className="h-6 w-6 p-0">
+                        <Copy className="h-3 w-3" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent><p>Dupliquer</p></TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button size="sm" variant="ghost" onClick={handleBulkDelete} className="h-6 w-6 p-0 text-destructive hover:text-destructive">
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent><p>Supprimer</p></TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-2">
           </div>
