@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BaseEdge, EdgeLabelRenderer, getSmoothStepPath, useReactFlow } from 'reactflow';
+import { BaseEdge, EdgeLabelRenderer, getStraightPath, useReactFlow } from 'reactflow';
 import { Trash2 } from 'lucide-react';
 
 const BlueprintEdge = (props) => {
@@ -20,7 +20,7 @@ const BlueprintEdge = (props) => {
   const { setEdges } = useReactFlow();
   const [isHovered, setIsHovered] = useState(false);
 
-  const [edgePath, labelX, labelY] = getSmoothStepPath({
+  const [edgePath, labelX, labelY] = getStraightPath({
     sourceX,
     sourceY,
     sourcePosition,
