@@ -3,6 +3,7 @@
 .mask-reveal-scroll {
   color: #121212;
   font-family: "Outfit", sans-serif;
+  --mask-image-height: 520px;
 }
 
 .mask-reveal-scroll .mask-container {
@@ -79,12 +80,14 @@
 
 .mask-reveal-scroll .mask-arch__right {
   flex-shrink: 1;
-  height: 100vh;
   width: 100%;
   max-width: 702px;
-  position: relative;
+  position: sticky;
+  top: clamp(3rem, calc((100vh - var(--mask-image-height)) / 2), 8rem);
+  height: var(--mask-image-height);
   display: flex;
   flex-direction: column;
+  justify-content: center;
 }
 
 .mask-reveal-scroll .mask-img-wrapper {
@@ -92,7 +95,7 @@
   top: 50%;
   left: 0;
   transform: translateY(-50%);
-  height: 520px;
+  height: var(--mask-image-height);
   width: 100%;
   border-radius: 21px;
   overflow: hidden;
@@ -112,6 +115,10 @@
 }
 
 @media (max-width: 768px) {
+  .mask-reveal-scroll {
+    --mask-image-height: 468px;
+  }
+
   .mask-reveal-scroll .mask-arch {
     flex-direction: column;
     gap: 26px;
@@ -122,7 +129,13 @@
     display: contents;
   }
 
+  .mask-reveal-scroll .mask-arch__left {
+    min-width: 100%;
+  }
+
   .mask-reveal-scroll .mask-arch__right {
+    position: static;
+    top: auto;
     height: auto;
     max-width: 100%;
   }
@@ -130,7 +143,7 @@
   .mask-reveal-scroll .mask-img-wrapper {
     position: static;
     transform: none;
-    height: 468px;
+    height: var(--mask-image-height);
     width: 100%;
     margin-bottom: 26px;
   }
@@ -142,6 +155,10 @@
 }
 
 @media (max-width: 560px) {
+  .mask-reveal-scroll {
+    --mask-image-height: 364px;
+  }
+
   .mask-reveal-scroll .mask-arch {
     gap: 16px;
   }
@@ -152,7 +169,7 @@
 
   .mask-reveal-scroll .mask-img-wrapper {
     border-radius: 13px;
-    height: 364px;
+    height: var(--mask-image-height);
   }
 
   .mask-reveal-scroll .mask-header {

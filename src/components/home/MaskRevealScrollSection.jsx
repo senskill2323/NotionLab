@@ -219,26 +219,24 @@ const MaskRevealScrollSection = ({ content = {}, isPreview = false }) => {
       }
 
       const archElement = container.querySelector('.mask-arch');
-      const rightColumn = container.querySelector('.mask-arch__right');
 
       const mainTimeline = gsap.timeline({
         scrollTrigger: {
           trigger: archElement,
           start: 'top top',
           end: 'bottom bottom',
-          pin: rightColumn,
           scrub: true,
         },
       });
 
       gsap.set(images, {
         clipPath: 'inset(0)',
-        objectPosition: '0px 0%',
+        objectPosition: '50% 50%',
+        scale: 1,
       });
 
       images.forEach((currentImage, index) => {
-        const nextImage = images[index + 1];
-        if (!nextImage) {
+        if (!images[index + 1]) {
           return;
         }
 
@@ -263,16 +261,6 @@ const MaskRevealScrollSection = ({ content = {}, isPreview = false }) => {
             currentImage,
             {
               clipPath: 'inset(0px 0px 100%)',
-              objectPosition: '0px 60%',
-              duration: 1.5,
-              ease: 'none',
-            },
-            0,
-          )
-          .to(
-            nextImage,
-            {
-              objectPosition: '0px 40%',
               duration: 1.5,
               ease: 'none',
             },
@@ -294,7 +282,8 @@ const MaskRevealScrollSection = ({ content = {}, isPreview = false }) => {
       }
 
       gsap.set(images, {
-        objectPosition: '0px 60%',
+        yPercent: 10,
+        willChange: 'transform',
       });
 
       const timelines = images.map((image, index) => {
@@ -314,7 +303,7 @@ const MaskRevealScrollSection = ({ content = {}, isPreview = false }) => {
 
         timeline
           .to(image, {
-            objectPosition: '0px 30%',
+            yPercent: -10,
             duration: 5,
             ease: 'none',
           })
