@@ -4,6 +4,7 @@
   color: #121212;
   font-family: "Outfit", sans-serif;
   --mask-image-height: 520px;
+  --mask-image-offset: 240px;
 }
 
 .mask-reveal-scroll .mask-container {
@@ -94,7 +95,7 @@
   position: absolute;
   top: 50%;
   left: 0;
-  transform: translateY(-50%);
+  transform: translateY(calc(-50% + var(--mask-image-offset)));
   height: var(--mask-image-height);
   width: 100%;
   border-radius: 21px;
@@ -117,6 +118,7 @@
 @media (max-width: 768px) {
   .mask-reveal-scroll {
     --mask-image-height: 468px;
+    --mask-image-offset: 0px;
   }
 
   .mask-reveal-scroll .mask-arch {
@@ -157,6 +159,7 @@
 @media (max-width: 560px) {
   .mask-reveal-scroll {
     --mask-image-height: 364px;
+    --mask-image-offset: 0px;
   }
 
   .mask-reveal-scroll .mask-arch {
