@@ -1,0 +1,158 @@
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@400;800&display=swap");
+
+.mask-reveal-scroll {
+  color: #121212;
+  font-family: "Outfit", sans-serif;
+}
+
+.mask-reveal-scroll .mask-container {
+  max-width: 1440px;
+  padding: 2rem;
+  margin: 0 auto;
+}
+
+.mask-reveal-scroll .mask-spacer {
+  width: 100%;
+  height: 30vh;
+}
+
+.mask-reveal-scroll .mask-arch {
+  display: flex;
+  gap: 60px;
+  justify-content: space-between;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.mask-reveal-scroll .mask-arch__left {
+  display: flex;
+  flex-direction: column;
+  min-width: 300px;
+}
+
+.mask-reveal-scroll .mask-arch__info {
+  max-width: 356px;
+  height: 100vh;
+  display: grid;
+  place-items: center;
+}
+
+.mask-reveal-scroll .mask-arch__info .mask-content {
+  max-width: 100%;
+}
+
+.mask-reveal-scroll .mask-header {
+  font-size: 42px;
+  font-weight: 800;
+  letter-spacing: -0.84px;
+}
+
+.mask-reveal-scroll .mask-desc {
+  color: rgba(18, 18, 18, 0.8);
+  font-size: 18px;
+  letter-spacing: -0.54px;
+  margin: 6px 0 28px;
+  line-height: normal;
+}
+
+.mask-reveal-scroll .mask-link {
+  text-decoration: none;
+  padding: 16px 18px;
+  color: inherit;
+  border-radius: 40px;
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  font-weight: 500;
+}
+
+.mask-reveal-scroll .mask-link svg {
+  flex-shrink: 0;
+}
+
+.mask-reveal-scroll .mask-arch__right {
+  flex-shrink: 1;
+  height: 100vh;
+  width: 100%;
+  max-width: 540px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.mask-reveal-scroll .mask-img-wrapper {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  height: 400px;
+  width: 100%;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.mask-reveal-scroll .mask-img-wrapper img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+@media (max-width: 900px) {
+  .mask-reveal-scroll .mask-arch {
+    gap: 30px;
+  }
+}
+
+@media (max-width: 768px) {
+  .mask-reveal-scroll .mask-arch {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .mask-reveal-scroll .mask-arch__left,
+  .mask-reveal-scroll .mask-arch__right {
+    display: contents;
+  }
+
+  .mask-reveal-scroll .mask-arch__right {
+    height: auto;
+    max-width: 100%;
+  }
+
+  .mask-reveal-scroll .mask-img-wrapper {
+    position: static;
+    transform: none;
+    height: 360px;
+    width: 100%;
+    margin-bottom: 20px;
+  }
+
+  .mask-reveal-scroll .mask-arch__info {
+    height: auto;
+    padding: 20px 0;
+  }
+}
+
+@media (max-width: 560px) {
+  .mask-reveal-scroll .mask-arch {
+    gap: 12px;
+  }
+
+  .mask-reveal-scroll .mask-container {
+    padding: 10px;
+  }
+
+  .mask-reveal-scroll .mask-img-wrapper {
+    border-radius: 10px;
+    height: 280px;
+  }
+
+  .mask-reveal-scroll .mask-header {
+    font-size: 32px;
+  }
+
+  .mask-reveal-scroll .mask-desc {
+    font-size: 16px;
+  }
+}
