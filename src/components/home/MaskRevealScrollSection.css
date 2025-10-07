@@ -7,31 +7,31 @@
 
 .mask-reveal-scroll .mask-container {
   max-width: 1440px;
-  padding: 2rem;
+  padding: 2.6rem;
   margin: 0 auto;
 }
 
 .mask-reveal-scroll .mask-spacer {
   width: 100%;
-  height: 30vh;
+  height: 39vh;
 }
 
 .mask-reveal-scroll .mask-arch {
   display: flex;
-  gap: 60px;
+  gap: 78px;
   justify-content: space-between;
-  max-width: 1100px;
+  max-width: 1400px;
   margin: 0 auto;
 }
 
 .mask-reveal-scroll .mask-arch__left {
   display: flex;
   flex-direction: column;
-  min-width: 300px;
+  min-width: 390px;
 }
 
 .mask-reveal-scroll .mask-arch__info {
-  max-width: 356px;
+  max-width: 463px;
   height: 100vh;
   display: grid;
   place-items: center;
@@ -42,39 +42,42 @@
 }
 
 .mask-reveal-scroll .mask-header {
-  font-size: 42px;
+  font-size: 55px;
   font-weight: 800;
-  letter-spacing: -0.84px;
+  letter-spacing: -1.1px;
+  color: #ffffff;
 }
 
 .mask-reveal-scroll .mask-desc {
-  color: rgba(18, 18, 18, 0.8);
-  font-size: 18px;
-  letter-spacing: -0.54px;
-  margin: 6px 0 28px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 23px;
+  letter-spacing: -0.7px;
+  margin: 8px 0 36px;
   line-height: normal;
 }
 
 .mask-reveal-scroll .mask-link {
   text-decoration: none;
-  padding: 16px 18px;
+  padding: 21px 23px;
   color: inherit;
-  border-radius: 40px;
+  border-radius: 52px;
   display: inline-flex;
-  gap: 4px;
+  gap: 6px;
   align-items: center;
   font-weight: 500;
 }
 
 .mask-reveal-scroll .mask-link svg {
   flex-shrink: 0;
+  width: 14px;
+  height: 14px;
 }
 
 .mask-reveal-scroll .mask-arch__right {
   flex-shrink: 1;
   height: 100vh;
   width: 100%;
-  max-width: 540px;
+  max-width: 702px;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -85,9 +88,9 @@
   top: 50%;
   left: 0;
   transform: translateY(-50%);
-  height: 400px;
+  height: 520px;
   width: 100%;
-  border-radius: 16px;
+  border-radius: 21px;
   overflow: hidden;
 }
 
@@ -100,14 +103,14 @@
 
 @media (max-width: 900px) {
   .mask-reveal-scroll .mask-arch {
-    gap: 30px;
+    gap: 39px;
   }
 }
 
 @media (max-width: 768px) {
   .mask-reveal-scroll .mask-arch {
     flex-direction: column;
-    gap: 20px;
+    gap: 26px;
   }
 
   .mask-reveal-scroll .mask-arch__left,
@@ -123,36 +126,36 @@
   .mask-reveal-scroll .mask-img-wrapper {
     position: static;
     transform: none;
-    height: 360px;
+    height: 468px;
     width: 100%;
-    margin-bottom: 20px;
+    margin-bottom: 26px;
   }
 
   .mask-reveal-scroll .mask-arch__info {
     height: auto;
-    padding: 20px 0;
+    padding: 26px 0;
   }
 }
 
 @media (max-width: 560px) {
   .mask-reveal-scroll .mask-arch {
-    gap: 12px;
+    gap: 16px;
   }
 
   .mask-reveal-scroll .mask-container {
-    padding: 10px;
+    padding: 13px;
   }
 
   .mask-reveal-scroll .mask-img-wrapper {
-    border-radius: 10px;
-    height: 280px;
+    border-radius: 13px;
+    height: 364px;
   }
 
   .mask-reveal-scroll .mask-header {
-    font-size: 32px;
+    font-size: 42px;
   }
 
   .mask-reveal-scroll .mask-desc {
-    font-size: 16px;
+    font-size: 21px;
   }
 }
