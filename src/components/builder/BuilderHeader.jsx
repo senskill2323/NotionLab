@@ -59,7 +59,7 @@ export const BuilderHeader = ({
         <div className="flex justify-between items-center mb-2">
           <Button variant="ghost" size="sm" onClick={handleCloseAndReturn} className="text-muted-foreground">
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Fermer
+            Retour au dashboard
           </Button>
 
           <div className="flex items-center gap-4">

@@ -79,7 +79,7 @@ const FormationBuilderContent = ({
 
   return (
     <div className="flex h-full">
-      <aside className="w-1/4 min-w-[350px] max-w-[450px] border-r bg-background/50 h-full overflow-y-auto">
+      <aside className="w-[22%] min-w-[260px] max-w-[340px] border-r bg-background/50 h-full overflow-y-auto">
         <ModuleCatalog onAddModuleToFlow={handleAddModule} />
       </aside>
       <main className="flex-1 h-full" ref={reactFlowWrapper}>

@@ -117,19 +117,7 @@ export const ModuleItemDraggable = ({ module, family, hasPermission, onAddModule
       className="flex items-center group bg-background/30 p-1.5 rounded-md hover:bg-muted/50 cursor-pointer"
       onClick={handleClick}
     >
-      <Button
-        variant="ghost"
-        size="icon"
-        className="w-6 h-6 cursor-grab"
-        {...(hasPermission ? attributes : {})}
-        {...(hasPermission ? listeners : {})}
-        {...(!hasPermission ? { draggable: true, onDragStart: handleDragStartToGrid, onMouseDown: (e) => e.stopPropagation(), onDragEnd: (e) => e.stopPropagation() } : {})}
-        onClick={(e) => e.stopPropagation()} // Stop propagation to avoid adding to flow when dragging
-      >
-        <GripVertical className="w-4 h-4 text-muted-foreground" />
-      </Button>
-
-      <div className="flex-grow ml-2">
+      <div className="flex-grow ml-2 mr-2">
         <p className="text-sm font-medium">{module.title}</p>
         <div className="flex items-center text-xs text-muted-foreground">
           <Clock className="w-3 h-3 mr-1" />
@@ -138,6 +126,17 @@ export const ModuleItemDraggable = ({ module, family, hasPermission, onAddModule
       </div>
       <div className="flex items-center gap-1">
         {renderMenu()}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="w-6 h-6 cursor-grab"
+          {...(hasPermission ? attributes : {})}
+          {...(hasPermission ? listeners : {})}
+          {...(!hasPermission ? { draggable: true, onDragStart: handleDragStartToGrid, onMouseDown: (e) => e.stopPropagation(), onDragEnd: (e) => e.stopPropagation() } : {})}
+          onClick={(e) => e.stopPropagation()} // Stop propagation to avoid adding to flow when dragging
+        >
+          <GripVertical className="w-4 h-4 text-muted-foreground" />
+        </Button>
       </div>
     </div>
   );
