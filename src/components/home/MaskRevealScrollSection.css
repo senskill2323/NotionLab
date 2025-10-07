@@ -7,13 +7,17 @@
 
 .mask-reveal-scroll .mask-container {
   max-width: 1440px;
-  padding: 2.6rem;
+  padding: 1.8rem 2.6rem;
   margin: 0 auto;
 }
 
 .mask-reveal-scroll .mask-spacer {
   width: 100%;
-  height: 39vh;
+  height: 15vh;
+}
+
+.mask-reveal-scroll .mask-spacer:first-of-type {
+  height: 7.5vh;
 }
 
 .mask-reveal-scroll .mask-arch {
@@ -32,7 +36,7 @@
 
 .mask-reveal-scroll .mask-arch__info {
   max-width: 463px;
-  height: 100vh;
+  min-height: 70vh;
   display: grid;
   place-items: center;
 }
@@ -132,7 +136,7 @@
   }
 
   .mask-reveal-scroll .mask-arch__info {
-    height: auto;
+    min-height: auto;
     padding: 26px 0;
   }
 }
