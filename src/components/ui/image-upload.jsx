@@ -8,7 +8,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { Input } from '@/components/ui/input';
 
 const ImageUpload = ({ 
-  onImageSelected, 
+  onImageSelected = () => {}, 
   currentImageUrl = '', 
   bucketName = 'block-images',
   maxSizeMB = 5,

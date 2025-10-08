@@ -1673,7 +1673,7 @@ const BlockSamplesPanel = ({ onBlockCreated }) => {
                     <Label>Image de fond full screen</Label>
                     <ImageUpload
                       currentImageUrl={form.mh_imageUrl}
-                      onImageChange={(url) => setForm(prev => ({ ...prev, mh_imageUrl: url }))}
+                      onImageSelected={(url) => setForm(prev => ({ ...prev, mh_imageUrl: url }))}
                       acceptedTypes={['image/jpeg', 'image/jpg', 'image/png', 'image/webp']}
                       compact={true}
                     />
@@ -2202,7 +2202,7 @@ const BlockSamplesPanel = ({ onBlockCreated }) => {
                               <Label>Image de fond</Label>
                               <ImageUpload
                                 currentImageUrl={form.mask_backgroundImage}
-                                onImageChange={(url) => setForm(prev => ({ ...prev, mask_backgroundImage: url }))}
+                                onImageSelected={(url) => setForm(prev => ({ ...prev, mask_backgroundImage: url }))}
                                 acceptedTypes={['image/jpeg', 'image/png', 'image/webp']}
                                 compact
                               />
@@ -2374,7 +2374,7 @@ const BlockSamplesPanel = ({ onBlockCreated }) => {
                           <div className="text-sm font-medium">Image #{index + 1}</div>
                           <ImageUpload
                             currentImageUrl={image.src}
-                            onImageChange={handleMaskImageUpload(index)}
+                            onImageSelected={handleMaskImageUpload(index)}
                             acceptedTypes={['image/jpeg', 'image/png', 'image/webp']}
                             compact
                           />
