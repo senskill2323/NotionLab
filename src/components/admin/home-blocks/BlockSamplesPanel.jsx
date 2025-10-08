@@ -1,94 +1,107 @@
-import React, { useState, useEffect, useCallback, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useDebounce } from 'use-debounce';
 import {
-  Pencil, Trash2, Eye, Plus, Copy, Upload, X,
-  Sparkles, Star, Crown, Zap, Heart, Trophy, Gift, Gem, Shield, Rocket, ChevronDown, ChevronUp,
-  Award, Bookmark, CheckCircle, Clock, Flame, Flag, Globe, Lightbulb, Lock, Mail, MapPin, Music, Target,
-  Smartphone, Monitor, Layers, Code, Search, MoreVertical, Edit, Loader2, AlertCircle, Users, CalendarDays, Settings,
-  Palette, Image as ImageIcon, Type
+  AlertCircle,
+  Copy,
+  Edit,
+  Eye,
+  Layers,
+  Loader2,
+  MoreVertical,
+  Plus,
+  Search as SearchIcon,
+  Trash2,
+  Code,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useToast } from '@/components/ui/use-toast';
-import ImageUpload from '@/components/ui/image-upload';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
-import { supabase } from '@/lib/customSupabaseClient';
-import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { Switch } from '@/components/ui/switch';
-import CozySpaceSectionWithUpload from './CozySpaceSectionWithUpload';
-import MainHeroSection from '@/components/home/MainHeroSection';
-import SystemsShowcase from '@/components/home/SystemsShowcase';
-import StatsSection from '@/components/home/StatsSection';
-import FormationsSection from '@/components/home/FormationsSection';
-import SupportSection from '@/components/home/SupportSection';
-import PromiseSection from '@/components/home/PromiseSection';
-import PersonalQuoteSection from '@/components/home/PersonalQuoteSection';
-import FinalCTA from '@/components/home/FinalCTA';
-import LaunchCTA from '@/components/home/LaunchCTA';
-import TubesCursorSection, { DEFAULT_TUBES_TITLES, sanitizeTubesTitles } from '@/components/home/TubesCursorSection';
-import MaskRevealScrollSection, { DEFAULT_MASK_REVEAL_CONTENT } from '@/components/home/MaskRevealScrollSection';
-import Footer from '@/components/Footer';
+import { useToast } from '@/components/ui/use-toast';
+import { supabase } from '@/lib/customSupabaseClient';
+import HomeBlockLayoutEditor from '@/components/admin/home-blocks/HomeBlockLayoutEditor';
+import {
+  getLayoutDefinition,
+  getLayoutKeys,
+} from '@/components/admin/home-blocks/layoutRegistry';
+import useHomeBlockEditor, {
+  buildHomeBlockEditorBundle,
+} from '@/components/admin/home-blocks/useHomeBlockEditor';
 
-// Presets for Launch CTA custom gradients
-const lctaGradientPresets = [
-  { name: 'Sunset', start: '#ff6b35', end: '#f7931e', angle: 135 },
-  { name: 'Ocean', start: '#36d1dc', end: '#5b86e5', angle: 135 },
-  { name: 'Purple', start: '#a18cd1', end: '#fbc2eb', angle: 135 },
-  { name: 'Forest', start: '#11998e', end: '#38ef7d', angle: 135 },
-  { name: 'Fire', start: '#f12711', end: '#f5af19', angle: 135 },
-  { name: 'Steel', start: '#bdc3c7', end: '#2c3e50', angle: 135 },
+const DEFAULT_LAYOUT = 'home.main_hero';
+
+const BUILTIN_SAMPLE_LAYOUTS = [
+  { layout: 'home.main_hero', title: 'Accueil – Hero Principal' },
+  { layout: 'home.systems_showcase', title: 'Accueil – Vitrine' },
+  { layout: 'home.promise', title: 'Accueil – Promesse' },
+  { layout: 'home.cozy_space', title: 'Accueil – Espace confortable' },
+  { layout: 'home.personal_quote', title: 'Accueil – Citation' },
+  { layout: 'home.launch_cta', title: 'Accueil – Lancement' },
+  { layout: 'home.final_cta', title: 'Accueil – Final CTA' },
+  { layout: 'home.stats', title: 'Accueil – Statistiques' },
+  { layout: 'home.formations', title: 'Accueil – Formations' },
+  { layout: 'home.support', title: 'Accueil – Support' },
+  { layout: 'home.mask_reveal_scroll', title: 'Accueil – Masque défilant' },
+  { layout: 'home.tubes_cursor', title: 'Accueil – Tubes interactifs' },
+  { layout: 'global.footer', title: 'Global – Pied de page' },
+  { layout: 'home.header', title: 'Accueil – Header HTML', block_type: 'html' },
 ];
 
-const DEFAULT_MASK_GRADIENT = 'linear-gradient(125deg, #EDF9FF 0%, #FFE8DB 100%)';
+const BUILTIN_SAMPLES = BUILTIN_SAMPLE_LAYOUTS.map(({ layout, title, block_type }) => {
+  if (block_type === 'html') {
+    return {
+      title,
+      block_type: 'html',
+      layout,
+      content: '<section><h1>Bloc HTML</h1><p>Personnalisez ce contenu.</p></section>',
+    };
+  }
 
-const maskGradientPresets = [
-  { name: 'Pastel Aurora', start: '#EDF9FF', end: '#FFE8DB', angle: 125 },
-  { name: 'Midnight Bloom', start: '#1d2671', end: '#c33764', angle: 140 },
-  { name: 'Emerald City', start: '#13547a', end: '#80d0c7', angle: 135 },
-  { name: 'Golden Hour', start: '#f2994a', end: '#f2c94c', angle: 135 },
-  { name: 'Neon Dream', start: '#7f00ff', end: '#e100ff', angle: 135 },
-  { name: 'Deep Ocean', start: '#0f2027', end: '#203a43', angle: 140 },
-];
+  const bundle = buildHomeBlockEditorBundle({
+    layout,
+    blockType: 'dynamic',
+  });
 
-const buildLinearGradient = (angle, start, end) => {
-  const safeAngle = Number.isFinite(angle) ? angle : 135;
-  return `linear-gradient(${safeAngle}deg, ${start} 0%, ${end} 100%)`;
-};
-
-const parseLinearGradient = (value) => {
-  if (typeof value !== 'string') return null;
-  const gradientMatch = value.match(/linear-gradient\(\s*([0-9.+-]+)deg\s*,\s*(.+)\)/i);
-  if (!gradientMatch) return null;
-  const angle = parseFloat(gradientMatch[1]);
-  const stops = gradientMatch[2].split(',');
-  const getColor = (stop) => {
-    const colorMatch = stop.match(/(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\)|hsla?\([^)]+\))/);
-    if (colorMatch) return colorMatch[1];
-    const parts = stop.trim().split(/\s+/);
-    return parts[0];
-  };
-  const start = getColor(stops[0] || '');
-  const end = getColor(stops[stops.length - 1] || '');
-  if (!start || !end) return null;
   return {
-    angle: Number.isFinite(angle) ? angle : 135,
-    start,
-    end,
+    title,
+    block_type: 'dynamic',
+    layout,
+    content: bundle.serialized ?? {},
   };
-};
+});
 
 const BlockSamplesPanel = ({ onBlockCreated }) => {
   const { toast } = useToast();
@@ -101,1413 +114,639 @@ const BlockSamplesPanel = ({ onBlockCreated }) => {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingSample, setEditingSample] = useState(null);
   const [previewMode, setPreviewMode] = useState('desktop');
-  const [showBadgeIcons, setShowBadgeIcons] = useState(false);
-  const [showPromiseIcons, setShowPromiseIcons] = useState(null);
   const [query, setQuery] = useState('');
   const [debouncedQuery] = useDebounce(query, 300);
   const [layoutFilter, setLayoutFilter] = useState('all');
-  const [form, setForm] = useState({
+
+  const [metadataForm, setMetadataForm] = useState(() => ({
     title: '',
-    badgeText: '',
-    badgeIcon: 'Sparkles',
-    titleText: '',
-    descriptionText: '',
-    imageUrl: '',
-    imageAlt: '',
-    showBadge: true,
-    ctaText: '',
-    ctaUrl: '',
-    showCta: false,
-    backgroundColor: '',
-    useDefaultBackground: true,
-    contentJsonText: '',
-    // Systems showcase fields
-    ss_title: '',
-    ss_titleSuffix: '',
-    ss_images: [],
-    ss_buttonText: '',
-    ss_buttonLink: '',
-    // Personal quote fields
-    pq_quoteText: '',
-    pq_showCta: false,
-    pq_ctaText: '',
-    pq_ctaUrl: '',
-    pq_backgroundColor: '',
-    pq_useDefaultBackground: true,
-    // Promise section fields
-    pr_title: '',
-    pr_titleSuffix: '',
-    pr_items: [],
-    pr_showCta: false,
-    pr_ctaText: '',
-    pr_ctaUrl: '',
-    pr_backgroundColor: '',
-    pr_useDefaultBackground: true,
-    pr_backgroundImage: '',
-    pr_useBackgroundImage: false,
-    pr_backgroundOpacity: 0.5,
-    // Tubes cursor fields
-    tc_title1: DEFAULT_TUBES_TITLES.title1,
-    tc_title2: DEFAULT_TUBES_TITLES.title2,
-    tc_title3: DEFAULT_TUBES_TITLES.title3,
-    // Mask reveal scroll fields
-    mask_useDefaultBackground: true,
-    mask_backgroundMode: 'color',
-    mask_backgroundColor: DEFAULT_MASK_REVEAL_CONTENT.baseBackgroundColor,
-    mask_backgroundGradient: DEFAULT_MASK_GRADIENT,
-    mask_backgroundImage: '',
-    mask_gradStart: '#EDF9FF',
-    mask_gradEnd: '#FFE8DB',
-    mask_gradAngle: 125,
-    mask_backgroundColors: [...DEFAULT_MASK_REVEAL_CONTENT.backgroundColors],
-    mask_items: DEFAULT_MASK_REVEAL_CONTENT.items.map(item => ({
-      ...item,
-      link: {
-        label: item.link?.label || '',
-        href: item.link?.href || '#',
-        backgroundColor: item.link?.backgroundColor || '#D5FF37',
-      },
-    })),
-    mask_images: DEFAULT_MASK_REVEAL_CONTENT.images.map(image => ({ ...image })),
+    block_type: 'dynamic',
+    layout: DEFAULT_LAYOUT,
+    htmlContent: '',
+  }));
+
+  const editor = useHomeBlockEditor({
+    initialLayout: DEFAULT_LAYOUT,
+    initialBlockType: 'dynamic',
+    toast,
   });
 
-  // Explicit cancel/close handler to clear URL + storage and close editor
-  const handleCloseEditor = useCallback(() => {
-    const newSearchParams = new URLSearchParams(searchParams);
-    newSearchParams.delete('editing');
-    newSearchParams.delete('sampleId');
-    setSearchParams(newSearchParams, { replace: true });
-    
-    try {
-      sessionStorage.removeItem('blockSamplesEditor');
-    } catch (e) {
-      // ignore storage errors
-    }
-    
-    setIsEditOpen(false);
-    setEditingSample(null);
-  }, [searchParams, setSearchParams]);
+  const {
+    editorState,
+    fallbackJson: editorFallbackJson,
+    setEditorState,
+    setSerializedContent,
+    setFallbackJson,
+    reset: resetEditor,
+    hydrateFromRecord,
+    getContentPayload,
+  } = editor;
 
-  // Handle close with save confirmation
-  const handleCloseWithConfirmation = useCallback(() => {
-    // Check if there are unsaved changes by comparing current form with original sample
-    const hasChanges = editingSample && (
-      form.title !== editingSample.title ||
-      JSON.stringify(getPreviewContent()) !== JSON.stringify(editingSample.content || {})
-    );
+  const persistedStateRef = useRef(false);
 
-    if (hasChanges) {
-      toast({
-        title: 'Modifications non sauvegardées',
-        description: 'Voulez-vous enregistrer vos modifications avant de fermer ?',
-        action: (
-          <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => {
-                handleCloseEditor();
-              }}
-            >
-              Fermer sans sauvegarder
-            </Button>
-            <Button 
-              size="sm"
-              onClick={() => {
-                handleSaveTemplate();
-              }}
-            >
-              Sauvegarder et fermer
-            </Button>
-          </div>
-        ),
-      });
-    } else {
-      handleCloseEditor();
-    }
-  }, [editingSample, form, toast, handleCloseEditor]);
+  const layoutOptions = useMemo(() => {
+    return getLayoutKeys()
+      .map((layout) => {
+        const definition = getLayoutDefinition(layout);
+        return {
+          value: layout,
+          label: definition?.label ?? layout,
+          blockType: definition?.blockType ?? 'dynamic',
+        };
+      })
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, []);
 
-  // Handle dialog close events (X button, ESC, overlay click)
-  const handleDialogOpenChange = useCallback((value) => {
-    if (value) {
-      setIsEditOpen(true);
-    } else {
-      // When user clicks X or presses ESC, just close directly for now
-      handleCloseEditor();
-    }
-  }, [handleCloseEditor]);
-
-
-  // Bibliothèque d'icônes pour les badges
-  const badgeIcons = [
-    { name: 'Sparkles', icon: Sparkles, label: 'Étincelles' },
-    { name: 'Star', icon: Star, label: 'Étoile' },
-    { name: 'Crown', icon: Crown, label: 'Couronne' },
-    { name: 'Zap', icon: Zap, label: 'Éclair' },
-    { name: 'Heart', icon: Heart, label: 'Cœur' },
-  ];
-
-  // Bibliothèque d'icônes pour les promesses
-  const promiseIcons = [
-    { name: 'Users', icon: Users, label: 'Utilisateurs' },
-    { name: 'CalendarDays', icon: CalendarDays, label: 'Calendrier' },
-    { name: 'Zap', icon: Zap, label: 'Éclair' },
-    { name: 'Heart', icon: Heart, label: 'Cœur' },
-    { name: 'Star', icon: Star, label: 'Étoile' },
-    { name: 'Crown', icon: Crown, label: 'Couronne' },
-    { name: 'Sparkles', icon: Sparkles, label: 'Étincelles' },
-    { name: 'Target', icon: Target, label: 'Cible' },
-    { name: 'Shield', icon: Shield, label: 'Bouclier' },
-    { name: 'Award', icon: Award, label: 'Récompense' },
-    { name: 'CheckCircle', icon: CheckCircle, label: 'Validation' },
-    { name: 'Clock', icon: Clock, label: 'Horloge' },
-    { name: 'Globe', icon: Globe, label: 'Globe' },
-    { name: 'Lightbulb', icon: Lightbulb, label: 'Ampoule' },
-    { name: 'Rocket', icon: Rocket, label: 'Fusée' },
-    { name: 'Settings', icon: Settings, label: 'Paramètres' },
-  ];
-  // Modèles intégrés par défaut pour différents layouts (hors home.formations)
-  const builtinSamples = [
-    {
-      id: 'builtin-cozy-space',
-      title: 'Accueil - Espace Confortable',
-      description: 'Section accueil chaleureuse (Cozy Space) prête à l\'emploi',
-      block_type: 'dynamic',
-      layout: 'home.cozy_space',
-      created_at: new Date().toISOString(),
-      content: {}
-    },
-    {
-      id: 'builtin-main-hero',
-      title: 'Accueil - Hero Principal',
-      description: 'Hero plein écran (image de fond)',
-      block_type: 'dynamic',
-      layout: 'home.main_hero',
-      created_at: new Date().toISOString(),
-      content: {}
-    },
-    {
-      id: 'builtin-systems-showcase',
-      title: 'Accueil - Vitrine des Systèmes',
-      description: 'Section de présentation des systèmes',
-      block_type: 'dynamic',
-      layout: 'home.systems_showcase',
-      created_at: new Date().toISOString(),
-      content: {}
-    },
-    {
-      id: 'builtin-stats',
-      title: 'Accueil - Statistiques',
-      description: 'Métriques de la plateforme',
-      block_type: 'dynamic',
-      layout: 'home.stats',
-      created_at: new Date().toISOString(),
-      content: {}
-    },
-    {
-      id: 'builtin-support',
-      title: 'Accueil - Support',
-      description: 'Section d\'assistance',
-      block_type: 'dynamic',
-      layout: 'home.support',
-      created_at: new Date().toISOString(),
-      content: {}
-    },
-    {
-      id: 'builtin-promise',
-      title: 'Accueil - Promesse',
-      description: 'Section promesse',
-      block_type: 'dynamic',
-      layout: 'home.promise',
-      created_at: new Date().toISOString(),
-      content: {}
-    },
-    {
-      id: 'builtin-personal-quote',
-      title: 'Accueil - Citation personnelle',
-      description: 'Section citation',
-      block_type: 'dynamic',
-      layout: 'home.personal_quote',
-      created_at: new Date().toISOString(),
-      content: {}
-    },
-    {
-      id: 'builtin-final-cta',
-      title: 'Accueil - CTA final',
-      description: 'Call-to-action final',
-      block_type: 'dynamic',
-      layout: 'home.final_cta',
-      created_at: new Date().toISOString(),
-      content: {}
-    },
-    {
-      id: 'builtin-launch-cta',
-      title: 'Accueil - CTA lancement',
-      description: 'Section lancement',
-      block_type: 'dynamic',
-      layout: 'home.launch_cta',
-      created_at: new Date().toISOString(),
-      content: {}
-    },
-    {
-      id: 'builtin-mask-reveal-scroll',
-      title: 'Accueil - Mask Reveal Scroll',
-      description: 'Galerie animée avec effet de masque au scroll (GSAP + Lenis)',
-      block_type: 'dynamic',
-      layout: 'home.mask_reveal_scroll',
-      created_at: new Date().toISOString(),
-      content: {
-        baseBackgroundColor: '#f9ffe7',
-        backgroundColors: ['#EDF9FF', '#FFECF2', '#FFE8DB'],
-        items: [
-          {
-            id: 'green-arch',
-            title: 'Green Cityscape',
-            description: 'Vibrant streets with vertical gardens and solar buildings. This oasis thrives on renewable energy, smart transport, and green spaces for biodiversity.',
-            link: {
-              label: 'Learn More',
-              href: '#',
-              backgroundColor: '#D5FF37',
-            },
-          },
-          {
-            id: 'blue-arch',
-            title: 'Blue Urban Oasis',
-            description: 'Avenues with azure facades and eco-structures. This hub uses clean energy, smart transit, and parks for urban wildlife.',
-            link: {
-              label: 'Learn More',
-              href: '#',
-              backgroundColor: '#7DD6FF',
-            },
-          },
-          {
-            id: 'pink-arch',
-            title: 'Fluid Architecture',
-            description: 'Desert refuge with fluid architecture and glowing interiors. This sanctuary harnesses solar power, sustainable design, and natural harmony for resilient living.',
-            link: {
-              label: 'Learn More',
-              href: '#',
-              backgroundColor: '#FFA0B0',
-            },
-          },
-          {
-            id: 'orange-arch',
-            title: 'Martian Arches',
-            description: 'Ethereal structures arc over tranquil waters, bathed in the glow of a setting Martian sun. This desolate beauty showcases the stark, captivating landscape of the red planet.',
-            link: {
-              label: 'Learn More',
-              href: '#',
-              backgroundColor: '#FFA17B',
-            },
-          },
-        ],
-        images: [
-          {
-            id: 'green-image',
-            src: 'https://res.cloudinary.com/dbsuruevi/image/upload/v1757093052/cu8978xjlsjjpjk52ta0.webp',
-            alt: 'Green Architecture',
-            order: 4,
-          },
-          {
-            id: 'blue-image',
-            src: 'https://res.cloudinary.com/dbsuruevi/image/upload/v1757093053/trh7c8ufv1dqfrofdytd.webp',
-            alt: 'Blue Architecture',
-            order: 3,
-          },
-          {
-            id: 'pink-image',
-            src: 'https://res.cloudinary.com/dbsuruevi/image/upload/v1757093052/aw6qwur0pggp5r03whjq.webp',
-            alt: 'Pink Architecture',
-            order: 2,
-          },
-          {
-            id: 'orange-image',
-            src: 'https://res.cloudinary.com/dbsuruevi/image/upload/v1757093053/sqwn8u84zd1besgl0zpd.webp',
-            alt: 'Orange Architecture',
-            order: 1,
-          },
-        ],
-      },
-    },
-    {
-      id: 'builtin-tubes-cursor',
-      title: 'Accueil - Tubes Cursor',
-      description: 'Animation WebGPU/WebGL avec titres modifiables',
-      block_type: 'dynamic',
-      layout: 'home.tubes_cursor',
-      created_at: new Date().toISOString(),
-      content: {
-        title1: DEFAULT_TUBES_TITLES.title1,
-        title2: DEFAULT_TUBES_TITLES.title2,
-        title3: DEFAULT_TUBES_TITLES.title3,
-      },
-    },
-    {
-      id: 'builtin-footer',
-      title: 'Global - Pied de page',
-      description: 'Footer du site',
-      block_type: 'dynamic',
-      layout: 'global.footer',
-      created_at: new Date().toISOString(),
-      content: {}
-    },
-  ];
-
-  // Seed des modèles intégrés dans la table `block_samples` (si absents)
   const seedBuiltinSamplesIfNeeded = useCallback(async () => {
     try {
       const { data: existing, error } = await supabase
         .from('block_samples')
-        .select('id');
+        .select('id')
+        .limit(1);
       if (error) throw error;
+      if (existing && existing.length > 0) return;
 
-      // Ne seed que si la table est vide pour éviter la réapparition après suppressions explicites
-      if (!existing || existing.length === 0) {
-        const payloads = builtinSamples.map(s => ({
-          title: s.title,
-          block_type: s.block_type,
-          layout: s.layout,
-          content: s.content || {},
-        }));
-        if (payloads.length > 0) {
-          const { error: insertErr } = await supabase.from('block_samples').insert(payloads);
-          if (insertErr) {
-            // Ne pas interrompre le flux si le seed échoue
-            console.warn('Seeding builtins failed:', insertErr);
-          }
-        }
-      }
-    } catch (e) {
-      console.warn('Seed builtins error:', e);
+      await supabase.from('block_samples').insert(BUILTIN_SAMPLES);
+    } catch (seedError) {
+      console.warn('Seed builtin samples failed:', seedError);
     }
   }, []);
 
   const fetchSamples = useCallback(async () => {
     setLoading(true);
     setError(null);
+
     try {
-      let q = supabase
+      let queryBuilder = supabase
         .from('block_samples')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (debouncedQuery && debouncedQuery.trim() !== '') {
-        q = q.ilike('title', `%${debouncedQuery.trim()}%`);
-      }
-      if (layoutFilter && layoutFilter !== 'all') {
-        q = q.eq('layout', layoutFilter);
+      if (debouncedQuery?.trim()) {
+        queryBuilder = queryBuilder.ilike('title', `%${debouncedQuery.trim()}%`);
       }
 
-      const { data, error } = await q;
+      if (layoutFilter !== 'all') {
+        queryBuilder = queryBuilder.eq('layout', layoutFilter);
+      }
 
-      if (error) throw error;
+      const { data, error: fetchError } = await queryBuilder;
+      if (fetchError) throw fetchError;
 
-      // N'afficher que les modèles présents en base (plus d'injection de "builtins" côté client)
-      setSamples(data || []);
-    } catch (err) {
-      console.error("Error fetching block samples:", err);
+      setSamples(data ?? []);
+    } catch (fetchError) {
+      console.error('Error fetching block samples:', fetchError);
       setError("Erreur lors de la récupération des modèles de blocs.");
-      toast({ title: "Erreur", description: "Impossible de charger les modèles de blocs.", variant: "destructive" });
-      // Fallback: ne rien afficher (évite la réapparition due au localStorage)
-      setSamples([]);
+      toast({
+        title: 'Erreur',
+        description: "Impossible de charger les modèles de blocs.",
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
-  }, [toast, debouncedQuery, layoutFilter]);
+  }, [debouncedQuery, layoutFilter, toast]);
 
-  const importFromActiveBlocks = useCallback(async () => {
-    try {
-      const { data: blocks, error } = await supabase
-        .from('content_blocks')
-        .select('*')
-        .neq('status', 'archived');
-      if (error) throw error;
-
-      const candidates = (blocks || []);
-
-      // Fetch existing samples to avoid duplicates by (title + layout)
-      const { data: existing, error: errExisting } = await supabase
-        .from('block_samples')
-        .select('id,title,layout');
-      if (errExisting) throw errExisting;
-      const existsKey = new Set((existing || []).map(s => `${s.title}__${s.layout}`));
-
-      const payloads = candidates
-        .filter(b => !existsKey.has(`${b.title}__${b.layout}`))
-        .map(b => ({
-          title: b.title,
-          block_type: b.block_type || 'dynamic',
-          layout: b.layout,
-          content: b.block_type === 'html' ? (b.content || '') : (b.content || {}),
-        }));
-
-      if (payloads.length === 0) {
-        toast({ title: 'Importation', description: 'Aucun nouveau modèle à importer.' });
-        return;
-      }
-
-      const { error: insertErr } = await supabase.from('block_samples').insert(payloads);
-      if (insertErr) throw insertErr;
-
-      toast({ title: 'Succès', description: `${payloads.length} modèle(s) importé(s).` });
-      fetchSamples();
-    } catch (err) {
-      console.error('Import error:', err);
-    }
-  }, [toast, fetchSamples]);
-
-  const handleDelete = async (sampleId) => {
-    toast({
-      title: 'Confirmation requise',
-      description: "Êtes-vous sûr de vouloir supprimer définitivement ce modèle ?",
-      action: (
-        <Button variant="destructive" onClick={async () => {
-          try {
-            const { data: sampleData, error: fetchError } = await supabase
-              .from('block_samples')
-              .select('title')
-              .eq('id', sampleId)
-              .single();
-
-            if (fetchError && fetchError.code !== 'PGRST116') {
-              throw new Error(`Erreur lors de la récupération: ${fetchError.message}`);
-            }
-
-            const sampleTitle = sampleData?.title || 'ce modèle';
-
-            const { error } = await supabase
-              .from('block_samples')
-              .delete()
-              .eq('id', sampleId);
-
-            if (error) {
-              throw error;
-            }
-
-            toast({ 
-              title: "Succès", 
-              description: `Le modèle "${sampleTitle}" a été supprimé définitivement.` 
-            });
-            fetchSamples();
-          } catch (err) {
-            console.error('Delete failed:', err);
-            toast({ 
-              title: "Erreur", 
-              description: err.message || "Impossible de supprimer le modèle. Veuillez réessayer.", 
-              variant: "destructive" 
-            });
-          }
-        }}>
-          Supprimer définitivement
-        </Button>
-      ),
-    });
-  };
-
-  const handleDuplicate = async (sample) => {
-    try {
-      const duplicatedSample = {
-        title: `${sample.title} (Copie)`,
-        block_type: sample.block_type,
-        layout: sample.layout,
-        content: sample.content || {},
-      };
-
-      const { error } = await supabase
-        .from('block_samples')
-        .insert([duplicatedSample]);
-
-      if (error) throw error;
-
-      toast({ 
-        title: "Succès", 
-        description: `Le modèle "${sample.title}" a été dupliqué.` 
-      });
-      fetchSamples();
-    } catch (err) {
-      console.error('Duplicate failed:', err);
-      toast({ 
-        title: "Erreur", 
-        description: err.message || "Impossible de dupliquer le modèle. Veuillez réessayer.", 
-        variant: "destructive" 
-      });
-    }
-  };
-
-  const handleSelectAll = (checked) => {
-    setSelectAll(checked);
-    if (checked) {
-      setSelectedSamples(new Set(samples.map(sample => sample.id)));
-    } else {
-      setSelectedSamples(new Set());
-    }
-  };
-
-  const handleSelectSample = (sampleId, checked) => {
-    const newSelected = new Set(selectedSamples);
-    if (checked) {
-      newSelected.add(sampleId);
-    } else {
-      newSelected.delete(sampleId);
-    }
-    setSelectedSamples(newSelected);
-    setSelectAll(newSelected.size === samples.length && samples.length > 0);
-  };
-
-  // Fetch samples on mount and when filters change
   useEffect(() => {
-    (async () => {
-      await seedBuiltinSamplesIfNeeded();
-      await fetchSamples();
-    })();
-  }, [seedBuiltinSamplesIfNeeded, fetchSamples]);
+    seedBuiltinSamplesIfNeeded().then(fetchSamples);
+  }, [fetchSamples, seedBuiltinSamplesIfNeeded]);
 
-  // Update selectAll state when samples change
   useEffect(() => {
     if (samples.length === 0) {
       setSelectAll(false);
       setSelectedSamples(new Set());
-    } else {
-      setSelectAll(selectedSamples.size === samples.length);
+      return;
     }
+
+    setSelectAll(selectedSamples.size === samples.length);
   }, [samples, selectedSamples]);
 
-  // Re-open editor if URL indicates editing=true & sampleId (robust against remounts and tab switches)
-  useEffect(() => {
-    const urlEditing = searchParams.get('editing') === 'true';
-    const urlSampleId = searchParams.get('sampleId');
-    if (urlEditing && urlSampleId) {
-      const currentId = editingSample?.id ? String(editingSample.id) : null;
-      if (!isEditOpen || currentId !== String(urlSampleId)) {
-        const local = samples.find(s => String(s.id) === String(urlSampleId));
-        if (local) {
-          handleEdit(local);
-        } else {
-          // Fallback: fetch the sample if not in current list yet
-          (async () => {
-            try {
-              const { data, error } = await supabase
-                .from('block_samples')
-                .select('*')
-                .eq('id', urlSampleId)
-                .single();
-              if (!error && data) {
-                handleEdit(data);
-              }
-            } catch (_) {}
-          })();
-        }
+  const persistEditorState = useCallback(
+    (sampleId) => {
+      try {
+        sessionStorage.setItem(
+          'blockSamplesEditor',
+          JSON.stringify({
+            open: true,
+            sampleId: sampleId ? String(sampleId) : null,
+            timestamp: Date.now(),
+          }),
+        );
+      } catch (_) {
+        // noop
       }
-    }
-  }, [searchParams, samples]);
+    },
+    [],
+  );
 
-  // Fallback: if URL doesn't have editing flag, restore editor state from sessionStorage (within 1 hour)
+  const clearPersistedEditorState = useCallback(() => {
+    try {
+      sessionStorage.removeItem('blockSamplesEditor');
+    } catch (_) {
+      // noop
+    }
+  }, []);
+
+  const handleCreateNewSample = useCallback(() => {
+    setEditingSample(null);
+    setMetadataForm({
+      title: '',
+      block_type: 'dynamic',
+      layout: DEFAULT_LAYOUT,
+      htmlContent: '',
+    });
+    resetEditor({
+      nextLayout: DEFAULT_LAYOUT,
+      nextBlockType: 'dynamic',
+    });
+    setPreviewMode('desktop');
+    setIsEditOpen(true);
+    persistEditorState(null);
+
+    const params = new URLSearchParams(searchParams);
+    params.set('subtab', 'samples');
+    params.set('editing', 'true');
+    params.delete('sampleId');
+    setSearchParams(params, { replace: true });
+  }, [hydrateFromRecord, persistEditorState, resetEditor, searchParams, setSearchParams]);
+
+  const handleEdit = useCallback(
+    (sample) => {
+      if (!sample) return;
+
+      setEditingSample(sample);
+      setMetadataForm({
+        title: sample.title ?? '',
+        block_type: sample.block_type ?? 'dynamic',
+        layout: sample.layout ?? DEFAULT_LAYOUT,
+        htmlContent:
+          sample.block_type === 'html'
+            ? typeof sample.content === 'string'
+              ? sample.content
+              : sample.content?.html ?? ''
+            : '',
+      });
+
+      if (sample.block_type === 'dynamic') {
+        hydrateFromRecord({
+          recordLayout: sample.layout ?? DEFAULT_LAYOUT,
+          recordBlockType: 'dynamic',
+          recordContent: sample.content ?? {},
+        });
+      } else {
+        resetEditor({
+          nextLayout: DEFAULT_LAYOUT,
+          nextBlockType: 'dynamic',
+          content: {},
+        });
+      }
+
+      setPreviewMode('desktop');
+      setIsEditOpen(true);
+      persistEditorState(sample.id);
+
+      const params = new URLSearchParams(searchParams);
+      params.set('subtab', 'samples');
+      params.set('editing', 'true');
+      params.set('sampleId', String(sample.id));
+      setSearchParams(params, { replace: true });
+    },
+    [hydrateFromRecord, persistEditorState, resetEditor, searchParams, setSearchParams],
+  );
+
+  const closeEditor = useCallback(() => {
+    setIsEditOpen(false);
+    setEditingSample(null);
+    setMetadataForm({
+      title: '',
+      block_type: 'dynamic',
+      layout: DEFAULT_LAYOUT,
+      htmlContent: '',
+    });
+    resetEditor({
+      nextLayout: DEFAULT_LAYOUT,
+      nextBlockType: 'dynamic',
+    });
+    setPreviewMode('desktop');
+    clearPersistedEditorState();
+
+    const params = new URLSearchParams(searchParams);
+    params.delete('editing');
+    params.delete('sampleId');
+    setSearchParams(params, { replace: true });
+  }, [clearPersistedEditorState, resetEditor, searchParams, setSearchParams]);
+
+  const handleDialogOpenChange = useCallback(
+    (open) => {
+      if (!open) closeEditor();
+    },
+    [closeEditor],
+  );
+
+  const handleDelete = useCallback(
+    async (sampleId) => {
+      if (!sampleId) return;
+      const { error: deleteError } = await supabase
+        .from('block_samples')
+        .delete()
+        .eq('id', sampleId);
+      if (deleteError) {
+        toast({
+          title: 'Erreur',
+          description: "Impossible de supprimer le modèle.",
+          variant: 'destructive',
+        });
+        return;
+      }
+      toast({ title: 'Modèle supprimé' });
+      fetchSamples();
+    },
+    [fetchSamples, toast],
+  );
+
+  const handleDuplicate = useCallback(
+    async (sample) => {
+      if (!sample) return;
+      const duplicated = {
+        title: `${sample.title} (Copie)`,
+        block_type: sample.block_type,
+        layout: sample.layout,
+        content: sample.content,
+      };
+      const { error: insertError } = await supabase
+        .from('block_samples')
+        .insert([duplicated]);
+      if (insertError) {
+        toast({
+          title: 'Erreur',
+          description: "Duplication impossible.",
+          variant: 'destructive',
+        });
+        return;
+      }
+      toast({ title: 'Modèle dupliqué' });
+      fetchSamples();
+    },
+    [fetchSamples, toast],
+  );
+
+  const handleImportFromActiveBlocks = useCallback(async () => {
+    try {
+      const { data: blocks, error: blocksError } = await supabase
+        .from('content_blocks')
+        .select('*')
+        .neq('status', 'archived');
+      if (blocksError) throw blocksError;
+
+      const { data: existing, error: existingError } = await supabase
+        .from('block_samples')
+        .select('title,layout');
+      if (existingError) throw existingError;
+
+      const existingKeys = new Set(
+        (existing ?? []).map((item) => `${item.title}__${item.layout}`),
+      );
+
+      const payloads = (blocks ?? [])
+        .filter((block) => !existingKeys.has(`${block.title}__${block.layout}`))
+        .map((block) => {
+          if (block.block_type === 'html') {
+            return {
+              title: `${block.title} (Import)`,
+              block_type: 'html',
+              layout: block.layout,
+              content: typeof block.content === 'string' ? block.content : '',
+            };
+          }
+
+          const bundle = buildHomeBlockEditorBundle({
+            layout: block.layout,
+            blockType: 'dynamic',
+            content: block.content ?? {},
+          });
+
+          return {
+            title: `${block.title} (Import)`,
+            block_type: 'dynamic',
+            layout: bundle.layout,
+            content: bundle.serialized ?? {},
+          };
+        });
+
+      if (payloads.length === 0) {
+        toast({
+          title: 'Importation',
+          description: 'Aucun nouveau modèle à importer.',
+        });
+        return;
+      }
+
+      const { error: insertError } = await supabase
+        .from('block_samples')
+        .insert(payloads);
+      if (insertError) throw insertError;
+
+      toast({
+        title: 'Importation terminée',
+        description: `${payloads.length} modèle(s) ajouté(s).`,
+      });
+      fetchSamples();
+    } catch (importError) {
+      toast({
+        title: 'Erreur',
+        description: `Importation impossible: ${importError.message}`,
+        variant: 'destructive',
+      });
+    }
+  }, [fetchSamples, toast]);
+
+  const handleSelectAll = useCallback(
+    (checked) => {
+      const flag = Boolean(checked);
+      setSelectAll(flag);
+      setSelectedSamples(flag ? new Set(samples.map((sample) => sample.id)) : new Set());
+    },
+    [samples],
+  );
+
+  const handleSelectSample = useCallback((sampleId, checked) => {
+    setSelectedSamples((previous) => {
+      const next = new Set(previous);
+      if (checked) {
+        next.add(sampleId);
+      } else {
+        next.delete(sampleId);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleLayoutChange = useCallback(
+    (nextLayout) => {
+      setMetadataForm((prev) => ({
+        ...prev,
+        layout: nextLayout,
+      }));
+      resetEditor({
+        nextLayout,
+        nextBlockType: 'dynamic',
+      });
+    },
+    [resetEditor],
+  );
+
+  const handleBlockTypeChange = useCallback(
+    (nextType) => {
+      setMetadataForm((prev) => ({
+        ...prev,
+        block_type: nextType,
+        htmlContent: nextType === 'html' ? prev.htmlContent : '',
+      }));
+
+      if (nextType === 'dynamic') {
+        resetEditor({
+          nextLayout: metadataForm.layout ?? DEFAULT_LAYOUT,
+          nextBlockType: 'dynamic',
+        });
+      }
+    },
+    [metadataForm.layout, resetEditor],
+  );
+
+  const handleSaveTemplate = useCallback(async () => {
+    const trimmedTitle = metadataForm.title.trim();
+    if (!trimmedTitle) {
+      toast({
+        title: 'Titre requis',
+        description: 'Veuillez saisir un titre.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    let content;
+    if (metadataForm.block_type === 'dynamic') {
+      try {
+        content = getContentPayload();
+      } catch (_) {
+        return;
+      }
+    } else {
+      content = metadataForm.htmlContent ?? '';
+    }
+
+    const payload = {
+      title: trimmedTitle,
+      block_type: metadataForm.block_type,
+      layout: metadataForm.layout,
+      content,
+    };
+
+    try {
+      if (editingSample?.id) {
+        const { error: updateError } = await supabase
+          .from('block_samples')
+          .update(payload)
+          .eq('id', editingSample.id);
+        if (updateError) throw updateError;
+        toast({ title: 'Modèle mis à jour' });
+      } else {
+        const { error: insertError } = await supabase
+          .from('block_samples')
+          .insert([payload]);
+        if (insertError) throw insertError;
+        toast({ title: 'Modèle enregistré' });
+      }
+      closeEditor();
+      fetchSamples();
+    } catch (saveError) {
+      toast({
+        title: 'Erreur',
+        description: `Impossible de sauvegarder: ${saveError.message}`,
+        variant: 'destructive',
+      });
+    }
+  }, [
+    closeEditor,
+    editor,
+    editingSample?.id,
+    fetchSamples,
+    metadataForm.block_type,
+    metadataForm.htmlContent,
+    metadataForm.layout,
+    metadataForm.title,
+    toast,
+  ]);
+
+  const handleUseTemplate = useCallback(
+    async (sample) => {
+      if (!sample) return;
+
+      try {
+        if (sample.block_type === 'html') {
+          const { data, error } = await supabase.rpc('home_blocks_create_html', {
+            p_title: `${sample.title} (Copie)`,
+            p_content: typeof sample.content === 'string' ? sample.content : '',
+            p_layout: sample.layout,
+            p_type: 'hero',
+            p_status: 'draft',
+            p_priority: 0,
+          });
+          if (error) throw error;
+          toast({
+            title: 'Bloc créé',
+            description: 'Bloc HTML ajouté en brouillon.',
+          });
+          onBlockCreated?.(data);
+          return;
+        }
+
+        const bundle = buildHomeBlockEditorBundle({
+          layout: sample.layout,
+          blockType: 'dynamic',
+          content: sample.content ?? {},
+        });
+
+        let orderIndex = 1;
+        try {
+          const { data: rows, error: maxError } = await supabase
+            .from('content_blocks')
+            .select('order_index')
+            .neq('status', 'archived')
+            .order('order_index', { ascending: false })
+            .limit(1);
+          if (!maxError && rows && rows.length > 0) {
+            const currentMax = Number(rows[0]?.order_index) || 0;
+            orderIndex = currentMax + 1;
+          }
+        } catch (_) {
+          orderIndex = Math.floor(Date.now() / 1000);
+        }
+
+        const metadata = {
+          title: `${sample.title} (Copie)`,
+          status: 'draft',
+          type: 'hero',
+          block_type: 'dynamic',
+          layout: bundle.layout,
+          order_index: orderIndex,
+          priority: 0,
+        };
+
+        const { data, error } = await supabase.functions.invoke('manage-content-block', {
+          body: {
+            blockId: null,
+            metadata,
+            content: bundle.serialized ?? {},
+          },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+
+        toast({
+          title: 'Bloc créé',
+          description: 'Bloc ajouté en brouillon.',
+        });
+        onBlockCreated?.(data?.id ?? null);
+      } catch (useError) {
+        toast({
+          title: 'Erreur',
+          description: `Impossible de créer le bloc: ${useError.message}`,
+          variant: 'destructive',
+        });
+      }
+    },
+    [onBlockCreated, toast],
+  );
+
   useEffect(() => {
-    const urlEditing = searchParams.get('editing') === 'true';
-    if (urlEditing) return; // URL takes precedence
+    if (persistedStateRef.current) return;
+    persistedStateRef.current = true;
     try {
       const raw = sessionStorage.getItem('blockSamplesEditor');
       if (!raw) return;
       const parsed = JSON.parse(raw);
       if (!parsed?.open) return;
-      if (Date.now() - (parsed.timestamp || 0) > 3600000) return; // 1h expiry
-      const sid = parsed.sampleId;
-      if (!sid) return;
-      const local = samples.find(s => String(s.id) === String(sid));
-      if (local) {
-        handleEdit(local);
-      } else {
-        (async () => {
-          try {
-            const { data, error } = await supabase
-              .from('block_samples')
-              .select('*')
-              .eq('id', sid)
-              .single();
-            if (!error && data) {
-              handleEdit(data);
-            }
-          } catch (_) {}
-        })();
+      if (Date.now() - (parsed.timestamp ?? 0) > 60 * 60 * 1000) {
+        clearPersistedEditorState();
+        return;
       }
-    } catch (_) {}
-  }, [samples]);
-
-  const handleUseTemplate = async (sample) => {
-    console.log('handleUseTemplate called with:', sample);
-    try {
-      // Ensure all content properties are preserved, including new background color fields
-      const sampleContent = sample.content || {};
-      const normalizedContent = sample.layout === 'home.tubes_cursor'
-        ? { ...sampleContent, ...sanitizeTubesTitles(sampleContent) }
-        : sampleContent;
-      const blockData = {
-        title: `${sample.title} (Copie)`,
-        content: {
-          ...normalizedContent,
-          // Ensure background color properties are included
-          backgroundColor: normalizedContent.backgroundColor || '',
-          useDefaultBackground: normalizedContent.useDefaultBackground !== false,
-        },
-        status: 'draft',
-        type: 'hero',
-        block_type: sample.block_type,
-        layout: sample.layout,
-        order_index: 0,
-        priority: 0,
-      };
-      console.log('blockData prepared:', blockData);
-
-      // Déterminer un order_index unique GLOBAL (éviter la contrainte content_blocks_order_index_unique_active)
-      try {
-        const { data: rows, error: maxErr } = await supabase
-          .from('content_blocks')
-          .select('order_index')
-          .neq('status', 'archived')
-          .order('order_index', { ascending: false })
-          .limit(1);
-        if (!maxErr && Array.isArray(rows) && rows.length > 0 && typeof rows[0].order_index === 'number') {
-          blockData.order_index = (rows[0].order_index || 0) + 1;
-        } else {
-          // Fallback si aucune ligne retournée
-          blockData.order_index = 1;
-        }
-      } catch (e) {
-        console.warn('order_index fetch failed, fallback to timestamp', e);
-        blockData.order_index = Math.floor(Date.now() / 1000);
+      const sample = samples.find((item) => String(item.id) === String(parsed.sampleId));
+      if (sample) {
+        handleEdit(sample);
       }
-
-      // Tenter l'insertion avec retries si collision d'unicité (erreur 23505)
-      let insertError = null;
-      for (let attempt = 0; attempt < 5; attempt++) {
-        const { data, error } = await supabase
-          .from('content_blocks')
-          .insert([blockData])
-          .select()
-          .single();
-        if (!error) {
-          toast({ title: 'Succès', description: `Bloc "${blockData.title}" créé en brouillon.` });
-          // Notify parent to switch to list and open the editor for this new block
-          try { onBlockCreated?.(data?.id); } catch (_) {}
-          insertError = null;
-          break;
-        }
-        insertError = error;
-        if (error?.code === '23505' || String(error?.message || '').includes('content_blocks_order_index_unique_active')) {
-          // collision: incrémenter et retenter
-          blockData.order_index = (blockData.order_index || 0) + 1;
-          continue;
-        } else {
-          break;
-        }
-      }
-      if (insertError) throw insertError;
-    } catch (error) {
-      toast({ title: 'Erreur', description: `Impossible de créer le bloc: ${error.message}`, variant: 'destructive' });
+    } catch (_) {
+      // noop
     }
-  };
-
-  const handleEdit = (sample) => {
-    // Set state immediately to prevent any race conditions
-    setEditingSample(sample);
-    setIsEditOpen(true);
-
-    // Populate form with sample data
-    const c = sample?.content || {};
-    const tubesTitles = sanitizeTubesTitles({
-      title1: c.title1,
-      title2: c.title2,
-      title3: c.title3,
-    });
-    const maskRawItems = Array.isArray(c.items) && c.items.length > 0 ? c.items : DEFAULT_MASK_REVEAL_CONTENT.items;
-    const maskItems = maskRawItems.map((item, index) => ({
-      id: item.id || `mask-item-${index + 1}`,
-      title: item.title || '',
-      description: item.description || '',
-      link: {
-        label: item.link?.label || '',
-        href: item.link?.href || '#',
-        backgroundColor: item.link?.backgroundColor || '#D5FF37',
-      },
-    }));
-    const maskRawImages = Array.isArray(c.images) && c.images.length > 0 ? c.images : DEFAULT_MASK_REVEAL_CONTENT.images;
-    const maskImages = maskRawImages.map((image, index) => ({
-      id: image.id || `mask-image-${index + 1}`,
-      src: image.src || '',
-      alt: image.alt || '',
-      order: typeof image.order === 'number' ? image.order : maskRawImages.length - index,
-    }));
-    const maskBackgroundColors =
-      Array.isArray(c.backgroundColors) && c.backgroundColors.length > 0
-        ? c.backgroundColors
-        : DEFAULT_MASK_REVEAL_CONTENT.backgroundColors;
-    const maskUseDefaultBackground = c.useDefaultBackground !== false;
-    const maskBackgroundMode = c.backgroundMode || (c.backgroundImage ? 'image' : c.backgroundGradient ? 'gradient' : 'color');
-    const maskBackgroundColor = c.backgroundColor || c.baseBackgroundColor || DEFAULT_MASK_REVEAL_CONTENT.baseBackgroundColor;
-    const maskBackgroundGradient = c.backgroundGradient || DEFAULT_MASK_GRADIENT;
-    const parsedMaskGradient = parseLinearGradient(maskBackgroundGradient);
-    const defaultMaskGradientPreset = maskGradientPresets[0] || { angle: 125, start: '#EDF9FF', end: '#FFE8DB' };
-    // Determine default title override for "Gallerie 'Full screen' design" (handle common variants)
-    const normalizedSampleTitle = (sample?.title || '').trim().toLowerCase();
-    const isGalleryFullscreenDesign =
-      normalizedSampleTitle === 'gallerie "full screen" design' ||
-      normalizedSampleTitle === 'galerie "full screen" design' ||
-      ((normalizedSampleTitle.includes('gallerie') || normalizedSampleTitle.includes('galerie')) &&
-        normalizedSampleTitle.includes('full screen') &&
-        normalizedSampleTitle.includes('design'));
-    const effectiveTitle = isGalleryFullscreenDesign ? 'Gallerie fullscreen' : (sample?.title || '');
-    setForm({
-      title: effectiveTitle,
-      badgeText: c.badgeText || 'Votre Espace Privilégié',
-      badgeIcon: c.badgeIcon || 'Sparkles',
-      titleText: c.title || 'Installez-vous confortablement dans votre espace de formation',
-      descriptionText: c.description || "J'ai mis le paquet sur votre espace personnel. Contrairement à d'autres plateformes, ici, tout est pensé pour être une extension de votre propre espace de travail. C'est un lieu pour apprendre, expérimenter et interagir, sans jamais vous sentir perdu.",
-      imageUrl: c.imageUrl || 'https://images.unsplash.com/photo-1590177600178-c2597bd63ea7',
-      imageAlt: c.imageAlt || "Un espace de travail moderne et confortable avec un ordinateur portable ouvert sur une application de formation",
-      showBadge: c.showBadge !== false,
-      ctaText: c.ctaText || 'Découvrir maintenant',
-      ctaUrl: c.ctaUrl || '#',
-      showCta: c.showCta || false,
-      backgroundColor: c.backgroundColor || '',
-      useDefaultBackground: c.useDefaultBackground !== false,
-      contentJsonText: JSON.stringify(
-        sample?.layout === 'home.tubes_cursor' ? { ...c, ...tubesTitles } : c,
-        null,
-        2
-      ),
-      // Systems showcase fields
-      ss_title: c.title || '',
-      ss_titleSuffix: c.titleSuffix ?? '',
-      ss_images: Array.isArray(c.images) ? c.images : [
-        'https://horizons-cdn.hostinger.com/33d72ce2-b6b0-4274-b8ce-63300e44633e/4b9378a927cc2b60cd474d6d2e76f8e6.png',
-        'https://horizons-cdn.hostinger.com/33d72ce2-b6b0-4274-b8ce-63300e44633e/efa638b85ff0afb61bd0d102973a387b.png',
-        'https://horizons-cdn.hostinger.com/33d72ce2-b6b0-4274-b8ce-63300e44633e/4a8d451b030981196eee43f1b1179dd0.png'
-      ],
-      ss_buttonText: c.buttonText || 'Faites un tour du propriétaire',
-      ss_buttonLink: c.buttonLink || '/mes-systemes',
-      // Personal quote fields
-      pq_quoteText: c.quoteText || (c.quoteLine1 && c.quoteLine2 ? c.quoteLine1 + " " + c.quoteLine2 : "Cela fait une quinzaine d'années que je teste ce type d'outils — c'est mon métier. Mais depuis six ans, pas une seconde l'envie de quitter Notion. Aujourd'hui, je me lance, j'aimerais vous le présenter ✨✨✨"),
-      pq_showCta: c.showCta || false,
-      pq_ctaText: c.ctaText || "En savoir plus",
-      pq_ctaUrl: c.ctaUrl || "#",
-      pq_backgroundColor: c.backgroundColor || "",
-      pq_useDefaultBackground: c.useDefaultBackground !== false,
-      // Promise section fields
-      pr_title: c.title || 'Ma promesse,',
-      pr_titleSuffix: c.titleSuffix || 'simple.',
-      pr_items: Array.isArray(c.items) ? c.items : [
-        { icon: 'Users', title: 'La passion avant-tout', text: "Je suis juste un passionné de systèmes, et un passionné de Notion. je suis bon pédagogue, et j'ai faim de vous apprendre! " },
-        { icon: 'CalendarDays', title: 'Premier rendez-vous gratuit', text: "Lancez-vous : aujourd'hui je suis seul, demain l'équipe grandit — mon envie ? Vous former. Le labo est prêt à acceuillir des modérateurs et d'autres experts Notion comme moi. " },
-        { icon: 'Zap', title: 'Support Notion éclair ⚡', text: "Décrivez votre souci, je réponds dans la journée.  Assignéez votre demande à un ticket, un message ou même au forum! Vous aurez de quoi venir les réponses! " },
-      ],
-      pr_showCta: c.showCta || false,
-      pr_ctaText: c.ctaText || "Découvrir maintenant",
-      pr_ctaUrl: c.ctaUrl || "#",
-      pr_backgroundColor: c.backgroundColor || "",
-      pr_useDefaultBackground: c.useDefaultBackground !== false,
-      pr_backgroundImage: c.backgroundImage || "",
-      pr_useBackgroundImage: c.useBackgroundImage || false,
-      pr_backgroundOpacity: c.backgroundOpacity || 0.5,
-      // launch_cta fields
-      lcta_displayDate: c.displayDate || '1 septembre 2025',
-      lcta_heading: c.heading || "Je démarre mon activité et j'ai faim de vous présenter mon outil !",
-      lcta_subText: c.subText || "Alors s'il vous plaît, n'hésitez pas, faites quelques heures de formation, contactez-moi !",
-      lcta_buttonText: c.buttonText || 'Contactez-moi !',
-      lcta_buttonLink: c.buttonLink || '/contact',
-      lcta_showCta: c.showCta !== false,
-      lcta_iconName: c.iconName || 'Heart',
-      lcta_useDefaultBackground: c.useDefaultBackground !== false,
-      lcta_backgroundColor: c.backgroundColor || '',
-      lcta_backgroundGradient: c.backgroundGradient || 'linear-gradient(135deg, #ff6b35 0%, #f7931e 100%)',
-      lcta_useDefaultGradient: c.useDefaultGradient !== false,
-      lcta_bgMode: (c.useDefaultBackground === false && c.useDefaultGradient === false && c.backgroundGradient) ? 'gradient' : 'color',
-      lcta_gradStart: '#ff6b35',
-      lcta_gradEnd: '#f7931e',
-      lcta_gradAngle: 135,
-      // Tubes cursor fields
-      tc_title1: tubesTitles.title1,
-      tc_title2: tubesTitles.title2,
-      tc_title3: tubesTitles.title3,
-      // Mask reveal scroll
-      mask_useDefaultBackground: maskUseDefaultBackground,
-      mask_backgroundMode: maskBackgroundMode,
-      mask_backgroundColor: maskBackgroundColor,
-      mask_backgroundGradient: maskBackgroundGradient,
-      mask_backgroundImage: c.backgroundImage || '',
-      mask_gradStart: parsedMaskGradient?.start || defaultMaskGradientPreset.start,
-      mask_gradEnd: parsedMaskGradient?.end || defaultMaskGradientPreset.end,
-      mask_gradAngle: parsedMaskGradient?.angle || defaultMaskGradientPreset.angle,
-      mask_backgroundColors: maskBackgroundColors.map(color => color || DEFAULT_MASK_REVEAL_CONTENT.baseBackgroundColor),
-      mask_items: maskItems,
-      mask_images: maskImages,
-    });
-
-    // Persist editor state (sessionStorage) so a remount or tab switch restores it
-    try {
-      if (sample?.id) {
-        sessionStorage.setItem('blockSamplesEditor', JSON.stringify({
-          open: true,
-          sampleId: String(sample.id),
-          timestamp: Date.now(),
-        }));
-      }
-    } catch (e) {
-      // ignore storage errors
-    }
-
-    // Sync URL after state is set to avoid race conditions
-    setTimeout(() => {
-      try {
-        const sp = new URLSearchParams(searchParams);
-        sp.set('subtab', 'samples');
-        sp.set('editing', 'true');
-        sp.set('sampleId', String(sample.id));
-        setSearchParams(sp, { replace: true });
-      } catch (e) {
-        // ignore URL sync errors
-      }
-    }, 0);
-  };
-
-  const handleChange = (field) => (e) => setForm(prev => ({ ...prev, [field]: e.target.value }));
-
-  const handleImageChange = (url) => {
-    setForm(prev => ({ ...prev, imageUrl: url }));
-  };
-
-  const ensureMaskArraysAligned = (items, images, backgroundColors) => {
-    const nextItems = [...items];
-    const nextImages = [...images];
-    const nextBackgrounds = [...backgroundColors];
-
-    if (nextImages.length < nextItems.length) {
-      const missing = nextItems.length - nextImages.length;
-      for (let i = 0; i < missing; i++) {
-        nextImages.push({
-          id: `mask-image-${Date.now()}-${i}`,
-          src: '',
-          alt: '',
-          order: nextImages.length ? Math.max(...nextImages.map(img => Number(img.order) || 0)) + 1 : 1,
-        });
-      }
-    } else if (nextImages.length > nextItems.length) {
-      nextImages.splice(nextItems.length);
-    }
-
-    if (nextBackgrounds.length < nextItems.length) {
-      const fallbackColor = DEFAULT_MASK_REVEAL_CONTENT.baseBackgroundColor;
-      while (nextBackgrounds.length < nextItems.length) {
-        nextBackgrounds.push(fallbackColor);
-      }
-    } else if (nextBackgrounds.length > nextItems.length) {
-      nextBackgrounds.splice(nextItems.length);
-    }
-
-    return { nextItems, nextImages, nextBackgrounds };
-  };
-
-  const handleMaskItemChange = (index, key, value) => {
-    setForm(prev => {
-      const items = [...(prev.mask_items || [])];
-      if (!items[index]) return prev;
-      items[index] = { ...items[index], [key]: value };
-      const { nextItems, nextImages, nextBackgrounds } = ensureMaskArraysAligned(
-        items,
-        prev.mask_images || [],
-        prev.mask_backgroundColors || []
-      );
-      return {
-        ...prev,
-        mask_items: nextItems,
-        mask_images: nextImages,
-        mask_backgroundColors: nextBackgrounds,
-      };
-    });
-  };
-
-  const handleMaskItemLinkChange = (index, key, value) => {
-    setForm(prev => {
-      const items = [...(prev.mask_items || [])];
-      if (!items[index]) return prev;
-      const link = { ...(items[index].link || {}) };
-      link[key] = value;
-      items[index] = { ...items[index], link };
-      return { ...prev, mask_items: items };
-    });
-  };
-
-  const handleAddMaskItem = () => {
-    setForm(prev => {
-      const items = [...(prev.mask_items || [])];
-      const images = [...(prev.mask_images || [])];
-      const backgroundColors = [...(prev.mask_backgroundColors || [])];
-
-      const newItem = {
-        id: `mask-item-${Date.now()}`,
-        title: '',
-        description: '',
-        link: { label: '', href: '#', backgroundColor: '#D5FF37' },
-      };
-      items.push(newItem);
-
-      images.push({
-        id: `mask-image-${Date.now()}`,
-        src: '',
-        alt: '',
-        order: images.length ? Math.max(...images.map(img => Number(img.order) || 0)) + 1 : 1,
-      });
-
-      backgroundColors.push(DEFAULT_MASK_REVEAL_CONTENT.baseBackgroundColor);
-
-      return {
-        ...prev,
-        mask_items: items,
-        mask_images: images,
-        mask_backgroundColors: backgroundColors,
-      };
-    });
-  };
-
-  const handleRemoveMaskItem = (index) => {
-    setForm(prev => {
-      const items = [...(prev.mask_items || [])];
-      if (items.length <= 1) return prev;
-      items.splice(index, 1);
-      const images = [...(prev.mask_images || [])];
-      if (images[index]) {
-        images.splice(index, 1);
-      }
-      const backgroundColors = [...(prev.mask_backgroundColors || [])];
-      if (backgroundColors[index]) {
-        backgroundColors.splice(index, 1);
-      }
-      return {
-        ...prev,
-        mask_items: items,
-        mask_images: images,
-        mask_backgroundColors: backgroundColors,
-      };
-    });
-  };
-
-  const handleMaskImageChange = (index, patch) => {
-    setForm(prev => {
-      const images = [...(prev.mask_images || [])];
-      if (!images[index]) return prev;
-      images[index] = { ...images[index], ...patch };
-      return { ...prev, mask_images: images };
-    });
-  };
-
-  const handleMaskImageUpload = (index) => (url) => {
-    if (!url) return;
-    handleMaskImageChange(index, { src: url });
-  };
-
-  const handleMaskBackgroundColorChange = (index, value) => {
-    setForm(prev => {
-      const colors = [...(prev.mask_backgroundColors || [])];
-      colors[index] = value;
-      return { ...prev, mask_backgroundColors: colors };
-    });
-  };
-
-  const getPreviewContent = () => {
-    const layout = editingSample?.layout || 'home.cozy_space';
-    if (layout === 'home.cozy_space') {
-      return {
-        badgeText: form.badgeText,
-        badgeIcon: form.badgeIcon,
-        title: form.titleText,
-        description: form.descriptionText,
-        imageUrl: form.imageUrl,
-        imageAlt: form.imageAlt,
-        showBadge: form.showBadge,
-        ctaText: form.ctaText,
-        ctaUrl: form.ctaUrl,
-        showCta: form.showCta,
-        backgroundColor: form.backgroundColor,
-        useDefaultBackground: form.useDefaultBackground,
-      };
-    }
-    if (layout === 'home.launch_cta') {
-      return {
-        displayDate: form.lcta_displayDate,
-        heading: form.lcta_heading,
-        subText: form.lcta_subText,
-        buttonText: form.lcta_buttonText,
-        buttonLink: form.lcta_buttonLink,
-        showCta: form.lcta_showCta,
-        iconName: form.lcta_iconName,
-        useDefaultBackground: form.lcta_useDefaultBackground,
-        backgroundColor: form.lcta_backgroundColor,
-        backgroundGradient: form.lcta_backgroundGradient,
-        useDefaultGradient: form.lcta_useDefaultGradient,
-      };
-    }
-    if (layout === 'home.systems_showcase') {
-      return {
-        title: form.ss_title,
-        titleSuffix: form.ss_titleSuffix,
-        images: form.ss_images.filter(img => img.trim() !== ''),
-        buttonText: form.ss_buttonText,
-        buttonLink: form.ss_buttonLink,
-      };
-    }
-    if (layout === 'home.personal_quote') {
-      return {
-        quoteText: form.pq_quoteText,
-        showCta: form.pq_showCta,
-        ctaText: form.pq_ctaText,
-        ctaUrl: form.pq_ctaUrl,
-        backgroundColor: form.pq_backgroundColor,
-        useDefaultBackground: form.pq_useDefaultBackground,
-      };
-    }
-    if (layout === 'home.main_hero') {
-      return {
-        imageUrl: form.mh_imageUrl,
-        overlayOpacity: form.mh_overlayOpacity,
-      };
-    }
-    if (layout === 'home.promise') {
-      return {
-        pr_title: form.pr_title,
-        pr_titleSuffix: form.pr_titleSuffix,
-        pr_items: form.pr_items,
-        pr_showCta: form.pr_showCta,
-        pr_ctaText: form.pr_ctaText,
-        pr_ctaUrl: form.pr_ctaUrl,
-        pr_backgroundColor: form.pr_backgroundColor,
-        pr_useDefaultBackground: form.pr_useDefaultBackground,
-        pr_backgroundImage: form.pr_backgroundImage,
-        pr_useBackgroundImage: form.pr_useBackgroundImage,
-        pr_backgroundOpacity: form.pr_backgroundOpacity,
-      };
-    }
-    if (layout === 'home.tubes_cursor') {
-      return sanitizeTubesTitles({
-        title1: form.tc_title1,
-        title2: form.tc_title2,
-        title3: form.tc_title3,
-      });
-    }
-    if (layout === 'home.mask_reveal_scroll') {
-      const useDefaultBackground = form.mask_useDefaultBackground;
-      const backgroundMode = form.mask_backgroundMode || 'color';
-      const backgroundColor = form.mask_backgroundColor || DEFAULT_MASK_REVEAL_CONTENT.baseBackgroundColor;
-      const backgroundGradient = form.mask_backgroundGradient || DEFAULT_MASK_GRADIENT;
-      const backgroundImage = form.mask_backgroundImage || '';
-      const backgroundColors =
-        Array.isArray(form.mask_backgroundColors) && form.mask_backgroundColors.length > 0
-          ? form.mask_backgroundColors
-          : [...DEFAULT_MASK_REVEAL_CONTENT.backgroundColors];
-      const items = Array.isArray(form.mask_items)
-        ? form.mask_items.map((item, index) => ({
-            id: item.id || `mask-item-${index + 1}`,
-            title: item.title || '',
-            description: item.description || '',
-            link: {
-              label: item.link?.label || '',
-              href: item.link?.href || '#',
-              backgroundColor: item.link?.backgroundColor || '#D5FF37',
-            },
-          }))
-        : DEFAULT_MASK_REVEAL_CONTENT.items;
-      const images = Array.isArray(form.mask_images)
-        ? form.mask_images.map((image, index) => ({
-            id: image.id || `mask-image-${index + 1}`,
-            src: image.src || '',
-            alt: image.alt || '',
-            order: typeof image.order === 'number' ? image.order : form.mask_images.length - index,
-          }))
-        : DEFAULT_MASK_REVEAL_CONTENT.images;
-
-      let baseBackgroundColor = DEFAULT_MASK_REVEAL_CONTENT.baseBackgroundColor;
-      if (!useDefaultBackground) {
-        if (backgroundMode === 'color') {
-          baseBackgroundColor = backgroundColor;
-        } else {
-          baseBackgroundColor = backgroundColors[0] || DEFAULT_MASK_REVEAL_CONTENT.baseBackgroundColor;
-        }
-      } else if (backgroundColor) {
-        baseBackgroundColor = backgroundColor;
-      }
-
-      return {
-        baseBackgroundColor,
-        backgroundMode,
-        backgroundColor,
-        backgroundGradient,
-        backgroundImage,
-        useDefaultBackground,
-        backgroundColors,
-        items,
-        images,
-      };
-    }
-    try {
-      return JSON.parse(form.contentJsonText || '{}');
-    } catch (e) {
-      return {};
-    }
-  };
-
-  const renderPreviewForCurrent = () => {
-    const layout = editingSample?.layout || 'home.cozy_space';
-    switch (layout) {
-      case 'home.main_hero':
-        return <MainHeroSection content={getPreviewContent()} />;
-      case 'home.systems_showcase':
-        return <SystemsShowcase content={getPreviewContent()} />;
-      case 'home.stats':
-        return <StatsSection content={getPreviewContent()} />;
-      case 'home.formations':
-        return <FormationsSection content={getPreviewContent()} />;
-      case 'home.support':
-        return <SupportSection content={getPreviewContent()} />;
-      case 'home.promise':
-        return <PromiseSection content={getPreviewContent()} />;
-      case 'home.cozy_space':
-        return (
-          <CozySpaceSectionWithUpload
-            content={getPreviewContent()}
-            previewMode={previewMode}
-            onImageChange={handleImageChange}
-          />
-        );
-      case 'home.personal_quote':
-        return <PersonalQuoteSection content={getPreviewContent()} />;
-      case 'home.final_cta':
-        return <FinalCTA content={getPreviewContent()} />;
-      case 'home.launch_cta':
-        return <LaunchCTA content={getPreviewContent()} />;
-      case 'home.mask_reveal_scroll':
-        return <MaskRevealScrollSection content={getPreviewContent()} isPreview />;
-      case 'home.tubes_cursor':
-        return <TubesCursorSection content={getPreviewContent()} isPreview />;
-      case 'global.footer':
-        return <Footer isPreview={true} content={getPreviewContent()} />;
-      default:
-        return (
-          <pre className="text-xs bg-muted p-4 rounded-md overflow-x-auto">{JSON.stringify(getPreviewContent(), null, 2)}</pre>
-        );
-    }
-  };
-
-  const handleSaveTemplate = async () => {
-    try {
-      const layout = editingSample?.layout || 'home.cozy_space';
-      let contentPayload = {};
-
-      if (layout === 'home.cozy_space') {
-        contentPayload = {
-          badgeText: form.badgeText,
-          badgeIcon: form.badgeIcon,
-          title: form.titleText,
-          description: form.descriptionText,
-          imageUrl: form.imageUrl,
-          imageAlt: form.imageAlt,
-          showBadge: form.showBadge,
-          ctaText: form.ctaText,
-          ctaUrl: form.ctaUrl,
-          showCta: form.showCta,
-          backgroundColor: form.backgroundColor,
-          useDefaultBackground: form.useDefaultBackground,
-        };
-      } else if (layout === 'home.systems_showcase') {
-        contentPayload = {
-          title: form.ss_title,
-          titleSuffix: form.ss_titleSuffix,
-          images: form.ss_images.filter(img => img.trim() !== ''),
-          buttonText: form.ss_buttonText,
-          buttonLink: form.ss_buttonLink,
-        };
-      } else if (layout === 'home.personal_quote') {
-        contentPayload = {
-          quoteText: form.pq_quoteText,
-          showCta: form.pq_showCta,
-          ctaText: form.pq_ctaText,
-          ctaUrl: form.pq_ctaUrl,
-          backgroundColor: form.pq_backgroundColor,
-          useDefaultBackground: form.pq_useDefaultBackground,
-        };
-      } else if (layout === 'home.main_hero') {
-        contentPayload = {
-          imageUrl: form.mh_imageUrl,
-          overlayOpacity: form.mh_overlayOpacity,
-        };
-      } else if (layout === 'home.promise') {
-        contentPayload = {
-          title: form.pr_title,
-          titleSuffix: form.pr_titleSuffix,
-          items: form.pr_items,
-          showCta: form.pr_showCta,
-          ctaText: form.pr_ctaText,
-          ctaUrl: form.pr_ctaUrl,
-          backgroundColor: form.pr_backgroundColor,
-          useDefaultBackground: form.pr_useDefaultBackground,
-          backgroundImage: form.pr_backgroundImage,
-          useBackgroundImage: form.pr_useBackgroundImage,
-          backgroundOpacity: form.pr_backgroundOpacity,
-        };
-      } else if (layout === 'home.launch_cta') {
-        contentPayload = {
-          displayDate: form.lcta_displayDate,
-          heading: form.lcta_heading,
-          subText: form.lcta_subText,
-          buttonText: form.lcta_buttonText,
-          buttonLink: form.lcta_buttonLink,
-          showCta: form.lcta_showCta,
-          iconName: form.lcta_iconName,
-          useDefaultBackground: form.lcta_useDefaultBackground,
-          backgroundColor: form.lcta_backgroundColor,
-          backgroundGradient: form.lcta_backgroundGradient,
-          useDefaultGradient: form.lcta_useDefaultGradient,
-        };
-      } else if (layout === 'home.mask_reveal_scroll') {
-        contentPayload = getPreviewContent();
-      } else if (layout === 'home.tubes_cursor') {
-        contentPayload = sanitizeTubesTitles({
-          title1: form.tc_title1,
-          title2: form.tc_title2,
-          title3: form.tc_title3,
-        });
-      } else {
-        try {
-          contentPayload = JSON.parse(form.contentJsonText || '{}');
-        } catch(e) {
-          contentPayload = {};
-        }
-      }
-
-      const payload = {
-        title: form.title,
-        block_type: editingSample?.block_type || 'dynamic',
-        layout: layout,
-        content: contentPayload,
-      };
-
-      if (!editingSample?.id || String(editingSample.id).startsWith('builtin-')) {
-        const { error } = await supabase.from('block_samples').insert([payload]);
-        if (error) throw error;
-        toast({ title: 'Succès', description: 'Modèle enregistré.' });
-      } else {
-        const { error } = await supabase.from('block_samples').update(payload).eq('id', editingSample.id);
-        if (error) throw error;
-        toast({ title: 'Succès', description: 'Modèle mis à jour.' });
-      }
-      
-      // Clear URL params and localStorage when explicitly closing
-      const newSearchParams = new URLSearchParams(searchParams);
-      newSearchParams.delete('editing');
-      newSearchParams.delete('sampleId');
-      setSearchParams(newSearchParams, { replace: true });
-      
-      setIsEditOpen(false);
-      setEditingSample(null);
-      try { sessionStorage.removeItem('blockSamplesEditor'); } catch (_) {}
-      fetchSamples();
-    } catch (err) {
-      toast({ title: 'Erreur', description: `Impossible d'enregistrer le modèle: ${err.message}`, variant: 'destructive' });
-    }
-  };
-
-
-  // Sync URL params with editor state
-  // Important: do NOT drop editing/sampleId when isEditOpen is false.
-  // We only set params when opening; we clear them explicitly on Save/Cancel.
-  useEffect(() => {
-    const newSearchParams = new URLSearchParams(searchParams);
-    const urlEditing = searchParams.get('editing') === 'true';
-    const urlSampleId = searchParams.get('sampleId');
-
-    if (isEditOpen) {
-      // Ensure editing flag and keep subtab on samples
-      newSearchParams.set('editing', 'true');
-      newSearchParams.set('subtab', 'samples');
-      if (editingSample?.id) {
-        newSearchParams.set('sampleId', editingSample.id.toString());
-      } else if (urlSampleId) {
-        // Preserve existing sampleId until we resolve the sample object
-        newSearchParams.set('sampleId', urlSampleId);
-      }
-    } else {
-      // When closed, leave URL as-is. Explicit close handlers will clean params.
-    }
-
-    const currentParams = searchParams.toString();
-    const newParams = newSearchParams.toString();
-    if (currentParams !== newParams) {
-      setSearchParams(newSearchParams, { replace: true });
-    }
-  }, [isEditOpen, editingSample, searchParams, setSearchParams]);
-
-
-
-
+  }, [clearPersistedEditorState, handleEdit, samples]);
 
   return (
     <div className="space-y-4">
       <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
-        <h2 className="text-xl font-semibold">Bibliothèque de modèles de Blocs</h2>
+        <h2 className="text-xl font-semibold">Bibliothèque de modèles</h2>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={importFromActiveBlocks}>
-            <Layers className="h-4 w-4 mr-2" />
-            Importer depuis Blocs Actifs
+          <Button variant="outline" onClick={handleImportFromActiveBlocks}>
+            <Layers className="mr-2 h-4 w-4" />
+            Importer depuis les blocs actifs
+          </Button>
+          <Button variant="outline" onClick={fetchSamples}>
+            <Loader2 className="mr-2 h-4 w-4" />
+            Actualiser
+          </Button>
+          <Button onClick={handleCreateNewSample}>
+            <Plus className="mr-2 h-4 w-4" />
+            Nouveau modèle
           </Button>
         </div>
       </div>
 
-      <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
-        <div className="flex flex-col md:flex-row gap-3 md:items-end">
-          <div className="relative flex-grow">
-            <Label htmlFor="search-input" className="block text-sm font-medium mb-2">Rechercher un modèle</Label>
+      <div className="rounded-lg bg-muted/30 p-4">
+        <div className="flex flex-col gap-4 md:flex-row md:items-end">
+          <div className="flex-1">
+            <Label htmlFor="sample-search" className="mb-2 block text-sm font-medium">
+              Rechercher un modèle
+            </Label>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                id="search-input"
+                id="sample-search"
                 placeholder="Rechercher un modèle..."
                 className="pl-10"
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(event) => setQuery(event.target.value)}
               />
             </div>
           </div>
           <div className="w-full md:w-64">
-            <Label htmlFor="layout-filter" className="block text-sm font-medium mb-2">Filtrer par layout</Label>
+            <Label htmlFor="layout-filter" className="mb-2 block text-sm font-medium">
+              Filtrer par layout
+            </Label>
             <Select value={layoutFilter} onValueChange={setLayoutFilter}>
               <SelectTrigger id="layout-filter">
                 <SelectValue placeholder="Tous les layouts" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tous</SelectItem>
-                <SelectItem value="home.cozy_space">home.cozy_space</SelectItem>
-                <SelectItem value="home.main_hero">home.main_hero</SelectItem>
-                <SelectItem value="home.systems_showcase">home.systems_showcase</SelectItem>
-                <SelectItem value="home.stats">home.stats</SelectItem>
-                <SelectItem value="home.support">home.support</SelectItem>
-                <SelectItem value="home.promise">home.promise</SelectItem>
-                <SelectItem value="home.personal_quote">home.personal_quote</SelectItem>
-                <SelectItem value="home.final_cta">home.final_cta</SelectItem>
-                <SelectItem value="home.launch_cta">home.launch_cta</SelectItem>
-                <SelectItem value="home.mask_reveal_scroll">home.mask_reveal_scroll</SelectItem>
-                <SelectItem value="global.footer">global.footer</SelectItem>
+                {layoutOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
         </div>
       </div>
-      
-      <div className="border rounded-lg overflow-hidden">
+
+      <div className="overflow-hidden rounded-lg border">
         <Table>
           <TableHeader>
-            <TableRow className="bg-green-50 dark:bg-green-900/20">
+            <TableRow className="bg-muted/30">
               <TableHead className="w-12">
                 <Checkbox
                   checked={selectAll}
                   onCheckedChange={handleSelectAll}
-                  aria-label="Sélectionner tout"
+                  aria-label="Sélectionner tous les modèles"
                 />
               </TableHead>
               <TableHead>Titre</TableHead>
@@ -1518,63 +757,91 @@ const BlockSamplesPanel = ({ onBlockCreated }) => {
           </TableHeader>
           <TableBody>
             {loading ? (
-              <TableRow><TableCell colSpan={5} className="h-24 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin" /></TableCell></TableRow>
+              <TableRow>
+                <TableCell colSpan={5} className="h-24 text-center">
+                  <Loader2 className="mx-auto h-6 w-6 animate-spin" />
+                </TableCell>
+              </TableRow>
             ) : error ? (
-              <TableRow><TableCell colSpan={5} className="h-24 text-center text-red-500"><AlertCircle className="mx-auto h-6 w-6 mb-2" />{error}</TableCell></TableRow>
-            ) : samples.length > 0 ? (
-              samples.map(sample => (
-                <TableRow key={sample.id} className="hover:bg-muted/50">
+              <TableRow>
+                <TableCell colSpan={5} className="h-24 text-center text-red-600">
+                  <div className="flex flex-col items-center gap-2">
+                    <AlertCircle className="h-6 w-6" />
+                    <span>{error}</span>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : samples.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="h-24 text-center">
+                  Aucun modèle enregistré.
+                </TableCell>
+              </TableRow>
+            ) : (
+              samples.map((sample) => (
+                <TableRow key={sample.id} className="hover:bg-muted/20">
                   <TableCell>
                     <Checkbox
                       checked={selectedSamples.has(sample.id)}
-                      onCheckedChange={(checked) => handleSelectSample(sample.id, checked)}
+                      onCheckedChange={(checked) =>
+                        handleSelectSample(sample.id, checked)
+                      }
                       aria-label={`Sélectionner ${sample.title}`}
                     />
                   </TableCell>
                   <TableCell className="font-medium">{sample.title}</TableCell>
                   <TableCell>
-                    <span className="text-xs text-muted-foreground">{sample.layout}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {sample.layout}
+                    </span>
                   </TableCell>
                   <TableCell>
-                     <Badge variant={sample.block_type === 'dynamic' ? 'outline' : 'default'} className="flex items-center gap-1 w-fit">
-                      {sample.block_type === 'dynamic' ? <Layers className="h-3 w-3" /> : <Code className="h-3 w-3" />}
+                    <Badge
+                      variant={sample.block_type === 'dynamic' ? 'outline' : 'secondary'}
+                      className="flex items-center gap-1 w-fit"
+                    >
+                      {sample.block_type === 'dynamic' ? (
+                        <Layers className="h-3 w-3" />
+                      ) : (
+                        <Code className="h-3 w-3" />
+                      )}
                       {sample.block_type}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                     <DropdownMenu>
+                    <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" aria-label="Actions">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => handleUseTemplate(sample)}>
-                          <span>Utiliser ce modèle</span>
+                          <Eye className="mr-2 h-4 w-4" />
+                          Utiliser ce modèle
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={() => handleEdit(sample)}>
                           <Edit className="mr-2 h-4 w-4" />
-                          <span>Éditer</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleAction('Prévisualiser')}>
-                            <Eye className="mr-2 h-4 w-4" />
-                            <span>Prévisualiser</span>
+                          Éditer
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleDuplicate(sample)}>
-                            <Copy className="mr-2 h-4 w-4" />
-                            <span>Dupliquer</span>
+                          <Copy className="mr-2 h-4 w-4" />
+                          Dupliquer
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-900/50" onClick={() => handleDelete(sample.id)}>
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            <span>Supprimer</span>
+                        <DropdownMenuItem
+                          className="text-red-600 focus:bg-red-50 focus:text-red-600 dark:focus:bg-red-900/40"
+                          onClick={() => handleDelete(sample.id)}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Supprimer
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))
-            ) : (
-              <TableRow><TableCell colSpan={5} className="h-24 text-center">Aucun modèle de bloc trouvé. Créez-en un pour commencer !</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
@@ -1582,1364 +849,149 @@ const BlockSamplesPanel = ({ onBlockCreated }) => {
 
       <Dialog open={isEditOpen} onOpenChange={handleDialogOpenChange}>
         <DialogContent
-          className="max-w-[95vw] w-full h-[95vh] max-h-[95vh]"
-          onInteractOutside={(e) => e.preventDefault()}
+          className="max-w-5xl w-full"
+          onInteractOutside={(event) => event.preventDefault()}
         >
           <DialogHeader>
-            <DialogTitle>Éditer le modèle: {form.title || editingSample?.title}</DialogTitle>
+            <DialogTitle>
+              {editingSample ? `Modifier "${editingSample.title}"` : 'Nouveau modèle'}
+            </DialogTitle>
           </DialogHeader>
-          {
-          <div className="flex h-full gap-6 overflow-hidden">
-            <div className="w-[26rem] flex-shrink-0 space-y-4 overflow-y-auto pr-2">
-              <div>
-                <Label>Titre du modèle</Label>
-                <Input value={form.title} onChange={handleChange('title')} />
-              </div>
-              {editingSample?.layout === 'home.personal_quote' && (
-                <div className="space-y-4">
-                  <div>
-                    <Label>Citation personnelle</Label>
-                    <Textarea 
-                      value={form.pq_quoteText || ''} 
-                      onChange={(e) => setForm(prev => ({ ...prev, pq_quoteText: e.target.value }))} 
-                      placeholder="Cela fait une quinzaine d'années que je teste ce type d'outils — c'est mon métier. Mais depuis six ans, pas une seconde l'envie de quitter Notion. Aujourd'hui, je me lance, j'aimerais vous le présenter ✨✨✨"
-                      rows={6}
-                    />
-                  </div>
-                  
-                  <div className="space-y-3">
-                    <div className="flex items-center space-x-2">
-                      <Switch 
-                        id="pq-show-cta" 
-                        checked={form.pq_showCta} 
-                        onCheckedChange={(checked) => setForm(prev => ({ ...prev, pq_showCta: checked }))} 
-                      />
-                      <Label htmlFor="pq-show-cta">Afficher un bouton Call-to-Action</Label>
-                    </div>
-                    
-                    {form.pq_showCta && (
-                      <div className="space-y-4">
-                        <div>
-                          <Label htmlFor="mainTitle">Titre complet</Label>
-                          <Input
-                            id="mainTitle"
-                            value={form.mainTitle || ''}
-                            onChange={(e) => setForm(prev => ({ ...prev, mainTitle: e.target.value }))}
-                            placeholder="Titre complet (utilisez ** pour mettre en couleur, ex: Notre **promesse**)"
-                          />
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Utilisez **texte** pour mettre une partie du titre en couleur
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
 
-                  <div className="space-y-3">
-                    <div className="flex items-center space-x-2">
-                      <Switch 
-                        id="pq-use-default-bg" 
-                        checked={form.pq_useDefaultBackground} 
-                        onCheckedChange={(checked) => setForm(prev => ({ ...prev, pq_useDefaultBackground: checked }))} 
-                      />
-                      <Label htmlFor="pq-use-default-bg">Utiliser la couleur de fond par défaut (noir)</Label>
-                    </div>
-                    
-                    {!form.pq_useDefaultBackground && (
-                      <div className="pl-6 border-l-2 border-muted">
-                        <Label>Couleur de fond personnalisée</Label>
-                        <div className="flex gap-2 mt-1">
-                          <Input 
-                            type="color"
-                            value={form.pq_backgroundColor || '#000000'} 
-                            onChange={(e) => setForm(prev => ({ ...prev, pq_backgroundColor: e.target.value }))} 
-                            className="w-16 h-10 p-1 border rounded"
-                          />
-                          <Input 
-                            value={form.pq_backgroundColor || ''} 
-                            onChange={(e) => setForm(prev => ({ ...prev, pq_backgroundColor: e.target.value }))} 
-                            placeholder="#000000"
-                            className="flex-1"
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-              {editingSample?.layout === 'home.main_hero' && (
-                <div className="space-y-4">
-                  <div>
-                    <Label>Image de fond full screen</Label>
-                    <ImageUpload
-                      currentImageUrl={form.mh_imageUrl}
-                      onImageSelected={(url) => setForm(prev => ({ ...prev, mh_imageUrl: url }))}
-                      acceptedTypes={['image/jpeg', 'image/jpg', 'image/png', 'image/webp']}
-                      compact={true}
+          <div className="flex flex-col gap-6 lg:flex-row">
+            <div className="w-full lg:w-[22rem] space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Métadonnées</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="sample-title">Titre</Label>
+                    <Input
+                      id="sample-title"
+                      value={metadataForm.title}
+                      onChange={(event) =>
+                        setMetadataForm((prev) => ({
+                          ...prev,
+                          title: event.target.value,
+                        }))
+                      }
+                      placeholder="Titre du modèle"
                     />
                   </div>
 
-                  <div>
-                    <Label>Opacité de l'overlay (0 = transparent, 1 = opaque)</Label>
-                    <div className="flex gap-2 items-center">
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.05"
-                        value={form.mh_overlayOpacity || 0.3}
-                        onChange={(e) => setForm(prev => ({ ...prev, mh_overlayOpacity: parseFloat(e.target.value) }))}
-                        className="flex-1"
-                      />
-                      <span className="text-sm text-muted-foreground w-12">{(form.mh_overlayOpacity || 0.3).toFixed(2)}</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-              {editingSample?.layout === 'home.promise' && (
-                <div className="space-y-4">
-                  <div>
-                    <Label>Titre complet</Label>
-                    <Input 
-                      value={form.pr_title || ''} 
-                      onChange={(e) => setForm(prev => ({ ...prev, pr_title: e.target.value }))} 
-                      placeholder="Ma **promesse**, simple. (utilisez ** pour la couleur)"
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Utilisez **texte** pour mettre une partie du titre en couleur
-                    </p>
+                  <div className="space-y-2">
+                    <Label>Type de contenu</Label>
+                    <Select
+                      value={metadataForm.block_type}
+                      onValueChange={handleBlockTypeChange}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="dynamic">Dynamique (layout)</SelectItem>
+                        <SelectItem value="html">HTML</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
-                  <div>
-                    <Label>Colonnes de promesses</Label>
-                    <div className="space-y-3">
-                      {(form.pr_items || []).map((item, index) => (
-                        <div key={index} className="border rounded-lg p-3 bg-muted/30">
-                          <div className="flex gap-2 items-center mb-2">
-                            <div className="flex-1">
-                              <Label className="text-xs">Titre</Label>
-                              <Input
-                                value={item.title || ''}
-                                onChange={(e) => {
-                                  const newItems = [...form.pr_items];
-                                  newItems[index] = { ...newItems[index], title: e.target.value };
-                                  setForm(prev => ({ ...prev, pr_items: newItems }));
-                                }}
-                                placeholder="Titre de la promesse"
-                                className="mt-1"
-                              />
-                            </div>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                const newItems = form.pr_items.filter((_, i) => i !== index);
-                                setForm(prev => ({ ...prev, pr_items: newItems }));
-                              }}
-                              className="text-red-600 hover:text-red-700 self-end"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                          
-                          <div className="space-y-2">
-                            <div>
-                              <Label className="text-xs">Icône</Label>
-                              <div className="flex gap-2 mt-1">
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => setShowPromiseIcons(showPromiseIcons === index ? null : index)}
-                                  className="flex items-center gap-2"
-                                >
-                                  {(() => {
-                                    const IconComponent = promiseIcons.find(icon => icon.name === item.icon)?.icon || Users;
-                                    return <IconComponent className="h-4 w-4" />;
-                                  })()}
-                                  {promiseIcons.find(icon => icon.name === item.icon)?.label || 'Choisir'}
-                                </Button>
-                              </div>
-                              {showPromiseIcons === index && (
-                                <div className="grid grid-cols-4 gap-2 mt-2 p-3 border rounded-lg bg-background">
-                                  {promiseIcons.map((iconItem) => {
-                                    const IconComponent = iconItem.icon;
-                                    return (
-                                      <Button
-                                        key={iconItem.name}
-                                        type="button"
-                                        variant={item.icon === iconItem.name ? "default" : "outline"}
-                                        size="sm"
-                                        onClick={() => {
-                                          const newItems = [...form.pr_items];
-                                          newItems[index] = { ...newItems[index], icon: iconItem.name };
-                                          setForm(prev => ({ ...prev, pr_items: newItems }));
-                                          setShowPromiseIcons(null);
-                                        }}
-                                        className="flex flex-col items-center gap-1 h-auto py-2"
-                                      >
-                                        <IconComponent className="h-4 w-4" />
-                                        <span className="text-xs">{iconItem.label}</span>
-                                      </Button>
-                                    );
-                                  })}
-                                </div>
-                              )}
-                            </div>
-                            <div>
-                              <Label className="text-xs">Description</Label>
-                              <Textarea 
-                                value={item.description || ''} 
-                                onChange={(e) => {
-                                  const newItems = [...form.pr_items];
-                                  newItems[index] = { ...newItems[index], description: e.target.value };
-                                  setForm(prev => ({ ...prev, pr_items: newItems }));
-                                }}
-                                placeholder="Description de la promesse"
-                                rows={2}
-                                className="mt-1"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          const newItems = [...(form.pr_items || []), { icon: 'Users', title: '', text: '' }];
-                          setForm(prev => ({ ...prev, pr_items: newItems }));
-                        }}
-                        className="w-full"
+                  {metadataForm.block_type === 'dynamic' && (
+                    <div className="space-y-2">
+                      <Label>Layout</Label>
+                      <Select
+                        value={metadataForm.layout}
+                        onValueChange={handleLayoutChange}
                       >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Ajouter une colonne
-                      </Button>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {layoutOptions
+                            .filter((option) => option.blockType !== 'html')
+                            .map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
                     </div>
-                  </div>
+                  )}
+                </CardContent>
+              </Card>
 
-                  <div className="space-y-3">
-                    <div className="flex items-center space-x-2">
-                      <Switch 
-                        id="pr-show-cta" 
-                        checked={form.pr_showCta} 
-                        onCheckedChange={(checked) => setForm(prev => ({ ...prev, pr_showCta: checked }))} 
-                      />
-                      <Label htmlFor="pr-show-cta">Afficher un bouton Call-to-Action</Label>
-                    </div>
-                    
-                    {form.pr_showCta && (
-                      <div className="space-y-3 pl-6 border-l-2 border-muted">
-                        <div>
-                          <Label>Texte du bouton</Label>
-                          <Input 
-                            value={form.pr_ctaText || ''} 
-                            onChange={(e) => setForm(prev => ({ ...prev, pr_ctaText: e.target.value }))} 
-                            placeholder="Découvrir maintenant"
-                          />
-                        </div>
-                        <div>
-                          <Label>Lien du bouton</Label>
-                          <Input 
-                            value={form.pr_ctaUrl || ''} 
-                            onChange={(e) => setForm(prev => ({ ...prev, pr_ctaUrl: e.target.value }))} 
-                            placeholder="#"
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="flex items-center space-x-2">
-                      <Switch 
-                        id="pr-use-bg-image" 
-                        checked={form.pr_useBackgroundImage} 
-                        onCheckedChange={(checked) => setForm(prev => ({ ...prev, pr_useBackgroundImage: checked }))} 
-                      />
-                      <Label htmlFor="pr-use-bg-image">Utiliser une image de fond</Label>
-                    </div>
-                    
-                    {form.pr_useBackgroundImage ? (
-                      <div className="space-y-3 pl-6 border-l-2 border-muted">
-                        <div>
-                          <Label>Image de fond</Label>
-                          <ImageUpload
-                            currentImageUrl={form.pr_backgroundImage}
-                            onImageSelected={(url) => setForm(prev => ({ ...prev, pr_backgroundImage: url }))}
-                            bucketName="block-images"
-                            cropAspectRatio={16/9}
-                            maxSizeMB={5}
-                            compact={true}
-                          />
-                        </div>
-                        <div>
-                          <Label>Opacité de l'image (0 = transparent, 1 = opaque)</Label>
-                          <div className="flex gap-2 items-center">
-                            <input
-                              type="range"
-                              min="0"
-                              max="1"
-                              step="0.05"
-                              value={form.pr_backgroundOpacity || 0.5}
-                              onChange={(e) => setForm(prev => ({ ...prev, pr_backgroundOpacity: parseFloat(e.target.value) }))}
-                              className="flex-1"
-                            />
-                            <span className="text-sm text-muted-foreground w-12">{(form.pr_backgroundOpacity || 0.5).toFixed(2)}</span>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="space-y-3 pl-6 border-l-2 border-muted">
-                        <div className="flex items-center space-x-2">
-                          <Switch 
-                            id="pr-use-default-bg" 
-                            checked={form.pr_useDefaultBackground} 
-                            onCheckedChange={(checked) => setForm(prev => ({ ...prev, pr_useDefaultBackground: checked }))} 
-                          />
-                          <Label htmlFor="pr-use-default-bg">Utiliser la couleur de fond par défaut (transparent)</Label>
-                        </div>
-                        
-                        {!form.pr_useDefaultBackground && (
-                          <div>
-                            <Label>Couleur de fond personnalisée</Label>
-                            <div className="flex gap-2 mt-1">
-                              <Input 
-                                type="color"
-                                value={form.pr_backgroundColor || '#ffffff'} 
-                                onChange={(e) => setForm(prev => ({ ...prev, pr_backgroundColor: e.target.value }))} 
-                                className="w-16 h-10 p-1 border rounded"
-                              />
-                              <Input 
-                                value={form.pr_backgroundColor || ''} 
-                                onChange={(e) => setForm(prev => ({ ...prev, pr_backgroundColor: e.target.value }))} 
-                                placeholder="#ffffff"
-                                className="flex-1"
-                              />
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-              {editingSample?.layout === 'home.systems_showcase' && (
-                <div className="space-y-4">
-                  <div>
-                    <Label>Titre</Label>
-                    <Input 
-                      value={form.ss_title || ''} 
-                      onChange={(e) => setForm(prev => ({ ...prev, ss_title: e.target.value }))} 
-                      placeholder="Un système rodé"
+              {metadataForm.block_type === 'html' && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Contenu HTML</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Textarea
+                      rows={18}
+                      value={metadataForm.htmlContent}
+                      onChange={(event) =>
+                        setMetadataForm((prev) => ({
+                          ...prev,
+                          htmlContent: event.target.value,
+                        }))
+                      }
+                      placeholder="<section>Votre HTML…</section>"
                     />
-                  </div>
-                  <div>
-                    <Label>Suffixe du titre</Label>
-                    <Input 
-                      value={form.ss_titleSuffix || ''} 
-                      onChange={(e) => setForm(prev => ({ ...prev, ss_titleSuffix: e.target.value }))} 
-                      placeholder="rodé"
-                    />
-                  </div>
-                  <div>
-                    <Label>Images du carrousel (1-4 images)</Label>
-                    <div className="space-y-3">
-                      {(form.ss_images || []).map((image, index) => (
-                        <div key={index} className="border rounded-lg p-3 bg-muted/30">
-                          <div className="flex gap-2 items-start mb-2">
-                            <span className="text-sm font-medium text-muted-foreground">Image {index + 1}</span>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                const newImages = (form.ss_images || []).filter((_, i) => i !== index);
-                                setForm(prev => ({ ...prev, ss_images: newImages }));
-                              }}
-                              className="text-red-600 hover:text-red-700 ml-auto"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                          
-                          <div className="space-y-2">
-                            <ImageUpload
-                              currentImageUrl={image}
-                              onImageSelected={(url) => {
-                                const newImages = [...(form.ss_images || [])];
-                                newImages[index] = url;
-                                setForm(prev => ({ ...prev, ss_images: newImages }));
-                              }}
-                              bucketName="block-images"
-                              cropAspectRatio={16/9}
-                              maxSizeMB={5}
-                              compact={true}
-                            />
-                          </div>
-                        </div>
-                      ))}
-                      {(!form.ss_images || form.ss_images.length < 4) && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            const newImages = [...(form.ss_images || []), ''];
-                            setForm(prev => ({ ...prev, ss_images: newImages }));
-                          }}
-                          className="w-full"
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          Ajouter une image
-                        </Button>
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground">Ajoutez entre 1 et 4 images pour le carrousel via l'upload de fichiers.</p>
-                  </div>
-                  <div>
-                    <Label>Texte du bouton</Label>
-                    <Input 
-                      value={form.ss_buttonText || ''} 
-                      onChange={(e) => setForm(prev => ({ ...prev, ss_buttonText: e.target.value }))} 
-                      placeholder="Faites un tour du propriétaire"
-                    />
-                  </div>
-                  <div>
-                    <Label>Lien du bouton</Label>
-                    <Input 
-                      value={form.ss_buttonLink || ''} 
-                      onChange={(e) => setForm(prev => ({ ...prev, ss_buttonLink: e.target.value }))} 
-                      placeholder="/mes-systemes"
-                    />
-                  </div>
-                </div>
-              )}
-              {editingSample?.layout === 'home.tubes_cursor' && (
-                <div className="space-y-4">
-                  <div>
-                    <Label>Titre 1</Label>
-                    <Input value={form.tc_title1 || ''} onChange={handleChange('tc_title1')} placeholder="Tubes" />
-                  </div>
-                  <div>
-                    <Label>Titre 2</Label>
-                    <Input value={form.tc_title2 || ''} onChange={handleChange('tc_title2')} placeholder="Cursor" />
-                  </div>
-                  <div>
-                    <Label>Titre 3</Label>
-                    <Input value={form.tc_title3 || ''} onChange={handleChange('tc_title3')} placeholder="WebGPU / WebGL" />
-                  </div>
-                  <p className="text-xs text-muted-foreground">Ces titres apparaissent sur l'animation Tubes Cursor.</p>
-                </div>
+                  </CardContent>
+                </Card>
               )}
 
-              {editingSample?.layout === 'home.mask_reveal_scroll' && (
-                <div className="space-y-6">
-                  <Card className="shadow-sm border">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Palette className="h-4 w-4" />
-                        Fond du bloc
-                      </CardTitle>
-                      <CardDescription>Personnalisez le fond de la section (couleur, degrade ou image).</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="mask-use-default-bg">Utiliser le fond par defaut</Label>
-                        <Switch
-                          id="mask-use-default-bg"
-                          checked={form.mask_useDefaultBackground}
-                          onCheckedChange={(checked) => setForm(prev => ({ ...prev, mask_useDefaultBackground: checked }))}
-                        />
-                      </div>
-
-                      {!form.mask_useDefaultBackground && (
-                        <div className="space-y-4">
-                          <div>
-                            <Label>Type de fond</Label>
-                            <ToggleGroup
-                              type="single"
-                              className="mt-2"
-                              value={form.mask_backgroundMode}
-                              onValueChange={(value) => {
-                                if (!value) return;
-                                setForm(prev => ({ ...prev, mask_backgroundMode: value }));
-                              }}
-                            >
-                              <ToggleGroupItem value="color">Couleur</ToggleGroupItem>
-                              <ToggleGroupItem value="gradient">Degrade</ToggleGroupItem>
-                              <ToggleGroupItem value="image">Image</ToggleGroupItem>
-                            </ToggleGroup>
-                          </div>
-
-                          {form.mask_backgroundMode === 'color' && (
-                            <div className="pl-4 border-l-2 border-muted space-y-2">
-                              <Label>Couleur unie</Label>
-                              <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-                                <Input
-                                  type="color"
-                                  value={form.mask_backgroundColor || '#f9ffe7'}
-                                  onChange={(e) => setForm(prev => ({ ...prev, mask_backgroundColor: e.target.value }))}
-                                  className="w-20 h-12 p-1 border rounded"
-                                />
-                                <Input
-                                  value={form.mask_backgroundColor || ''}
-                                  onChange={(e) => setForm(prev => ({ ...prev, mask_backgroundColor: e.target.value }))}
-                                  placeholder="#f9ffe7"
-                                  className="flex-1"
-                                />
-                              </div>
-                              <p className="text-xs text-muted-foreground">Cette couleur sert de base pour les transitions.</p>
-                            </div>
-                          )}
-
-                          {form.mask_backgroundMode === 'gradient' && (
-                            <div className="pl-4 border-l-2 border-muted space-y-4">
-                              <div className="grid gap-3 sm:grid-cols-2">
-                                <div>
-                                  <Label>Couleur de depart</Label>
-                                  <Input
-                                    type="color"
-                                    value={form.mask_gradStart || '#EDF9FF'}
-                                    onChange={(e) => {
-                                      const start = e.target.value;
-                                      setForm(prev => ({
-                                        ...prev,
-                                        mask_gradStart: start,
-                                        mask_backgroundGradient: buildLinearGradient(prev.mask_gradAngle ?? 125, start, prev.mask_gradEnd ?? start),
-                                      }));
-                                    }}
-                                    className="w-full h-12 p-1 border rounded"
-                                  />
-                                </div>
-                                <div>
-                                  <Label>Couleur de fin</Label>
-                                  <Input
-                                    type="color"
-                                    value={form.mask_gradEnd || '#FFE8DB'}
-                                    onChange={(e) => {
-                                      const end = e.target.value;
-                                      setForm(prev => ({
-                                        ...prev,
-                                        mask_gradEnd: end,
-                                        mask_backgroundGradient: buildLinearGradient(prev.mask_gradAngle ?? 125, prev.mask_gradStart ?? end, end),
-                                      }));
-                                    }}
-                                    className="w-full h-12 p-1 border rounded"
-                                  />
-                                </div>
-                              </div>
-
-                              <div>
-                                <Label>Angle du degrade : {form.mask_gradAngle ?? 125}°</Label>
-                                <input
-                                  type="range"
-                                  min="0"
-                                  max="360"
-                                  step="1"
-                                  value={form.mask_gradAngle ?? 125}
-                                  onChange={(e) => {
-                                    const angle = Number(e.target.value);
-                                    setForm(prev => ({
-                                      ...prev,
-                                      mask_gradAngle: angle,
-                                      mask_backgroundGradient: buildLinearGradient(angle, prev.mask_gradStart ?? '#EDF9FF', prev.mask_gradEnd ?? '#FFE8DB'),
-                                    }));
-                                  }}
-                                  className="w-full"
-                                />
-                              </div>
-
-                              <div className="space-y-2">
-                                <Label>CSS du degrade</Label>
-                                <Input
-                                  value={form.mask_backgroundGradient || ''}
-                                  onChange={(e) => {
-                                    const value = e.target.value;
-                                    const parsed = parseLinearGradient(value);
-                                    setForm(prev => ({
-                                      ...prev,
-                                      mask_backgroundGradient: value,
-                                      mask_gradStart: parsed?.start || prev.mask_gradStart || '#EDF9FF',
-                                      mask_gradEnd: parsed?.end || prev.mask_gradEnd || '#FFE8DB',
-                                      mask_gradAngle: parsed?.angle || prev.mask_gradAngle || 125,
-                                    }));
-                                  }}
-                                  placeholder="linear-gradient(125deg, #EDF9FF 0%, #FFE8DB 100%)"
-                                />
-                                <p className="text-xs text-muted-foreground">Collez un CSS de degrade complet, les controles seront ajustes.</p>
-                              </div>
-
-                              <div>
-                                <Label>Presets</Label>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
-                                  {maskGradientPresets.map((preset) => (
-                                    <button
-                                      key={preset.name}
-                                      type="button"
-                                      onClick={() => setForm(prev => ({
-                                        ...prev,
-                                        mask_backgroundMode: 'gradient',
-                                        mask_gradStart: preset.start,
-                                        mask_gradEnd: preset.end,
-                                        mask_gradAngle: preset.angle,
-                                        mask_backgroundGradient: buildLinearGradient(preset.angle, preset.start, preset.end),
-                                      }))}
-                                      className="h-12 rounded border shadow-sm"
-                                      title={preset.name}
-                                      style={{ background: buildLinearGradient(preset.angle, preset.start, preset.end) }}
-                                    />
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
-                          {form.mask_backgroundMode === 'image' && (
-                            <div className="pl-4 border-l-2 border-muted space-y-3">
-                              <Label>Image de fond</Label>
-                              <ImageUpload
-                                currentImageUrl={form.mask_backgroundImage}
-                                onImageSelected={(url) => setForm(prev => ({ ...prev, mask_backgroundImage: url }))}
-                                acceptedTypes={['image/jpeg', 'image/png', 'image/webp']}
-                                compact
-                              />
-                              <Input
-                                value={form.mask_backgroundImage || ''}
-                                onChange={(e) => setForm(prev => ({ ...prev, mask_backgroundImage: e.target.value }))}
-                                placeholder="https://..."
-                              />
-                              <p className="text-xs text-muted-foreground">Preferez une image large (>= 1600px) pour eviter le flou.</p>
-                            </div>
-                          )}
-
-                          <div className="flex flex-wrap gap-2">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setForm(prev => ({ ...prev, mask_useDefaultBackground: true }))}
-                            >
-                              Revenir au fond par defaut
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setForm(prev => ({
-                                ...prev,
-                                mask_backgroundMode: 'color',
-                                mask_backgroundColor: DEFAULT_MASK_REVEAL_CONTENT.baseBackgroundColor,
-                                mask_backgroundGradient: DEFAULT_MASK_GRADIENT,
-                                mask_backgroundImage: '',
-                                mask_gradStart: maskGradientPresets[0]?.start || '#EDF9FF',
-                                mask_gradEnd: maskGradientPresets[0]?.end || '#FFE8DB',
-                                mask_gradAngle: maskGradientPresets[0]?.angle || 125,
-                              }))}
-                            >
-                              Reinitialiser l'editeur
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-
-                  <Card className="shadow-sm border">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Type className="h-4 w-4" />
-                        Contenus et textes
-                      </CardTitle>
-                      <CardDescription>Modifiez les titres, descriptions et liens de chaque contenu.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {(form.mask_items || []).map((item, index) => (
-                        <div key={item.id || index} className="border rounded-lg p-4 space-y-4 bg-muted/10">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium">Contenu #{index + 1}</span>
-                            {(form.mask_items || []).length > 1 && (
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="ghost"
-                                className="text-destructive hover:text-destructive"
-                                onClick={() => handleRemoveMaskItem(index)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            )}
-                          </div>
-
-                          <div className="grid gap-3">
-                            <div>
-                              <Label>Titre</Label>
-                              <Input
-                                value={item.title || ''}
-                                onChange={(e) => handleMaskItemChange(index, 'title', e.target.value)}
-                                placeholder="Titre du contenu"
-                              />
-                            </div>
-                            <div>
-                              <Label>Texte</Label>
-                              <Textarea
-                                value={item.description || ''}
-                                onChange={(e) => handleMaskItemChange(index, 'description', e.target.value)}
-                                placeholder="Decrivez le contenu mis en avant"
-                                rows={4}
-                              />
-                            </div>
-                          </div>
-
-                          <div className="grid gap-3 sm:grid-cols-2">
-                            <div>
-                              <Label>Texte du bouton</Label>
-                              <Input
-                                value={item.link?.label || ''}
-                                onChange={(e) => handleMaskItemLinkChange(index, 'label', e.target.value)}
-                                placeholder="En savoir plus"
-                              />
-                            </div>
-                            <div>
-                              <Label>Lien</Label>
-                              <Input
-                                value={item.link?.href || ''}
-                                onChange={(e) => handleMaskItemLinkChange(index, 'href', e.target.value)}
-                                placeholder="# ou /contact"
-                              />
-                            </div>
-                          </div>
-
-                          <div>
-                            <Label>Couleur du bouton</Label>
-                            <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-                              <Input
-                                type="color"
-                                value={item.link?.backgroundColor || '#D5FF37'}
-                                onChange={(e) => handleMaskItemLinkChange(index, 'backgroundColor', e.target.value)}
-                                className="w-20 h-12 p-1 border rounded"
-                              />
-                              <Input
-                                value={item.link?.backgroundColor || ''}
-                                onChange={(e) => handleMaskItemLinkChange(index, 'backgroundColor', e.target.value)}
-                                placeholder="#D5FF37"
-                                className="flex-1"
-                              />
-                            </div>
-                          </div>
-
-                          <div>
-                            <Label>Couleur de transition du fond</Label>
-                            <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-                              <Input
-                                type="color"
-                                value={form.mask_backgroundColors?.[index] || DEFAULT_MASK_REVEAL_CONTENT.backgroundColors[index % DEFAULT_MASK_REVEAL_CONTENT.backgroundColors.length]}
-                                onChange={(e) => handleMaskBackgroundColorChange(index, e.target.value)}
-                                className="w-20 h-12 p-1 border rounded"
-                              />
-                              <Input
-                                value={form.mask_backgroundColors?.[index] || ''}
-                                onChange={(e) => handleMaskBackgroundColorChange(index, e.target.value)}
-                                placeholder="#EDF9FF"
-                                className="flex-1"
-                              />
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Cette couleur anime le fond pendant le scroll pour ce contenu.
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-
-                      <Button type="button" variant="outline" onClick={handleAddMaskItem} className="flex items-center gap-2">
-                        <Plus className="h-4 w-4" />
-                        Ajouter un contenu
-                      </Button>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="shadow-sm border">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <ImageIcon className="h-4 w-4" />
-                        Images associees
-                      </CardTitle>
-                      <CardDescription>Remplacez les visuels affiches dans le masque.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {(form.mask_images || []).map((image, index) => (
-                        <div key={image.id || index} className="border rounded-lg p-4 space-y-3 bg-muted/10">
-                          <div className="text-sm font-medium">Image #{index + 1}</div>
-                          <ImageUpload
-                            currentImageUrl={image.src}
-                            onImageSelected={handleMaskImageUpload(index)}
-                            acceptedTypes={['image/jpeg', 'image/png', 'image/webp']}
-                            compact
-                          />
-                          <div className="space-y-2">
-                            <div>
-                              <Label>URL de l'image</Label>
-                              <Input
-                                value={image.src || ''}
-                                onChange={(e) => handleMaskImageChange(index, { src: e.target.value })}
-                                placeholder="https://..."
-                              />
-                            </div>
-                            <div>
-                              <Label>Texte alternatif</Label>
-                              <Input
-                                value={image.alt || ''}
-                                onChange={(e) => handleMaskImageChange(index, { alt: e.target.value })}
-                                placeholder="Decrivez l'image"
-                              />
-                            </div>
-                            <div>
-                              <Label>Ordre d'affichage (1 = devant)</Label>
-                              <Input
-                                type="number"
-                                value={typeof image.order === 'number' ? image.order : index + 1}
-                                onChange={(e) => handleMaskImageChange(index, { order: Number(e.target.value) })}
-                                className="w-32"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
-
-              {editingSample?.layout === 'home.launch_cta' && (
-                <div className="space-y-4">
-                  {/* Menu 1: Contenu principal */}
-                  <Collapsible defaultOpen={true}>
-                    <CollapsibleTrigger asChild>
-                      <Button variant="outline" className="w-full justify-between">
-                        <span className="flex items-center gap-2">
-                          <Edit className="h-4 w-4" />
-                          Contenu principal
-                        </span>
-                        <ChevronDown className="h-4 w-4" />
-                      </Button>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="space-y-4 mt-4 p-4 border rounded-lg bg-muted/20">
-                      <div>
-                        <Label>Titre du modèle</Label>
-                        <Input 
-                          value={form.title} 
-                          onChange={handleChange('title')} 
-                          placeholder="Nom du modèle"
-                        />
-                      </div>
-
-                      <div>
-                        <Label>Pictogramme</Label>
-                        <div className="flex gap-2 items-center">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setShowBadgeIcons(!showBadgeIcons)}
-                            className="flex items-center gap-2"
-                          >
-                            {(() => {
-                              const IconComponent = promiseIcons.find(icon => icon.name === form.lcta_iconName)?.icon || Heart;
-                              return <IconComponent className="h-4 w-4" />;
-                            })()}
-                            {promiseIcons.find(icon => icon.name === form.lcta_iconName)?.label || 'Choisir'}
-                          </Button>
-                        </div>
-                        {showBadgeIcons && (
-                          <div className="grid grid-cols-4 gap-2 mt-2 p-3 border rounded-lg bg-background">
-                            {promiseIcons.map((iconItem) => {
-                              const IconComponent = iconItem.icon;
-                              return (
-                                <Button
-                                  key={iconItem.name}
-                                  type="button"
-                                  variant={form.lcta_iconName === iconItem.name ? "default" : "outline"}
-                                  size="sm"
-                                  onClick={() => {
-                                    setForm(prev => ({ ...prev, lcta_iconName: iconItem.name }));
-                                    setShowBadgeIcons(false);
-                                  }}
-                                  className="flex flex-col items-center gap-1 h-auto py-2"
-                                >
-                                  <IconComponent className="h-4 w-4" />
-                                  <span className="text-xs">{iconItem.label}</span>
-                                </Button>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-
-                      <div>
-                        <Label>Petite introduction</Label>
-                        <Input 
-                          value={form.lcta_displayDate || ''} 
-                          onChange={(e) => setForm(prev => ({ ...prev, lcta_displayDate: e.target.value }))} 
-                          placeholder="1 septembre 2025"
-                        />
-                      </div>
-
-                      <div>
-                        <Label>Texte principal</Label>
-                        <Textarea 
-                          value={form.lcta_heading || ''} 
-                          onChange={(e) => setForm(prev => ({ ...prev, lcta_heading: e.target.value }))} 
-                          placeholder="Je démarre mon activité et j'ai faim de vous présenter mon outil !"
-                          rows={3}
-                        />
-                      </div>
-
-                      <div>
-                        <Label>Texte secondaire</Label>
-                        <Textarea 
-                          value={form.lcta_subText || ''} 
-                          onChange={(e) => setForm(prev => ({ ...prev, lcta_subText: e.target.value }))} 
-                          placeholder="Alors s'il vous plaît, n'hésitez pas, faites quelques heures de formation, contactez-moi !"
-                          rows={3}
-                        />
-                      </div>
-                    </CollapsibleContent>
-                  </Collapsible>
-
-                  {/* Menu 2: Bouton Call-to-Action */}
-                  <Collapsible defaultOpen={false}>
-                    <CollapsibleTrigger asChild>
-                      <Button variant="outline" className="w-full justify-between">
-                        <span className="flex items-center gap-2">
-                          <Target className="h-4 w-4" />
-                          Bouton Call-to-Action
-                        </span>
-                        <ChevronDown className="h-4 w-4" />
-                      </Button>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="space-y-4 mt-4 p-4 border rounded-lg bg-muted/20">
-                      <div className="flex items-center space-x-2">
-                        <Switch 
-                          id="lcta-show-cta" 
-                          checked={form.lcta_showCta} 
-                          onCheckedChange={(checked) => setForm(prev => ({ ...prev, lcta_showCta: checked }))} 
-                        />
-                        <Label htmlFor="lcta-show-cta">Afficher le bouton Call-to-Action</Label>
-                      </div>
-                      
-                      {form.lcta_showCta && (
-                        <div className="space-y-3 pl-6 border-l-2 border-muted">
-                          <div>
-                            <Label>Texte du bouton</Label>
-                            <Input 
-                              value={form.lcta_buttonText || ''} 
-                              onChange={(e) => setForm(prev => ({ ...prev, lcta_buttonText: e.target.value }))} 
-                              placeholder="Contactez-moi !"
-                            />
-                          </div>
-                          <div>
-                            <Label>Lien du bouton</Label>
-                            <Input 
-                              value={form.lcta_buttonLink || ''} 
-                              onChange={(e) => setForm(prev => ({ ...prev, lcta_buttonLink: e.target.value }))} 
-                              placeholder="/contact"
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </CollapsibleContent>
-                  </Collapsible>
-
-                  {/* Menu 3: Arrière-plan */}
-                  <Collapsible defaultOpen={false}>
-                    <CollapsibleTrigger asChild>
-                      <Button variant="outline" className="w-full justify-between">
-                        <span className="flex items-center gap-2">
-                          <Layers className="h-4 w-4" />
-                          Arrière-plan
-                        </span>
-                        <ChevronDown className="h-4 w-4" />
-                      </Button>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="space-y-4 mt-4 p-4 border rounded-lg bg-muted/20">
-                      {/* 1) Toggle default background vs custom */}
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="lcta-use-default-bg">Utiliser l'arrière-plan par défaut</Label>
-                        <Switch
-                          id="lcta-use-default-bg"
-                          checked={form.lcta_useDefaultBackground}
-                          onCheckedChange={(checked) => setForm(prev => ({ ...prev, lcta_useDefaultBackground: checked }))}
-                        />
-                      </div>
-
-                      {/* 2) Custom background editor */}
-                      {!form.lcta_useDefaultBackground && (
-                        <div className="space-y-4 pl-6 border-l-2 border-muted">
-                          {/* Mode selector */}
-                          <div>
-                            <Label>Mode d'arrière-plan</Label>
-                            <div className="flex gap-2 mt-2">
-                              <Button
-                                type="button"
-                                variant={form.lcta_bgMode === 'color' ? 'default' : 'outline'}
-                                size="sm"
-                                onClick={() => setForm(prev => ({
-                                  ...prev,
-                                  lcta_bgMode: 'color',
-                                  lcta_useDefaultGradient: true,
-                                }))}
-                              >
-                                Couleur unie
-                              </Button>
-                              <Button
-                                type="button"
-                                variant={form.lcta_bgMode === 'gradient' ? 'default' : 'outline'}
-                                size="sm"
-                                onClick={() => setForm(prev => ({
-                                  ...prev,
-                                  lcta_bgMode: 'gradient',
-                                  lcta_useDefaultGradient: false,
-                                  lcta_backgroundGradient: prev.lcta_backgroundGradient || `linear-gradient(${prev.lcta_gradAngle || 135}deg, ${prev.lcta_gradStart || '#ff6b35'} 0%, ${prev.lcta_gradEnd || '#f7931e'} 100%)`
-                                }))}
-                              >
-                                Dégradé
-                              </Button>
-                            </div>
-                          </div>
-
-                          {/* Color mode */}
-                          {form.lcta_bgMode === 'color' && (
-                            <div className="space-y-2">
-                              <Label>Couleur de fond personnalisée</Label>
-                              <div className="flex gap-2 mt-1 items-center">
-                                <Input
-                                  type="color"
-                                  value={form.lcta_backgroundColor || '#ff6b35'}
-                                  onChange={(e) => setForm(prev => ({ ...prev, lcta_backgroundColor: e.target.value }))}
-                                  className="w-16 h-10 p-1 border rounded"
-                                />
-                                <Input
-                                  value={form.lcta_backgroundColor || ''}
-                                  onChange={(e) => setForm(prev => ({ ...prev, lcta_backgroundColor: e.target.value }))}
-                                  placeholder="#ff6b35"
-                                  className="flex-1"
-                                />
-                                <div
-                                  className="w-10 h-10 rounded border"
-                                  style={{ background: form.lcta_backgroundColor || '#ff6b35' }}
-                                  aria-label="Aperçu couleur"
-                                />
-                              </div>
-                              <p className="text-xs text-muted-foreground">Astuce: une couleur unie produit un dégradé harmonisé automatiquement dans l'aperçu.</p>
-                            </div>
-                          )}
-
-                          {/* Gradient mode */}
-                          {form.lcta_bgMode === 'gradient' && (
-                            <div className="space-y-3">
-                              <div>
-                                <Label>Couleurs du dégradé</Label>
-                                <div className="flex gap-3 mt-2 items-center">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs text-muted-foreground w-10">Début</span>
-                                    <Input type="color" value={form.lcta_gradStart} onChange={(e) => {
-                                      const start = e.target.value;
-                                      setForm(prev => ({
-                                        ...prev,
-                                        lcta_gradStart: start,
-                                        lcta_useDefaultGradient: false,
-                                        lcta_backgroundGradient: `linear-gradient(${prev.lcta_gradAngle}deg, ${start} 0%, ${prev.lcta_gradEnd} 100%)`
-                                      }));
-                                    }} className="w-12 h-10 p-1 border rounded" />
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs text-muted-foreground w-10">Fin</span>
-                                    <Input type="color" value={form.lcta_gradEnd} onChange={(e) => {
-                                      const end = e.target.value;
-                                      setForm(prev => ({
-                                        ...prev,
-                                        lcta_gradEnd: end,
-                                        lcta_useDefaultGradient: false,
-                                        lcta_backgroundGradient: `linear-gradient(${prev.lcta_gradAngle}deg, ${prev.lcta_gradStart} 0%, ${end} 100%)`
-                                      }));
-                                    }} className="w-12 h-10 p-1 border rounded" />
-                                  </div>
-                                  <div
-                                    className="flex-1 h-10 rounded border"
-                                    style={{ background: form.lcta_backgroundGradient || `linear-gradient(${form.lcta_gradAngle}deg, ${form.lcta_gradStart} 0%, ${form.lcta_gradEnd} 100%)` }}
-                                    aria-label="Aperçu dégradé"
-                                  />
-                                </div>
-                              </div>
-                              <div>
-                                <Label>Angle du dégradé: {form.lcta_gradAngle}°</Label>
-                                <input
-                                  type="range"
-                                  min={0}
-                                  max={360}
-                                  step={1}
-                                  value={form.lcta_gradAngle}
-                                  onChange={(e) => {
-                                    const angle = Number(e.target.value);
-                                    setForm(prev => ({
-                                      ...prev,
-                                      lcta_gradAngle: angle,
-                                      lcta_useDefaultGradient: false,
-                                      lcta_backgroundGradient: `linear-gradient(${angle}deg, ${prev.lcta_gradStart} 0%, ${prev.lcta_gradEnd} 100%)`
-                                    }));
-                                  }}
-                                  className="w-full"
-                                />
-                              </div>
-                              <div>
-                                <Label>Préréglages</Label>
-                                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mt-2">
-                                  {lctaGradientPresets.map(p => (
-                                    <button
-                                      key={p.name}
-                                      type="button"
-                                      onClick={() => setForm(prev => ({
-                                        ...prev,
-                                        lcta_bgMode: 'gradient',
-                                        lcta_useDefaultGradient: false,
-                                        lcta_gradStart: p.start,
-                                        lcta_gradEnd: p.end,
-                                        lcta_gradAngle: p.angle,
-                                        lcta_backgroundGradient: `linear-gradient(${p.angle}deg, ${p.start} 0%, ${p.end} 100%)`
-                                      }))}
-                                      className="h-10 rounded border"
-                                      title={p.name}
-                                      style={{ background: `linear-gradient(${p.angle}deg, ${p.start} 0%, ${p.end} 100%)` }}
-                                    />
-                                  ))}
-                                </div>
-                              </div>
-                              <div>
-                                <Label>Dégradé CSS (avancé)</Label>
-                                <Input
-                                  value={form.lcta_backgroundGradient || ''}
-                                  onChange={(e) => setForm(prev => ({ ...prev, lcta_backgroundGradient: e.target.value, lcta_useDefaultGradient: false }))}
-                                  placeholder="linear-gradient(135deg, #ff6b35 0%, #f7931e 100%)"
-                                />
-                                <p className="text-xs text-muted-foreground mt-1">Vous pouvez coller un CSS de dégradé ici. Les réglages ci-dessus s'adapteront au prochain changement.</p>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Reset buttons */}
-                          <div className="flex gap-2 pt-1">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setForm(prev => ({
-                                ...prev,
-                                lcta_useDefaultBackground: true
-                              }))}
-                            >
-                              Revenir au fond par défaut
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setForm(prev => ({
-                                ...prev,
-                                lcta_bgMode: 'color',
-                                lcta_useDefaultGradient: true,
-                                lcta_backgroundColor: '#ff6b35',
-                                lcta_backgroundGradient: '',
-                                lcta_gradStart: '#ff6b35',
-                                lcta_gradEnd: '#f7931e',
-                                lcta_gradAngle: 135,
-                              }))}
-                            >
-                              Réinitialiser l'éditeur
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </CollapsibleContent>
-                  </Collapsible>
-                </div>
-              )}
-              {editingSample?.layout !== 'home.cozy_space' && editingSample?.layout !== 'home.systems_showcase' && editingSample?.layout !== 'home.personal_quote' && editingSample?.layout !== 'home.promise' && editingSample?.layout !== 'home.main_hero' && editingSample?.layout !== 'home.launch_cta' && editingSample?.layout !== 'home.mask_reveal_scroll' && (
-                <div>
-                  <Label>Contenu JSON (avancé)</Label>
-                  <Textarea rows={16} value={form.contentJsonText} onChange={handleChange('contentJsonText')} />
-                  <p className="text-xs text-muted-foreground mt-1">Modifiez le contenu du layout au format JSON. La prévisualisation à droite reflète les changements.</p>
-                </div>
-              )}
-              {editingSample?.layout === 'home.cozy_space' && (
-                <div>
-                  <Label>Badge</Label>
-                  <div className="space-y-2">
-                    <div className="flex gap-2">
-                      <Input 
-                        value={form.badgeText} 
-                        onChange={handleChange('badgeText')} 
-                        className="flex-1"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowBadgeIcons(!showBadgeIcons)}
-                        className="px-2 py-1 h-auto"
-                        title="Choisir une icône"
-                      >
-                        {React.createElement(badgeIcons.find(icon => icon.name === form.badgeIcon)?.icon || Sparkles, { 
-                          className: "w-4 h-4" 
-                        })}
-                        {showBadgeIcons ? (
-                          <ChevronUp className="w-3 h-3 ml-1" />
-                        ) : (
-                          <ChevronDown className="w-3 h-3 ml-1" />
-                        )}
-                      </Button>
-                    </div>
-                    {showBadgeIcons && (
-                      <div className="border rounded-md p-3 bg-muted/30">
-                        <Label className="text-xs text-muted-foreground mb-2 block">Icône du badge</Label>
-                        <div className="grid grid-cols-5 gap-2">
-                          {badgeIcons.map((iconItem) => {
-                            const IconComponent = iconItem.icon;
-                            return (
-                              <button
-                                key={iconItem.name}
-                                type="button"
-                                onClick={() => {
-                                  setForm(prev => ({ ...prev, badgeIcon: iconItem.name }));
-                                  setShowBadgeIcons(false);
-                                }}
-                                className={`
-                                  p-2 rounded border-2 transition-colors flex items-center justify-center
-                                  ${form.badgeIcon === iconItem.name 
-                                    ? 'border-primary bg-primary/10' 
-                                    : 'border-muted hover:border-primary/50'
-                                  }
-                                `}
-                                title={iconItem.label}
-                              >
-                                <IconComponent className="w-4 h-4" />
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-              {editingSample?.layout === 'home.cozy_space' && (
-                <div>
-                  <Label>Afficher le badge</Label>
-                  <Switch checked={form.showBadge} onCheckedChange={(v) => setForm(prev => ({ ...prev, showBadge: v }))} />
-                </div>
-              )}
-              {editingSample?.layout === 'home.cozy_space' && (
-                <div>
-                  <Label>Titre affiché</Label>
-                  <Input value={form.titleText} onChange={handleChange('titleText')} />
-                </div>
-              )}
-              {editingSample?.layout === 'home.cozy_space' && (
-                <div>
-                  <Label>Paragraphe</Label>
-                  <Textarea value={form.descriptionText} onChange={handleChange('descriptionText')} rows={6} />
-                </div>
-              )}
-              {editingSample?.layout === 'home.cozy_space' && (
-                <div>
-                  <Label>Call-to-Action</Label>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-sm">Afficher le bouton CTA</Label>
-                      <Switch checked={form.showCta} onCheckedChange={(v) => setForm(prev => ({ ...prev, showCta: v }))} />
-                    </div>
-                    {form.showCta && (
-                      <div className="space-y-2">
-                        <Input 
-                          value={form.ctaText} 
-                          onChange={handleChange('ctaText')} 
-                          placeholder="Texte du bouton"
-                        />
-                        <Input 
-                          value={form.ctaUrl} 
-                          onChange={handleChange('ctaUrl')} 
-                          placeholder="URL de destination"
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-              {editingSample?.layout === 'home.cozy_space' && (
-                <div>
-                  <Label>Couleur de fond</Label>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-sm">Utiliser la couleur par défaut</Label>
-                      <Switch 
-                        checked={form.useDefaultBackground} 
-                        onCheckedChange={(v) => setForm(prev => ({ ...prev, useDefaultBackground: v }))} 
-                      />
-                    </div>
-                    {!form.useDefaultBackground && (
-                      <div className="flex gap-2 items-center">
-                        <Input 
-                          type="color"
-                          value={form.backgroundColor || '#1f2937'} 
-                          onChange={handleChange('backgroundColor')}
-                          className="w-16 h-10 p-1 rounded cursor-pointer"
-                        />
-                        <Input 
-                          value={form.backgroundColor || '#1f2937'} 
-                          onChange={handleChange('backgroundColor')}
-                          placeholder="#1f2937"
-                          className="flex-1 font-mono text-sm"
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-              {editingSample?.layout === 'home.cozy_space' && (
-                <div>
-                  <Label>Texte alternatif de l'image</Label>
-                  <Input value={form.imageAlt} onChange={handleChange('imageAlt')} placeholder="Description de l'image pour l'accessibilité" />
-                </div>
-              )}
-              <div className="flex gap-2 pt-2">
-                <Button onClick={handleSaveTemplate}>Enregistrer</Button>
-                <Button variant="ghost" onClick={handleCloseEditor}>Annuler</Button>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" className="flex-1" onClick={closeEditor}>
+                  Annuler
+                </Button>
+                <Button className="flex-1" onClick={handleSaveTemplate}>
+                  Enregistrer
+                </Button>
               </div>
             </div>
-            <div className="flex-1 flex flex-col min-w-0">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-sm text-muted-foreground">Prévisualisation</span>
-                <ToggleGroup type="single" value={previewMode} onValueChange={(v) => v && setPreviewMode(v)}>
-                  <ToggleGroupItem value="mobile" aria-label="Aperçu mobile">
-                    <Smartphone className="h-4 w-4 mr-1" /> Mobile
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="desktop" aria-label="Aperçu desktop">
-                    <Monitor className="h-4 w-4 mr-1" /> Desktop
-                  </ToggleGroupItem>
-                </ToggleGroup>
+
+            {metadataForm.block_type === 'dynamic' && (
+              <div className="flex-1 space-y-4 overflow-hidden">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Aperçu</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <ToggleGroup
+                      type="single"
+                      value={previewMode}
+                      onValueChange={(value) => value && setPreviewMode(value)}
+                    >
+                      <ToggleGroupItem value="desktop">Desktop</ToggleGroupItem>
+                      <ToggleGroupItem value="mobile">Mobile</ToggleGroupItem>
+                    </ToggleGroup>
+
+                    <div
+                      className={
+                        previewMode === 'mobile'
+                          ? 'mx-auto w-[420px] border rounded-lg'
+                          : 'border rounded-lg'
+                      }
+                    >
+                      <HomeBlockLayoutEditor
+                        layout={metadataForm.layout}
+                        value={editorState}
+                        onChange={setEditorState}
+                        onContentChange={setSerializedContent}
+                        previewMode={previewMode}
+                        fallbackJson={editorFallbackJson}
+                        onFallbackJsonChange={setFallbackJson}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
-              <div className="flex-1 overflow-auto border rounded-xl bg-background">
-                <div className={`${previewMode === 'mobile' ? 'w-[390px] mx-auto' : 'w-full'} h-full`}>
-                  {renderPreviewForCurrent()}
-                </div>
-              </div>
-            </div>
+            )}
           </div>
-}
         </DialogContent>
       </Dialog>
-
     </div>
   );
 };

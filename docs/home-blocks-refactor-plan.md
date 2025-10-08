@@ -21,16 +21,20 @@
   - Creation d'une bibliotheque de composants d'eédition (`src/components/admin/home-blocks/layout-editors/`) couvrant les 13 layouts recenses (CozySpace, LaunchCTA, MaskReveal, etc.) avec API normalisee (`value`, `onChange`).  
   - Mutualisation des helpers (`shared.js`) pour gerer textes, booleens et collections (ajout/suppression, re-ordonnancement).  
   - Export d'un `layoutEditorMap` reutilisable par les ecrans front et futures integrations.
-- [x] Etape 4 - Creation de l'orchestrateur d'eédition unifie
-- [x] Etape 5 - Integration cote bibliotheque (`BlockSamplesPanel`) _(en cours)_
-- [x] Etape 7 - Validation, QA et nettoyage des reliquats
+- [x] Etape 4 - Creation de l'orchestrateur d'e�dition unifie  
+  - Introduction du hook `useHomeBlockEditor` et de `buildHomeBlockEditorBundle` pour partager hydratation, serialisation et fallback JSON entre tous les ecrans.  
+  - Deplacement des helpers de normalisation (tubes, mask, ensure*) dans `layoutRegistry.shared.js` afin d'eliminer les duplications et garantir la meme logique de sanitisation.  
+  - Exposition d'une API commune (`reset`, `hydrateFromRecord`, `getContentPayload`) pour gerer erreurs et toasts de maniere coherente.
+- [x] Etape 5 - Integration cote bibliotheque (`BlockSamplesPanel`)  
+  - Refonte du panneau pour n'utiliser que `HomeBlockLayoutEditor` + metadonnees, suppression des formulaires layout-specifiques et adoption du hook partage.  
+  - Support natif des modeles HTML via un fallback dedie, conservation des actions historiques (import, duplication, utilisation, suppression).  
+  - Initialisation et import des echantillons via `buildHomeBlockEditorBundle` afin d'aligner la structure des contenus sur celle des blocs actifs.
 - [x] Etape 6 - Integration cote blocs actifs (`EditHomeBlockPage`)  
-  - Remplacement de l'ancien etat `dyn` et des formulaires conéditionnels par `HomeBlockLayoutEditor`, aligne sur les definitions du registre et les editeurs dedies.  
-  - Utilisation de `deserializeLayoutContent` / `serializeLayoutContent` pour hydrater et persister les blocs, avec fallback JSON lorsque le layout est non reference.  
-  - Introduction d'un helper `buildBlockPayload` qui assemble `{ metadata, content }` en isolant titre, statut, ordre, audience, visibilite, etc.  
-  - Normalisation de `block_type` et `layout` via `getLayoutDefinition` avant chaque sauvegarde Supabase (`home_blocks_create_html` ou edge `manage-content-block`).  
-  - Mise a jour de l'appel Supabase pour transmettre le payload structure (metadata + content) et adaptation de l'edge `manage-content-block` : reconstruction du `blockData`, validation des champs et retour systematique du bloc complet pour alimenter toasts et `onSave`.  
-  - Gestion des cas d'erreur de serialisation dynamique (toast et arret) tout en conservant le flux de toast et `onSave` historique.
+  - Remplacement des etats locaux, hydration via `hydrateFromRecord` et simplification de `onSubmit` avec `getContentPayload` + `buildBlockPayload`.  
+  - Maintien du flux HTML (`home_blocks_create_html`) tout en harmonisant la partie dynamique avec l'orchestrateur commun.  
+  - Gestion centralisee des toasts d'erreur et des fallback JSON grace au hook.
+- [ ] Etape 7 - Validation, QA et nettoyage des reliquats
+
 
 
 ### Vue d'ensemble des layouts (au 2025-10-08)

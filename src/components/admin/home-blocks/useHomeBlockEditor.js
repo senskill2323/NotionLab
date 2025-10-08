@@ -1,9 +1,7 @@
 import { useState, useCallback } from 'react';
 import {
-  getDefaultEditorState,
   getLayoutDefinition,
   serializeLayoutContent,
-  deserializeLayoutContent,
 } from '@/components/admin/home-blocks/layoutRegistry';
 
 export const buildHomeBlockEditorBundle = ({
@@ -11,16 +9,29 @@ export const buildHomeBlockEditorBundle = ({
   blockType = 'dynamic',
   content,
 } = {}) => {
-  const definition = getLayoutDefinition(layout);
+  const resolvedLayout = layout ?? 'home.main_hero';
+  const definition = getLayoutDefinition(resolvedLayout);
   if (!definition) {
-    const fallback = content ?? {};
+    const fallbackValue = content ?? {};
+    const fallbackState =
+      typeof fallbackValue === 'object' && fallbackValue !== null
+        ? fallbackValue
+        : {};
+    const fallbackJson =
+      typeof fallbackValue === 'string'
+        ? fallbackValue
+        : JSON.stringify(fallbackState, null, 2);
+
+    const serialized =
+      typeof fallbackValue === 'string' ? fallbackValue : fallbackState;
+
     return {
-      layout,
+      layout: resolvedLayout,
       blockType,
       definition: null,
-      state: fallback,
-      serialized: fallback,
-      fallbackJson: JSON.stringify(fallback, null, 2),
+      state: fallbackState,
+      serialized,
+      fallbackJson,
     };
   }
 
@@ -31,11 +42,11 @@ export const buildHomeBlockEditorBundle = ({
       : defaults;
 
   return {
-    layout,
+    layout: resolvedLayout,
     blockType: definition.blockType ?? blockType ?? 'dynamic',
     definition,
     state,
-    serialized: serializeLayoutContent(layout, state),
+    serialized: serializeLayoutContent(resolvedLayout, state),
     fallbackJson: '',
   };
 };
@@ -72,6 +83,11 @@ const useHomeBlockEditor = ({
     ({ nextLayout, nextBlockType = 'dynamic', content } = {}) => {
       const resolvedLayout = nextLayout ?? layout ?? initialLayout;
       const resolvedBlockType = nextBlockType ?? blockType ?? initialBlockType;
+
+      if ((nextLayout == null || nextLayout === layout) && (nextBlockType == null || nextBlockType === blockType) && content === undefined) {
+        return;
+      }
+
       const bundle = buildHomeBlockEditorBundle({
         layout: resolvedLayout,
         blockType: resolvedBlockType,

@@ -1,5 +1,5 @@
  
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet';
 import { useForm, Controller } from 'react-hook-form';
 import { useToast } from '@/components/ui/use-toast';
@@ -18,12 +18,8 @@ import { ArrowLeft, CalendarPlus as CalendarIcon, Loader2, Upload, Eye } from 'l
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/customSupabaseClient';
 import HomeBlockLayoutEditor from '@/components/admin/home-blocks/HomeBlockLayoutEditor';
-import {
-  getDefaultEditorState,
-  getLayoutDefinition,
-  serializeLayoutContent,
-  deserializeLayoutContent,
-} from '@/components/admin/home-blocks/layoutRegistry';
+import { getLayoutDefinition } from '@/components/admin/home-blocks/layoutRegistry';
+import useHomeBlockEditor from '@/components/admin/home-blocks/useHomeBlockEditor';
 
 const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
   const { toast } = useToast();
@@ -39,7 +35,7 @@ const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
       content: '',
       status: 'draft',
       type: 'hero',
-      block_type: 'html',
+      block_type: 'dynamic',
       layout: 'home.main_hero',
       order_index: 0,
       priority: 0,
@@ -56,147 +52,63 @@ const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
   const blockType = watch('block_type');
   const layout = watch('layout');
 
-  const [layoutEditorState, setLayoutEditorState] = useState(() => {
-    const definition = getLayoutDefinition(layout);
-    return definition ? getDefaultEditorState(layout) : {};
+  const {
+    layoutDefinition: editorLayoutDefinition,
+    editorState,
+    fallbackJson: editorFallbackJson,
+    setEditorState,
+    setSerializedContent,
+    setFallbackJson,
+    reset: resetEditor,
+    hydrateFromRecord,
+    getContentPayload,
+  } = useHomeBlockEditor({
+    initialLayout: layout,
+    initialBlockType: blockType,
+    toast,
   });
-  const [layoutSerializedContent, setLayoutSerializedContent] = useState(() => {
-    const definition = getLayoutDefinition(layout);
-    if (!definition) {
-      return null;
-    }
-    return serializeLayoutContent(layout, getDefaultEditorState(layout));
-  });
-  const [fallbackJson, setFallbackJson] = useState('');
-  const previousLayoutRef = useRef(null);
-  const previousBlockTypeRef = useRef(blockType);
 
-  const handleLayoutEditorChange = useCallback((nextValue) => {
-    setLayoutEditorState(nextValue);
-  }, []);
-
-  const handleLayoutContentChange = useCallback((nextContent) => {
-    setLayoutSerializedContent(nextContent);
-  }, []);
-
-  const handleFallbackJsonChange = useCallback(
-    (nextJson) => {
-      setFallbackJson(nextJson);
-      if (!getLayoutDefinition(layout)) {
-        try {
-          const parsed = JSON.parse(nextJson);
-          setLayoutSerializedContent(parsed);
-        } catch (error) {
-          // ignore invalid JSON until it parses
-        }
-      }
-    },
-    [layout],
-  );
+  useEffect(() => {
+    if (!layout) return;
+    resetEditor({ nextLayout: layout, nextBlockType: blockType });
+  }, [layout, blockType, resetEditor]);
 
   const buildBlockPayload = useCallback(
-
     (formValues, content, overrides = {}) => {
-
       const effectiveStatus = overrides.status ?? formValues.status;
+      const layoutDefinition =
+        overrides.layoutDefinition ?? editorLayoutDefinition ?? getLayoutDefinition(formValues.layout);
 
-      const layoutDefinition = overrides.layoutDefinition;
-
-      const normalizedLayout =
-
-        layoutDefinition?.id ?? formValues.layout ?? null;
-
+      const normalizedLayout = layoutDefinition?.id ?? formValues.layout ?? null;
       const normalizedBlockType =
-
         layoutDefinition?.blockType ?? formValues.block_type ?? 'dynamic';
 
-
-
       const metadata = {
-
         title: formValues.title,
-
         status: effectiveStatus,
-
         type: formValues.type,
-
         block_type: normalizedBlockType,
-
         layout: normalizedLayout,
-
         order_index: formValues.order_index,
-
         priority: formValues.priority,
-
         author_id: overrides.authorId ?? (user?.id ?? null),
-
         publication_date: formValues.publication_date,
-
         end_date: formValues.end_date,
-
         tags: formValues.tags,
-
         audience_mode: formValues.audience_mode,
-
         visibility_authenticated: formValues.visibility_authenticated,
-
         visibility_roles: formValues.visibility_roles,
-
       };
 
-
-
       return { metadata, content };
-
     },
-
-    [user?.id],
-
+    [editorLayoutDefinition, user?.id],
   );
 
 
 
   useEffect(() => {
-    const blockTypeChanged = previousBlockTypeRef.current !== blockType;
-    previousBlockTypeRef.current = blockType;
-
-    if (blockType !== 'dynamic') {
-      setLayoutEditorState({});
-      setLayoutSerializedContent(null);
-      setFallbackJson('');
-      previousLayoutRef.current = layout;
-      return;
-    }
-
-    const layoutChanged = previousLayoutRef.current !== layout;
-
-    if (!layoutChanged && !blockTypeChanged) {
-      return;
-    }
-
-    const definition = getLayoutDefinition(layout);
-
-    if (definition) {
-      const defaultState = getDefaultEditorState(layout);
-      setLayoutEditorState(defaultState);
-      setLayoutSerializedContent(serializeLayoutContent(layout, defaultState));
-      setFallbackJson('');
-    } else {
-      const emptyState = {};
-      setLayoutEditorState(emptyState);
-      setLayoutSerializedContent(emptyState);
-      setFallbackJson(JSON.stringify(emptyState, null, 2));
-    }
-
-    previousLayoutRef.current = layout;
-  }, [blockType, layout]);
-  useEffect(() => {
     if (isNew) {
-      if (blockType !== 'dynamic') {
-        setLayoutEditorState({});
-        setLayoutSerializedContent(null);
-        setFallbackJson('');
-      }
       return;
     }
 
@@ -226,34 +138,12 @@ const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
         publication_date: data.publication_date ? new Date(data.publication_date) : null,
       });
 
-      if (data.block_type === 'dynamic') {
-        const definition = getLayoutDefinition(data.layout);
-        if (definition) {
-          const deserialized = deserializeLayoutContent(data.layout, data.content);
-          setLayoutEditorState(deserialized);
-          setLayoutSerializedContent(serializeLayoutContent(data.layout, deserialized));
-          setFallbackJson('');
-        } else {
-          const fallbackState =
-            data && typeof data.content === 'object' && data.content !== null ? data.content : {};
-          setLayoutEditorState(fallbackState);
-          setLayoutSerializedContent(
-            typeof data.content === 'string' ? data.content : fallbackState,
-          );
-          setFallbackJson(
-            typeof data.content === 'string'
-              ? data.content
-              : JSON.stringify(fallbackState, null, 2),
-          );
-        }
-      } else {
-        setLayoutEditorState({});
-        setLayoutSerializedContent(null);
-        setFallbackJson('');
-      }
+      hydrateFromRecord({
+        recordLayout: data.layout,
+        recordBlockType: data.block_type ?? 'dynamic',
+        recordContent: data.content ?? (data.block_type === 'dynamic' ? {} : ''),
+      });
 
-      previousLayoutRef.current = data.layout;
-      previousBlockTypeRef.current = data.block_type;
       setLoading(false);
     };
 
@@ -262,63 +152,36 @@ const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
     return () => {
       isMounted = false;
     };
-  }, [blockId, blockType, isNew, onBack, reset, toast]);
+  }, [blockId, hydrateFromRecord, isNew, onBack, reset, toast]);
   const onSubmit = async (formData, status) => {
     setIsSubmitting(true);
 
     try {
-
-      const layoutDefinition = getLayoutDefinition(formData.layout);
+      const layoutDefinition =
+        editorLayoutDefinition ?? getLayoutDefinition(formData.layout);
 
       const normalizedLayout = layoutDefinition?.id ?? formData.layout;
-
       const normalizedBlockType =
-
         layoutDefinition?.blockType ?? formData.block_type ?? 'dynamic';
-
-
 
       let contentPayload = formData.content || '';
 
-
-
       if (normalizedBlockType === 'dynamic') {
-
-        if (layoutSerializedContent == null) {
-
-          toast({
-
-            title: 'Contenu incomplet',
-
-            description: 'Impossible de s?rialiser le contenu du bloc. V?rifiez les donn?es avant de sauvegarder.',
-
-            variant: 'destructive',
-
-          });
-
+        try {
+          contentPayload = getContentPayload();
+        } catch (error) {
           setIsSubmitting(false);
-
           return;
-
         }
-
-        contentPayload = layoutSerializedContent;
-
       }
-
-
 
       const effectiveStatus = status || formData.status;
 
       const payload = buildBlockPayload(formData, contentPayload, {
-
         status: effectiveStatus,
-
-        layoutDefinition: layoutDefinition || { id: normalizedLayout, blockType: normalizedBlockType },
-
+        layoutDefinition:
+          layoutDefinition ?? { id: normalizedLayout, blockType: normalizedBlockType },
       });
-
-
 
       if (isNew && payload.metadata.block_type === 'html') {
         const blockDataForHtml = {
@@ -426,12 +289,12 @@ const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
                         ) : (
                           <HomeBlockLayoutEditor
                             layout={layout}
-                            value={layoutEditorState}
-                            onChange={handleLayoutEditorChange}
-                            onContentChange={handleLayoutContentChange}
+                            value={editorState}
+                            onChange={setEditorState}
+                            onContentChange={setSerializedContent}
                             previewMode="desktop"
-                            fallbackJson={fallbackJson}
-                            onFallbackJsonChange={handleFallbackJsonChange}
+                            fallbackJson={editorFallbackJson}
+                            onFallbackJsonChange={setFallbackJson}
                           />
                         )}
 
