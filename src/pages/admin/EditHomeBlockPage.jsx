@@ -15,7 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import TiptapEditor from '@/components/admin/TiptapEditor';
-import { ArrowLeft, CalendarPlus as CalendarIcon, Loader2, Upload, Eye, ChevronDown, ChevronUp, Sparkles, Star, Crown, Zap, Heart, Trophy, Gift, Gem, Shield, Rocket, Award, Bookmark, CheckCircle, Clock, Diamond, Flame, Flag, Globe, Lightbulb, Lock, Mail, MapPin, Music, Target, Users, CalendarDays, Settings, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, CalendarPlus as CalendarIcon, Loader2, Upload, Eye, ChevronDown, ChevronUp, Sparkles, Star, Crown, Zap, Heart, Trophy, Gift, Gem, Shield, Rocket, Award, Bookmark, CheckCircle, Clock, Diamond, Flame, Flag, Globe, Lightbulb, Lock, Mail, MapPin, Music, Target, Users, CalendarDays, Settings, Plus, Trash2, Palette, Image as ImageIcon, Type } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/customSupabaseClient';
 import { Switch } from '@/components/ui/switch';
@@ -31,6 +31,7 @@ import PersonalQuoteSection from '@/components/home/PersonalQuoteSection';
 import FinalCTA from '@/components/home/FinalCTA';
 import LaunchCTA from '@/components/home/LaunchCTA';
 import TubesCursorSection, { DEFAULT_TUBES_TITLES, sanitizeTubesTitles } from '@/components/home/TubesCursorSection';
+import MaskRevealScrollSection, { DEFAULT_MASK_REVEAL_CONTENT } from '@/components/home/MaskRevealScrollSection';
 import Footer from '@/components/Footer';
 
 const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
