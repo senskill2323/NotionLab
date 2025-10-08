@@ -1,38 +1,77 @@
-Les bloques présents sur la home page sont gérés dans le module “Gestion des Blocs Actifs”. Un bloque centralise titres, contenus (HTML/JSON), statut, layout, ordre, priorité et métadonnées dans content_blocks. dans le module, il y  aun Bibliothèque des modèles, ou je vais piocher les bloques qui m'interessent pour les Utiliser. Les opérations critiques sont encapsulées en RPC : suppression définitive, déplacement, changement de statut avec réindexation, duplication, renommage et création transactionnelle d’un bloc HTML. Les inserts/updates génériques passent par l’Edge Function manage-content-block (service-role, retour 200 propre). La recherche historique s’appuie sur content-blocks-search qui délègue à search_content_blocks côté base. L’unicité de order_index pour les blocs actifs est d’abord gérée côté front (lecture du max), avec fallback RPC en cas de collision. Côté admin, HomeBlockList charge avec recherche/filtre/pagination, persiste l’état (onglet/éditeur) via URL + sessionStorage, bascule la priorité (“À la une”), réordonne en optimiste (rollback inclus) puis retombe sur home_blocks_move si besoin. Les transitions de statut invoquent home_blocks_set_status; duplication, renommage, archivage et suppression dure utilisent les RPC dédiées. L’éditeur EditHomeBlockPage sauve via home_blocks_create_html pour un HTML neuf, sinon via l’Edge Function. La bibliothèque block_samples est seedée, évite les doublons titre+layout, sérialise selon le layout et permet “Enregistrer comme modèle”. “Utiliser ce modèle” crée un brouillon (priorité 0, order_index libre) et ouvre automatiquement l’édition. Côté public, la Home charge les blocs publiés triés par order_index, assainit le HTML avec DOMPurify et résout les layouts dynamiques via homeBlockRegistry; l’aperçu admin réemploie la même logique.
+Résumé
 
+Sous-agent UI : HomeBlockManagementPanel orchestre l’onglet « Liste » (HomeBlockList) et la bibliothèque (BlockSamplesPanel) tout en persistant l’état éditeur via URL + sessionStorage (src/components/admin/HomeBlockManagementPanel.jsx:24, src/components/admin/home-blocks/HomeBlockList.jsx:48, src/components/admin/home-blocks/BlockSamplesPanel.jsx:148).
+Sous-agent Data : la liste admin s’appuie sur PostgREST direct + RPC home_blocks_*, tandis que la bibliothèque compose avec manage-content-block (Edge) et home_blocks_create_html (src/components/admin/home-blocks/HomeBlockList.jsx:192, src/components/admin/home-blocks/HomeBlockList.jsx:364, src/components/admin/home-blocks/BlockSamplesPanel.jsx:587, Supabase/functions/manage-content-block/index.ts:3).
+Sous-agent Règles : la mécanique décrite dans rules/07-Fonctionnalités/Gestion des bloques:1 est respectée (Edge manage-content-block, RPC critiques, persistance de l’état éditeur, DOMPurify côté public).
+Anomalie clé : layoutRegistry.js est vide alors que l’ensemble des éditeurs l’importent, laissant un blocage fonctionnel à corriger (src/components/admin/home-blocks/layoutRegistry.js:1).
+Stack
 
-Données & Backend
+React 18 + Vite + Supabase comme socle déclaratif du module (rules/01-standards/readme.mdc:3).
+UI shadcn/Tailwind enrichie de lucide-react pour les icônes et react-router-dom pour l’URL state (src/components/admin/home-blocks/HomeBlockList.jsx:4, src/components/admin/HomeBlockManagementPanel.jsx:2).
+Gestion formulaire/éditeur via react-hook-form, Tiptap et use-debounce pour temporiser les filtres (src/pages/admin/EditHomeBlockPage.jsx:5, src/components/admin/home-blocks/BlockSamplesPanel.jsx:2).
+Animations/preview : framer-motion et DOMPurify pour l’aperçu sécurisé (src/components/admin/home-blocks/CozySpaceSectionWithUpload.jsx:2, src/pages/HomePage.jsx:3).
+API publique
 
-content_blocks centralise titre, contenu (HTML ou JSON), statut, layout, ordre, priorité et métadonnées exposées côté admin via les valeurs par défaut du formulaire (src/pages/admin/EditHomeBlockPage.jsx:45).
-Les RPC Supabase encapsulent les opérations critiques : suppression définitive (sql/deploy_home_blocks_functions.sql:5), déplacement (sql/deploy_home_blocks_functions.sql:45), changement de statut avec réindexation en sortie d’archive (sql/deploy_home_blocks_functions.sql:97), duplication (sql/deploy_home_blocks_functions.sql:143), renommage (sql/deploy_home_blocks_functions.sql:187) et création d’un bloc HTML transactionnel (sql/deploy_home_blocks_functions.sql:211).
-L’Edge Function manage-content-block sert les inserts/updates génériques en clé de service pour garantir un retour 200 propre ( Supabase/functions/manage-content-block/index.ts:13).
-La recherche tabulaire historique passe par content-blocks-search qui délègue à l’RPC search_content_blocks côté base (Supabase/functions/content-blocks-search/index.ts:13).
-L’unicité d’order_index sur les blocs actifs est gérée côté front par lecture du max et fallback RPC en cas de collision (src/components/admin/home-blocks/BlockSamplesPanel.jsx:626, src/components/admin/home-blocks/HomeBlockList.jsx:300).
-Module Admin – Blocs
+src/pages/admin/HomeBlockManagementPage.jsx:192 — page legacy exportée par défaut, fournit vue table + pagination et invoque search_content_blocks.
+src/components/admin/HomeBlockManagementPanel.jsx:86 — composant par défaut avec props internes (onBlockCreated) qui pilote les onglets Liste/Bibliothèque.
+src/components/admin/home-blocks/HomeBlockList.jsx:891 — composant principal listant/éditant des blocs (mode, refreshKey, activeSubTab), déclenche RPC et Edge.
+src/components/admin/home-blocks/BlockSamplesPanel.jsx:999 — bibliothèque de modèles (prop onBlockCreated), gère seed, CRUD et création de brouillons.
+src/pages/admin/EditHomeBlockPage.jsx:472 — page d’édition réutilisable (props blockId, onBack, onSave), connectée à useHomeBlockEditor.
+src/components/admin/home-blocks/useHomeBlockEditor.js:193 — hook exporté, expose reset, hydrateFromRecord, getContentPayload, buildMetadata pour les éditeurs dynamiques.
+Structure (fichiers)
 
-HomeBlockList charge les blocs avec recherche/filtrage/pagination en select('*', { count: 'exact' }), tout en persistant l’état onglet+éditeur via URL et sessionStorage (src/components/admin/home-blocks/HomeBlockList.jsx:48, src/components/admin/home-blocks/HomeBlockList.jsx:192).
-Le toggle “À la une” bascule priority puis rafraîchit la liste (src/components/admin/home-blocks/HomeBlockList.jsx:272).
-Le réordonnancement échange localement les order_index (rollback inclus) avant de retomber sur home_blocks_move si la stratégie optimiste échoue (src/components/admin/home-blocks/HomeBlockList.jsx:300, src/components/admin/home-blocks/HomeBlockList.jsx:364).
-Les transitions de statut invoquent home_blocks_set_status et reviennent à un update direct si PostgREST renvoie une ambiguïté d’overload (src/components/admin/home-blocks/HomeBlockList.jsx:376).
-Duplication, renommage, archivage et suppression définitive exploitent les RPC dédiés home_blocks_duplicate, home_blocks_set_title, home_blocks_delete_hard (src/components/admin/home-blocks/HomeBlockList.jsx:400, src/components/admin/home-blocks/HomeBlockList.jsx:607, src/components/admin/home-blocks/HomeBlockList.jsx:662).
-L’éditeur embarqué ouvre EditHomeBlockPage, qui sauvegarde soit via home_blocks_create_html pour un HTML neuf soit via l’Edge Function pour le reste (src/components/admin/home-blocks/HomeBlockList.jsx:517, src/pages/admin/EditHomeBlockPage.jsx:442, src/pages/admin/EditHomeBlockPage.jsx:455).
-Bibliothèque de Modèles
+Fichier	Export	Dépendances clés
+src/pages/admin/HomeBlockManagementPage.jsx:1	HomeBlockManagementPage (default)	Helmet, useToast, supabase.rpc('search_content_blocks'), BlocksToolbar, BlocksTable, EditHomeBlockPage (:8, :49, :72).
+src/components/admin/HomeBlockManagementPanel.jsx:1	HomeBlockManagementPanel (default)	Tabs, useSearchParams, HomeBlockList, BlockSamplesPanel (:10, :24, :77).
+src/components/admin/home-blocks/HomeBlockList.jsx:1	HomeBlockList (default)	UI shadcn, supabase.from('content_blocks'), RPC home_blocks_*, useSessionRefresh, BlockPreview, EditHomeBlockPage (:4, :192, :364, :228, :701).
+src/components/admin/home-blocks/BlockSamplesPanel.jsx:1	BlockSamplesPanel (default)	useDebounce, HomeBlockLayoutEditor, useHomeBlockEditor, supabase.from('block_samples'), RPC/Edge (:148, :165, :587, :636).
+src/components/admin/home-blocks/HomeBlockLayoutEditor.jsx:1	HomeBlockLayoutEditor (default)	CozySpaceSectionWithUpload, layoutEditorMap, serializeLayoutContent (:4, :14, :60).
+src/components/admin/home-blocks/layout-editors/index.js:1	map d’éditeurs (default)	Enregistre 13 éditeurs spécifiques de layout (:3–:17).
+src/components/admin/home-blocks/useHomeBlockEditor.js:1	useHomeBlockEditor + buildHomeBlockEditorBundle	getLayoutDefinition, serializeLayoutContent, gestion JSON fallback (:3, :49, :138).
+src/pages/admin/EditHomeBlockPage.jsx:1	EditHomeBlockPage (default)	react-hook-form, HomeBlockLayoutEditor, RPC home_blocks_create_html, Edge manage-content-block (:5, :178, :192, :205).
+src/pages/HomePage.jsx:1	HomePage (default)	supabase.from('content_blocks'), DOMPurify, homeBlockRegistry (:24, :57, :4).
+src/components/dashboard/modules/HomepagePanel.jsx:1	HomepagePanel (default)	framer-motion, supabase.from('content_blocks'), DOMPurify, homeBlockRegistry (:1, :51, :102, :14).
+Supabase/functions/manage-content-block/index.ts:1	Edge Deno (default handler)	createClient service role, insert/update content_blocks (:3, :20).
+Supabase/functions/content-blocks-search/index.ts:1	Edge Deno (default handler)	Proxy RPC search_content_blocks (:3, :17).
+sql/deploy_home_blocks_functions.sql:1	fonctions SQL	Définit home_blocks_delete_hard, _move, _set_status, _duplicate, _set_title, _create_html (avec SECURITY DEFINER) (:1, :45, :97, :143, :187, :211).
+src/components/home/homeBlockRegistry.js:1	homeBlockRegistry (default)	Re-export des définitions de layout pour le front public (:2, :12).
+src/components/admin/home-blocks/layoutRegistry.js:1	(vide)	Doit exposer getLayoutDefinition, getLayoutKeys, etc., actuellement absent (:1).
+Dépendances
 
-La table block_samples est auto-renseignée si vide grâce au seed de modèles intégrés (src/components/admin/home-blocks/BlockSamplesPanel.jsx:318).
-Un import en masse depuis les blocs actifs clone title/layout/content en évitant les doublons titre+layout (src/components/admin/home-blocks/BlockSamplesPanel.jsx:383).
-Chaque entrée propose suppression, duplication et accès éditeur directement sur block_samples (src/components/admin/home-blocks/BlockSamplesPanel.jsx:429, src/components/admin/home-blocks/BlockSamplesPanel.jsx:471).
-Depuis la liste des blocs, l’action “Enregistrer comme modèle” pousse le contenu courant vers block_samples avec détection de doublons de titre (src/components/admin/home-blocks/HomeBlockList.jsx:423).
-L’éditeur de modèle sérialise les champs propres à chaque layout avant insert/update (JSON pour dynamiques, string pour HTML) (src/components/admin/home-blocks/BlockSamplesPanel.jsx:927).
-“Utiliser ce modèle” déclenche la génération d’un nouveau bloc en brouillon, priorité 0 et order_index libre (src/components/admin/home-blocks/BlockSamplesPanel.jsx:598).
-Flux Template → Bloc
+HomeBlockManagementPanel dépend du duo HomeBlockList/BlockSamplesPanel, imposant un contrat onBlockCreated synchronisé (src/components/admin/HomeBlockManagementPanel.jsx:24, :79).
+HomeBlockList réutilise EditHomeBlockPage comme sous-vue et BlockPreview pour le rendu, créant un couplage fort entre listing et édition (src/components/admin/home-blocks/HomeBlockList.jsx:517, :701).
+BlockSamplesPanel construit ses payloads via useHomeBlockEditor et HomeBlockLayoutEditor, partageant la même logique de sérialisation que la page d’édition (src/components/admin/home-blocks/BlockSamplesPanel.jsx:136, :398).
+Les aperçus publics/privés consomment la même registry (homeBlockRegistry) assurant parité entre front client et admin (src/components/home/homeBlockRegistry.js:8, src/components/dashboard/modules/HomepagePanel.jsx:14).
+Les Edge functions et RPC forment une couche commune pour toutes les opérations critiques sur content_blocks (Supabase/functions/manage-content-block/index.ts:20, sql/deploy_home_blocks_functions.sql:45).
+Flux de données
 
-handleUseTemplate construit blockData, normalise le contenu (ex. tubes) et sécurise un order_index unique avant d’insérer dans content_blocks (src/components/admin/home-blocks/BlockSamplesPanel.jsx:598).
-Le callback parent stocke view:'edit' + blockId en sessionStorage et force le retour sur l’onglet “Liste” pour rafraîchir la vue (src/components/admin/HomeBlockManagementPanel.jsx:24).
-Au montage suivant, HomeBlockList lit homeBlockEditor pour ouvrir automatiquement le nouvel ID en mode édition (src/components/admin/home-blocks/HomeBlockList.jsx:48).
-La sauvegarde finale du bloc passe par home_blocks_create_html pour du HTML vierge ou par l’Edge Function pour les layouts dynamiques (src/pages/admin/EditHomeBlockPage.jsx:442, src/pages/admin/EditHomeBlockPage.jsx:455).
-Exposition sur l’Accueil
+Liste admin : filtre et pagine content_blocks côté client, puis applique RPC (home_blocks_move, home_blocks_set_status, home_blocks_duplicate, etc.) pour les actions atomiques (src/components/admin/home-blocks/HomeBlockList.jsx:192, :364, :376, :400).
+Bibliothèque : seed initial block_samples, édition locale, puis création de brouillons via Edge manage-content-block ou RPC HTML selon le type (src/components/admin/home-blocks/BlockSamplesPanel.jsx:169, :402, :587, :636).
+Page d’édition : charge un bloc via PostgREST, hydrate l’éditeur, sauvegarde via home_blocks_create_html (HTML) ou Edge (dynamiques) (src/pages/admin/EditHomeBlockPage.jsx:121, :192, :205).
+Front public et panneau admin dashboard consomment content_blocks en lecture pour afficher uniquement published / !archived, avec sanitisation conditionnelle (src/pages/HomePage.jsx:24, :57; src/components/dashboard/modules/HomepagePanel.jsx:51, :102).
+HomeBlockManagementPage (legacy) interroge search_content_blocks en direct, doublonnant partiellement la nouvelle UI (src/pages/admin/HomeBlockManagementPage.jsx:49).
+État & effets
 
-La page publique charge les blocs published triés par order_index via Supabase (src/pages/HomePage.jsx:16).
-Les blocs HTML sont assainis avec DOMPurify avant injection (src/pages/HomePage.jsx:32).
-Les layouts dynamiques sont résolus via homeBlockRegistry qui mappe chaque clé vers son composant React (src/components/home/homeBlockRegistry.js:4).
-L’aperçu admin “HomepagePanel” réutilise cette logique pour visualiser brouillons et publications, avec rendu HTML sécurisé (src/components/dashboard/modules/HomepagePanel.jsx:26).
+Persistance éditeur via sessionStorage/URL, synchronisée lors des montées en onglet (src/components/admin/home-blocks/HomeBlockList.jsx:38, :82).
+useHomeBlockEditor centralise le state des layouts, gère fallback JSON et expose hydrateFromRecord pour recharger (src/components/admin/home-blocks/useHomeBlockEditor.js:69, :138, :166).
+BlockSamplesPanel pilote multiples états (sélection, modal, preview) et débounce la recherche (src/components/admin/home-blocks/BlockSamplesPanel.jsx:180, :214).
+HomeBlockList écoute useSessionRefresh pour rafraîchir sur événements globaux plutôt que realtime (src/components/admin/home-blocks/HomeBlockList.jsx:228).
+EditHomeBlockPage s’appuie sur react-hook-form pour la validation + contrôleurs custom (src/pages/admin/EditHomeBlockPage.jsx:17, :257).
+I/O DB (PostgREST/RPC/SQL)
+
+PostgREST content_blocks : lecture/écriture directe pour priorités, ordre, filtres (src/components/admin/home-blocks/HomeBlockList.jsx:192, :324), et pour chargement public (src/pages/HomePage.jsx:24).
+PostgREST block_samples : seed et CRUD des modèles (src/components/admin/home-blocks/BlockSamplesPanel.jsx:163, :402) + export depuis la liste (src/components/admin/home-blocks/HomeBlockList.jsx:423).
+RPC Supabase : home_blocks_move, home_blocks_set_status, home_blocks_duplicate, home_blocks_set_title, home_blocks_delete_hard, home_blocks_create_html (src/components/admin/home-blocks/HomeBlockList.jsx:364, :376, :400, :607, :662; src/components/admin/home-blocks/BlockSamplesPanel.jsx:587; src/pages/admin/EditHomeBlockPage.jsx:192).
+Edge manage-content-block : insert/update avec service role, partagé par éditeur et bibliothèque (Supabase/functions/manage-content-block/index.ts:20, src/components/admin/home-blocks/BlockSamplesPanel.jsx:636, src/pages/admin/EditHomeBlockPage.jsx:205).
+Edge content-blocks-search : proxy RPC search_content_blocks pour la page legacy (Supabase/functions/content-blocks-search/index.ts:17, src/pages/admin/HomeBlockManagementPage.jsx:49).
+SQL sql/deploy_home_blocks_functions.sql fournit la logique serveur consolidée (ordre, statut, duplication, hard delete, HTML transactionnel) (sql/deploy_home_blocks_functions.sql:1).
+Realtime (listen/broadcast)
+Aucune souscription supabase.channel détectée ; la remise en cohérence se fait via rafraîchissements manuels (src/components/admin/home-blocks/HomeBlockList.jsx:228).
+
+Sécurité (RLS, XSS, CSRF)
+
+home_blocks_delete_hard vérifie le rôle owner/admin avant suppression définitive (sql/deploy_home_blocks_functions.sql:7).
+Edge manage-content-block exploite la clé service role : attention à sécuriser l’accès (auth côté Deno uniquement) (Supabase/functions/manage-content-block/index.ts:20).
+Sanitisation DOMPurify appliquée en front public/dash (src/pages/HomePage.jsx:57, src/components/dashboard/modules/HomepagePanel.jsx:102).
+BlockPreview injecte du HTML brut sans nettoyage, exposant un vecteur XSS potentiel côté admin (src/components/admin/home-blocks/BlockPreview.jsx:32).
+Absence visible de définition search_content_blocks/RLS dans le repo ; vérifier cohérence avec Supabase (dette documentaire).
