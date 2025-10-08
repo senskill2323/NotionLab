@@ -298,6 +298,7 @@ const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
                           />
                         )}
 
+                      </div>
                     </CardContent>
                   </Card>
                 </div>
