@@ -7,7 +7,22 @@ Deno.serve(async (req)=>{
     });
   }
   try {
-    const { blockData, blockId } = await req.json();
+    const { blockId, metadata, content } = await req.json();
+    if (!metadata) {
+      return new Response(JSON.stringify({ error: 'Missing metadata payload' }), {
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json"
+        },
+        status: 400
+      });
+    }
+
+    const blockData = {
+      ...metadata,
+      content,
+    };
+
     const supabase = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
     let data, error;
     if (blockId) {
