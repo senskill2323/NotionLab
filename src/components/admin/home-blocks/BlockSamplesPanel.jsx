@@ -5,7 +5,8 @@ import {
   Pencil, Trash2, Eye, Plus, Copy, Upload, X,
   Sparkles, Star, Crown, Zap, Heart, Trophy, Gift, Gem, Shield, Rocket, ChevronDown, ChevronUp,
   Award, Bookmark, CheckCircle, Clock, Flame, Flag, Globe, Lightbulb, Lock, Mail, MapPin, Music, Target,
-  Smartphone, Monitor, Layers, Code, Search, MoreVertical, Edit, Loader2, AlertCircle, Users, CalendarDays, Settings
+  Smartphone, Monitor, Layers, Code, Search, MoreVertical, Edit, Loader2, AlertCircle, Users, CalendarDays, Settings,
+  Palette, Image as ImageIcon, Type
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,8 +39,56 @@ import PersonalQuoteSection from '@/components/home/PersonalQuoteSection';
 import FinalCTA from '@/components/home/FinalCTA';
 import LaunchCTA from '@/components/home/LaunchCTA';
 import TubesCursorSection, { DEFAULT_TUBES_TITLES, sanitizeTubesTitles } from '@/components/home/TubesCursorSection';
-import MaskRevealScrollSection from '@/components/home/MaskRevealScrollSection';
+import MaskRevealScrollSection, { DEFAULT_MASK_REVEAL_CONTENT } from '@/components/home/MaskRevealScrollSection';
 import Footer from '@/components/Footer';
+
+// Presets for Launch CTA custom gradients
+const lctaGradientPresets = [
+  { name: 'Sunset', start: '#ff6b35', end: '#f7931e', angle: 135 },
+  { name: 'Ocean', start: '#36d1dc', end: '#5b86e5', angle: 135 },
+  { name: 'Purple', start: '#a18cd1', end: '#fbc2eb', angle: 135 },
+  { name: 'Forest', start: '#11998e', end: '#38ef7d', angle: 135 },
+  { name: 'Fire', start: '#f12711', end: '#f5af19', angle: 135 },
+  { name: 'Steel', start: '#bdc3c7', end: '#2c3e50', angle: 135 },
+];
+
+const DEFAULT_MASK_GRADIENT = 'linear-gradient(125deg, #EDF9FF 0%, #FFE8DB 100%)';
+
+const maskGradientPresets = [
+  { name: 'Pastel Aurora', start: '#EDF9FF', end: '#FFE8DB', angle: 125 },
+  { name: 'Midnight Bloom', start: '#1d2671', end: '#c33764', angle: 140 },
+  { name: 'Emerald City', start: '#13547a', end: '#80d0c7', angle: 135 },
+  { name: 'Golden Hour', start: '#f2994a', end: '#f2c94c', angle: 135 },
+  { name: 'Neon Dream', start: '#7f00ff', end: '#e100ff', angle: 135 },
+  { name: 'Deep Ocean', start: '#0f2027', end: '#203a43', angle: 140 },
+];
+
+const buildLinearGradient = (angle, start, end) => {
+  const safeAngle = Number.isFinite(angle) ? angle : 135;
+  return `linear-gradient(${safeAngle}deg, ${start} 0%, ${end} 100%)`;
+};
+
+const parseLinearGradient = (value) => {
+  if (typeof value !== 'string') return null;
+  const gradientMatch = value.match(/linear-gradient\(\s*([0-9.+-]+)deg\s*,\s*(.+)\)/i);
+  if (!gradientMatch) return null;
+  const angle = parseFloat(gradientMatch[1]);
+  const stops = gradientMatch[2].split(',');
+  const getColor = (stop) => {
+    const colorMatch = stop.match(/(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\)|hsla?\([^)]+\))/);
+    if (colorMatch) return colorMatch[1];
+    const parts = stop.trim().split(/\s+/);
+    return parts[0];
+  };
+  const start = getColor(stops[0] || '');
+  const end = getColor(stops[stops.length - 1] || '');
+  if (!start || !end) return null;
+  return {
+    angle: Number.isFinite(angle) ? angle : 135,
+    start,
+    end,
+  };
+};
 
 const BlockSamplesPanel = ({ onBlockCreated }) => {
   const { toast } = useToast();
@@ -101,6 +150,25 @@ const BlockSamplesPanel = ({ onBlockCreated }) => {
     tc_title1: DEFAULT_TUBES_TITLES.title1,
     tc_title2: DEFAULT_TUBES_TITLES.title2,
     tc_title3: DEFAULT_TUBES_TITLES.title3,
+    // Mask reveal scroll fields
+    mask_useDefaultBackground: true,
+    mask_backgroundMode: 'color',
+    mask_backgroundColor: DEFAULT_MASK_REVEAL_CONTENT.baseBackgroundColor,
+    mask_backgroundGradient: DEFAULT_MASK_GRADIENT,
+    mask_backgroundImage: '',
+    mask_gradStart: '#EDF9FF',
+    mask_gradEnd: '#FFE8DB',
+    mask_gradAngle: 125,
+    mask_backgroundColors: [...DEFAULT_MASK_REVEAL_CONTENT.backgroundColors],
+    mask_items: DEFAULT_MASK_REVEAL_CONTENT.items.map(item => ({
+      ...item,
+      link: {
+        label: item.link?.label || '',
+        href: item.link?.href || '#',
+        backgroundColor: item.link?.backgroundColor || '#D5FF37',
+      },
+    })),
+    mask_images: DEFAULT_MASK_REVEAL_CONTENT.images.map(image => ({ ...image })),
   });
 
   // Explicit cancel/close handler to clear URL + storage and close editor
@@ -198,17 +266,6 @@ const BlockSamplesPanel = ({ onBlockCreated }) => {
     { name: 'Rocket', icon: Rocket, label: 'Fusée' },
     { name: 'Settings', icon: Settings, label: 'Paramètres' },
   ];
-
-  // Presets for Launch CTA custom gradients
-  const lctaGradientPresets = [
-    { name: 'Sunset', start: '#ff6b35', end: '#f7931e', angle: 135 },
-    { name: 'Ocean', start: '#36d1dc', end: '#5b86e5', angle: 135 },
-    { name: 'Purple', start: '#a18cd1', end: '#fbc2eb', angle: 135 },
-    { name: 'Forest', start: '#11998e', end: '#38ef7d', angle: 135 },
-    { name: 'Fire', start: '#f12711', end: '#f5af19', angle: 135 },
-    { name: 'Steel', start: '#bdc3c7', end: '#2c3e50', angle: 135 },
-  ];
-
   // Modèles intégrés par défaut pour différents layouts (hors home.formations)
   const builtinSamples = [
     {
@@ -762,6 +819,34 @@ const BlockSamplesPanel = ({ onBlockCreated }) => {
       title2: c.title2,
       title3: c.title3,
     });
+    const maskRawItems = Array.isArray(c.items) && c.items.length > 0 ? c.items : DEFAULT_MASK_REVEAL_CONTENT.items;
+    const maskItems = maskRawItems.map((item, index) => ({
+      id: item.id || `mask-item-${index + 1}`,
+      title: item.title || '',
+      description: item.description || '',
+      link: {
+        label: item.link?.label || '',
+        href: item.link?.href || '#',
+        backgroundColor: item.link?.backgroundColor || '#D5FF37',
+      },
+    }));
+    const maskRawImages = Array.isArray(c.images) && c.images.length > 0 ? c.images : DEFAULT_MASK_REVEAL_CONTENT.images;
+    const maskImages = maskRawImages.map((image, index) => ({
+      id: image.id || `mask-image-${index + 1}`,
+      src: image.src || '',
+      alt: image.alt || '',
+      order: typeof image.order === 'number' ? image.order : maskRawImages.length - index,
+    }));
+    const maskBackgroundColors =
+      Array.isArray(c.backgroundColors) && c.backgroundColors.length > 0
+        ? c.backgroundColors
+        : DEFAULT_MASK_REVEAL_CONTENT.backgroundColors;
+    const maskUseDefaultBackground = c.useDefaultBackground !== false;
+    const maskBackgroundMode = c.backgroundMode || (c.backgroundImage ? 'image' : c.backgroundGradient ? 'gradient' : 'color');
+    const maskBackgroundColor = c.backgroundColor || c.baseBackgroundColor || DEFAULT_MASK_REVEAL_CONTENT.baseBackgroundColor;
+    const maskBackgroundGradient = c.backgroundGradient || DEFAULT_MASK_GRADIENT;
+    const parsedMaskGradient = parseLinearGradient(maskBackgroundGradient);
+    const defaultMaskGradientPreset = maskGradientPresets[0] || { angle: 125, start: '#EDF9FF', end: '#FFE8DB' };
     // Determine default title override for "Gallerie 'Full screen' design" (handle common variants)
     const normalizedSampleTitle = (sample?.title || '').trim().toLowerCase();
     const isGalleryFullscreenDesign =
@@ -843,6 +928,18 @@ const BlockSamplesPanel = ({ onBlockCreated }) => {
       tc_title1: tubesTitles.title1,
       tc_title2: tubesTitles.title2,
       tc_title3: tubesTitles.title3,
+      // Mask reveal scroll
+      mask_useDefaultBackground: maskUseDefaultBackground,
+      mask_backgroundMode: maskBackgroundMode,
+      mask_backgroundColor: maskBackgroundColor,
+      mask_backgroundGradient: maskBackgroundGradient,
+      mask_backgroundImage: c.backgroundImage || '',
+      mask_gradStart: parsedMaskGradient?.start || defaultMaskGradientPreset.start,
+      mask_gradEnd: parsedMaskGradient?.end || defaultMaskGradientPreset.end,
+      mask_gradAngle: parsedMaskGradient?.angle || defaultMaskGradientPreset.angle,
+      mask_backgroundColors: maskBackgroundColors.map(color => color || DEFAULT_MASK_REVEAL_CONTENT.baseBackgroundColor),
+      mask_items: maskItems,
+      mask_images: maskImages,
     });
 
     // Persist editor state (sessionStorage) so a remount or tab switch restores it
@@ -876,6 +973,143 @@ const BlockSamplesPanel = ({ onBlockCreated }) => {
 
   const handleImageChange = (url) => {
     setForm(prev => ({ ...prev, imageUrl: url }));
+  };
+
+  const ensureMaskArraysAligned = (items, images, backgroundColors) => {
+    const nextItems = [...items];
+    const nextImages = [...images];
+    const nextBackgrounds = [...backgroundColors];
+
+    if (nextImages.length < nextItems.length) {
+      const missing = nextItems.length - nextImages.length;
+      for (let i = 0; i < missing; i++) {
+        nextImages.push({
+          id: `mask-image-${Date.now()}-${i}`,
+          src: '',
+          alt: '',
+          order: nextImages.length ? Math.max(...nextImages.map(img => Number(img.order) || 0)) + 1 : 1,
+        });
+      }
+    } else if (nextImages.length > nextItems.length) {
+      nextImages.splice(nextItems.length);
+    }
+
+    if (nextBackgrounds.length < nextItems.length) {
+      const fallbackColor = DEFAULT_MASK_REVEAL_CONTENT.baseBackgroundColor;
+      while (nextBackgrounds.length < nextItems.length) {
+        nextBackgrounds.push(fallbackColor);
+      }
+    } else if (nextBackgrounds.length > nextItems.length) {
+      nextBackgrounds.splice(nextItems.length);
+    }
+
+    return { nextItems, nextImages, nextBackgrounds };
+  };
+
+  const handleMaskItemChange = (index, key, value) => {
+    setForm(prev => {
+      const items = [...(prev.mask_items || [])];
+      if (!items[index]) return prev;
+      items[index] = { ...items[index], [key]: value };
+      const { nextItems, nextImages, nextBackgrounds } = ensureMaskArraysAligned(
+        items,
+        prev.mask_images || [],
+        prev.mask_backgroundColors || []
+      );
+      return {
+        ...prev,
+        mask_items: nextItems,
+        mask_images: nextImages,
+        mask_backgroundColors: nextBackgrounds,
+      };
+    });
+  };
+
+  const handleMaskItemLinkChange = (index, key, value) => {
+    setForm(prev => {
+      const items = [...(prev.mask_items || [])];
+      if (!items[index]) return prev;
+      const link = { ...(items[index].link || {}) };
+      link[key] = value;
+      items[index] = { ...items[index], link };
+      return { ...prev, mask_items: items };
+    });
+  };
+
+  const handleAddMaskItem = () => {
+    setForm(prev => {
+      const items = [...(prev.mask_items || [])];
+      const images = [...(prev.mask_images || [])];
+      const backgroundColors = [...(prev.mask_backgroundColors || [])];
+
+      const newItem = {
+        id: `mask-item-${Date.now()}`,
+        title: '',
+        description: '',
+        link: { label: '', href: '#', backgroundColor: '#D5FF37' },
+      };
+      items.push(newItem);
+
+      images.push({
+        id: `mask-image-${Date.now()}`,
+        src: '',
+        alt: '',
+        order: images.length ? Math.max(...images.map(img => Number(img.order) || 0)) + 1 : 1,
+      });
+
+      backgroundColors.push(DEFAULT_MASK_REVEAL_CONTENT.baseBackgroundColor);
+
+      return {
+        ...prev,
+        mask_items: items,
+        mask_images: images,
+        mask_backgroundColors: backgroundColors,
+      };
+    });
+  };
+
+  const handleRemoveMaskItem = (index) => {
+    setForm(prev => {
+      const items = [...(prev.mask_items || [])];
+      if (items.length <= 1) return prev;
+      items.splice(index, 1);
+      const images = [...(prev.mask_images || [])];
+      if (images[index]) {
+        images.splice(index, 1);
+      }
+      const backgroundColors = [...(prev.mask_backgroundColors || [])];
+      if (backgroundColors[index]) {
+        backgroundColors.splice(index, 1);
+      }
+      return {
+        ...prev,
+        mask_items: items,
+        mask_images: images,
+        mask_backgroundColors: backgroundColors,
+      };
+    });
+  };
+
+  const handleMaskImageChange = (index, patch) => {
+    setForm(prev => {
+      const images = [...(prev.mask_images || [])];
+      if (!images[index]) return prev;
+      images[index] = { ...images[index], ...patch };
+      return { ...prev, mask_images: images };
+    });
+  };
+
+  const handleMaskImageUpload = (index) => (url) => {
+    if (!url) return;
+    handleMaskImageChange(index, { src: url });
+  };
+
+  const handleMaskBackgroundColorChange = (index, value) => {
+    setForm(prev => {
+      const colors = [...(prev.mask_backgroundColors || [])];
+      colors[index] = value;
+      return { ...prev, mask_backgroundColors: colors };
+    });
   };
 
   const getPreviewContent = () => {
@@ -957,6 +1191,60 @@ const BlockSamplesPanel = ({ onBlockCreated }) => {
         title2: form.tc_title2,
         title3: form.tc_title3,
       });
+    }
+    if (layout === 'home.mask_reveal_scroll') {
+      const useDefaultBackground = form.mask_useDefaultBackground;
+      const backgroundMode = form.mask_backgroundMode || 'color';
+      const backgroundColor = form.mask_backgroundColor || DEFAULT_MASK_REVEAL_CONTENT.baseBackgroundColor;
+      const backgroundGradient = form.mask_backgroundGradient || DEFAULT_MASK_GRADIENT;
+      const backgroundImage = form.mask_backgroundImage || '';
+      const backgroundColors =
+        Array.isArray(form.mask_backgroundColors) && form.mask_backgroundColors.length > 0
+          ? form.mask_backgroundColors
+          : [...DEFAULT_MASK_REVEAL_CONTENT.backgroundColors];
+      const items = Array.isArray(form.mask_items)
+        ? form.mask_items.map((item, index) => ({
+            id: item.id || `mask-item-${index + 1}`,
+            title: item.title || '',
+            description: item.description || '',
+            link: {
+              label: item.link?.label || '',
+              href: item.link?.href || '#',
+              backgroundColor: item.link?.backgroundColor || '#D5FF37',
+            },
+          }))
+        : DEFAULT_MASK_REVEAL_CONTENT.items;
+      const images = Array.isArray(form.mask_images)
+        ? form.mask_images.map((image, index) => ({
+            id: image.id || `mask-image-${index + 1}`,
+            src: image.src || '',
+            alt: image.alt || '',
+            order: typeof image.order === 'number' ? image.order : form.mask_images.length - index,
+          }))
+        : DEFAULT_MASK_REVEAL_CONTENT.images;
+
+      let baseBackgroundColor = DEFAULT_MASK_REVEAL_CONTENT.baseBackgroundColor;
+      if (!useDefaultBackground) {
+        if (backgroundMode === 'color') {
+          baseBackgroundColor = backgroundColor;
+        } else {
+          baseBackgroundColor = backgroundColors[0] || DEFAULT_MASK_REVEAL_CONTENT.baseBackgroundColor;
+        }
+      } else if (backgroundColor) {
+        baseBackgroundColor = backgroundColor;
+      }
+
+      return {
+        baseBackgroundColor,
+        backgroundMode,
+        backgroundColor,
+        backgroundGradient,
+        backgroundImage,
+        useDefaultBackground,
+        backgroundColors,
+        items,
+        images,
+      };
     }
     try {
       return JSON.parse(form.contentJsonText || '{}');
@@ -1077,6 +1365,8 @@ const BlockSamplesPanel = ({ onBlockCreated }) => {
           backgroundGradient: form.lcta_backgroundGradient,
           useDefaultGradient: form.lcta_useDefaultGradient,
         };
+      } else if (layout === 'home.mask_reveal_scroll') {
+        contentPayload = getPreviewContent();
       } else if (layout === 'home.tubes_cursor') {
         contentPayload = sanitizeTubesTitles({
           title1: form.tc_title1,
@@ -1745,6 +2035,383 @@ const BlockSamplesPanel = ({ onBlockCreated }) => {
                 </div>
               )}
 
+              {editingSample?.layout === 'home.mask_reveal_scroll' && (
+                <div className="space-y-6">
+                  <Card className="shadow-sm border">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Palette className="h-4 w-4" />
+                        Fond du bloc
+                      </CardTitle>
+                      <CardDescription>Personnalisez le fond de la section (couleur, degrade ou image).</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="mask-use-default-bg">Utiliser le fond par defaut</Label>
+                        <Switch
+                          id="mask-use-default-bg"
+                          checked={form.mask_useDefaultBackground}
+                          onCheckedChange={(checked) => setForm(prev => ({ ...prev, mask_useDefaultBackground: checked }))}
+                        />
+                      </div>
+
+                      {!form.mask_useDefaultBackground && (
+                        <div className="space-y-4">
+                          <div>
+                            <Label>Type de fond</Label>
+                            <ToggleGroup
+                              type="single"
+                              className="mt-2"
+                              value={form.mask_backgroundMode}
+                              onValueChange={(value) => {
+                                if (!value) return;
+                                setForm(prev => ({ ...prev, mask_backgroundMode: value }));
+                              }}
+                            >
+                              <ToggleGroupItem value="color">Couleur</ToggleGroupItem>
+                              <ToggleGroupItem value="gradient">Degrade</ToggleGroupItem>
+                              <ToggleGroupItem value="image">Image</ToggleGroupItem>
+                            </ToggleGroup>
+                          </div>
+
+                          {form.mask_backgroundMode === 'color' && (
+                            <div className="pl-4 border-l-2 border-muted space-y-2">
+                              <Label>Couleur unie</Label>
+                              <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                                <Input
+                                  type="color"
+                                  value={form.mask_backgroundColor || '#f9ffe7'}
+                                  onChange={(e) => setForm(prev => ({ ...prev, mask_backgroundColor: e.target.value }))}
+                                  className="w-20 h-12 p-1 border rounded"
+                                />
+                                <Input
+                                  value={form.mask_backgroundColor || ''}
+                                  onChange={(e) => setForm(prev => ({ ...prev, mask_backgroundColor: e.target.value }))}
+                                  placeholder="#f9ffe7"
+                                  className="flex-1"
+                                />
+                              </div>
+                              <p className="text-xs text-muted-foreground">Cette couleur sert de base pour les transitions.</p>
+                            </div>
+                          )}
+
+                          {form.mask_backgroundMode === 'gradient' && (
+                            <div className="pl-4 border-l-2 border-muted space-y-4">
+                              <div className="grid gap-3 sm:grid-cols-2">
+                                <div>
+                                  <Label>Couleur de depart</Label>
+                                  <Input
+                                    type="color"
+                                    value={form.mask_gradStart || '#EDF9FF'}
+                                    onChange={(e) => {
+                                      const start = e.target.value;
+                                      setForm(prev => ({
+                                        ...prev,
+                                        mask_gradStart: start,
+                                        mask_backgroundGradient: buildLinearGradient(prev.mask_gradAngle ?? 125, start, prev.mask_gradEnd ?? start),
+                                      }));
+                                    }}
+                                    className="w-full h-12 p-1 border rounded"
+                                  />
+                                </div>
+                                <div>
+                                  <Label>Couleur de fin</Label>
+                                  <Input
+                                    type="color"
+                                    value={form.mask_gradEnd || '#FFE8DB'}
+                                    onChange={(e) => {
+                                      const end = e.target.value;
+                                      setForm(prev => ({
+                                        ...prev,
+                                        mask_gradEnd: end,
+                                        mask_backgroundGradient: buildLinearGradient(prev.mask_gradAngle ?? 125, prev.mask_gradStart ?? end, end),
+                                      }));
+                                    }}
+                                    className="w-full h-12 p-1 border rounded"
+                                  />
+                                </div>
+                              </div>
+
+                              <div>
+                                <Label>Angle du degrade : {form.mask_gradAngle ?? 125}°</Label>
+                                <input
+                                  type="range"
+                                  min="0"
+                                  max="360"
+                                  step="1"
+                                  value={form.mask_gradAngle ?? 125}
+                                  onChange={(e) => {
+                                    const angle = Number(e.target.value);
+                                    setForm(prev => ({
+                                      ...prev,
+                                      mask_gradAngle: angle,
+                                      mask_backgroundGradient: buildLinearGradient(angle, prev.mask_gradStart ?? '#EDF9FF', prev.mask_gradEnd ?? '#FFE8DB'),
+                                    }));
+                                  }}
+                                  className="w-full"
+                                />
+                              </div>
+
+                              <div className="space-y-2">
+                                <Label>CSS du degrade</Label>
+                                <Input
+                                  value={form.mask_backgroundGradient || ''}
+                                  onChange={(e) => {
+                                    const value = e.target.value;
+                                    const parsed = parseLinearGradient(value);
+                                    setForm(prev => ({
+                                      ...prev,
+                                      mask_backgroundGradient: value,
+                                      mask_gradStart: parsed?.start || prev.mask_gradStart || '#EDF9FF',
+                                      mask_gradEnd: parsed?.end || prev.mask_gradEnd || '#FFE8DB',
+                                      mask_gradAngle: parsed?.angle || prev.mask_gradAngle || 125,
+                                    }));
+                                  }}
+                                  placeholder="linear-gradient(125deg, #EDF9FF 0%, #FFE8DB 100%)"
+                                />
+                                <p className="text-xs text-muted-foreground">Collez un CSS de degrade complet, les controles seront ajustes.</p>
+                              </div>
+
+                              <div>
+                                <Label>Presets</Label>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
+                                  {maskGradientPresets.map((preset) => (
+                                    <button
+                                      key={preset.name}
+                                      type="button"
+                                      onClick={() => setForm(prev => ({
+                                        ...prev,
+                                        mask_backgroundMode: 'gradient',
+                                        mask_gradStart: preset.start,
+                                        mask_gradEnd: preset.end,
+                                        mask_gradAngle: preset.angle,
+                                        mask_backgroundGradient: buildLinearGradient(preset.angle, preset.start, preset.end),
+                                      }))}
+                                      className="h-12 rounded border shadow-sm"
+                                      title={preset.name}
+                                      style={{ background: buildLinearGradient(preset.angle, preset.start, preset.end) }}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {form.mask_backgroundMode === 'image' && (
+                            <div className="pl-4 border-l-2 border-muted space-y-3">
+                              <Label>Image de fond</Label>
+                              <ImageUpload
+                                currentImageUrl={form.mask_backgroundImage}
+                                onImageChange={(url) => setForm(prev => ({ ...prev, mask_backgroundImage: url }))}
+                                acceptedTypes={['image/jpeg', 'image/png', 'image/webp']}
+                                compact
+                              />
+                              <Input
+                                value={form.mask_backgroundImage || ''}
+                                onChange={(e) => setForm(prev => ({ ...prev, mask_backgroundImage: e.target.value }))}
+                                placeholder="https://..."
+                              />
+                              <p className="text-xs text-muted-foreground">Preferez une image large (>= 1600px) pour eviter le flou.</p>
+                            </div>
+                          )}
+
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setForm(prev => ({ ...prev, mask_useDefaultBackground: true }))}
+                            >
+                              Revenir au fond par defaut
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setForm(prev => ({
+                                ...prev,
+                                mask_backgroundMode: 'color',
+                                mask_backgroundColor: DEFAULT_MASK_REVEAL_CONTENT.baseBackgroundColor,
+                                mask_backgroundGradient: DEFAULT_MASK_GRADIENT,
+                                mask_backgroundImage: '',
+                                mask_gradStart: maskGradientPresets[0]?.start || '#EDF9FF',
+                                mask_gradEnd: maskGradientPresets[0]?.end || '#FFE8DB',
+                                mask_gradAngle: maskGradientPresets[0]?.angle || 125,
+                              }))}
+                            >
+                              Reinitialiser l'editeur
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  <Card className="shadow-sm border">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Type className="h-4 w-4" />
+                        Contenus et textes
+                      </CardTitle>
+                      <CardDescription>Modifiez les titres, descriptions et liens de chaque contenu.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {(form.mask_items || []).map((item, index) => (
+                        <div key={item.id || index} className="border rounded-lg p-4 space-y-4 bg-muted/10">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium">Contenu #{index + 1}</span>
+                            {(form.mask_items || []).length > 1 && (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => handleRemoveMaskItem(index)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+
+                          <div className="grid gap-3">
+                            <div>
+                              <Label>Titre</Label>
+                              <Input
+                                value={item.title || ''}
+                                onChange={(e) => handleMaskItemChange(index, 'title', e.target.value)}
+                                placeholder="Titre du contenu"
+                              />
+                            </div>
+                            <div>
+                              <Label>Texte</Label>
+                              <Textarea
+                                value={item.description || ''}
+                                onChange={(e) => handleMaskItemChange(index, 'description', e.target.value)}
+                                placeholder="Decrivez le contenu mis en avant"
+                                rows={4}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <div>
+                              <Label>Texte du bouton</Label>
+                              <Input
+                                value={item.link?.label || ''}
+                                onChange={(e) => handleMaskItemLinkChange(index, 'label', e.target.value)}
+                                placeholder="En savoir plus"
+                              />
+                            </div>
+                            <div>
+                              <Label>Lien</Label>
+                              <Input
+                                value={item.link?.href || ''}
+                                onChange={(e) => handleMaskItemLinkChange(index, 'href', e.target.value)}
+                                placeholder="# ou /contact"
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <Label>Couleur du bouton</Label>
+                            <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                              <Input
+                                type="color"
+                                value={item.link?.backgroundColor || '#D5FF37'}
+                                onChange={(e) => handleMaskItemLinkChange(index, 'backgroundColor', e.target.value)}
+                                className="w-20 h-12 p-1 border rounded"
+                              />
+                              <Input
+                                value={item.link?.backgroundColor || ''}
+                                onChange={(e) => handleMaskItemLinkChange(index, 'backgroundColor', e.target.value)}
+                                placeholder="#D5FF37"
+                                className="flex-1"
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <Label>Couleur de transition du fond</Label>
+                            <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                              <Input
+                                type="color"
+                                value={form.mask_backgroundColors?.[index] || DEFAULT_MASK_REVEAL_CONTENT.backgroundColors[index % DEFAULT_MASK_REVEAL_CONTENT.backgroundColors.length]}
+                                onChange={(e) => handleMaskBackgroundColorChange(index, e.target.value)}
+                                className="w-20 h-12 p-1 border rounded"
+                              />
+                              <Input
+                                value={form.mask_backgroundColors?.[index] || ''}
+                                onChange={(e) => handleMaskBackgroundColorChange(index, e.target.value)}
+                                placeholder="#EDF9FF"
+                                className="flex-1"
+                              />
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Cette couleur anime le fond pendant le scroll pour ce contenu.
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+
+                      <Button type="button" variant="outline" onClick={handleAddMaskItem} className="flex items-center gap-2">
+                        <Plus className="h-4 w-4" />
+                        Ajouter un contenu
+                      </Button>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="shadow-sm border">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <ImageIcon className="h-4 w-4" />
+                        Images associees
+                      </CardTitle>
+                      <CardDescription>Remplacez les visuels affiches dans le masque.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {(form.mask_images || []).map((image, index) => (
+                        <div key={image.id || index} className="border rounded-lg p-4 space-y-3 bg-muted/10">
+                          <div className="text-sm font-medium">Image #{index + 1}</div>
+                          <ImageUpload
+                            currentImageUrl={image.src}
+                            onImageChange={handleMaskImageUpload(index)}
+                            acceptedTypes={['image/jpeg', 'image/png', 'image/webp']}
+                            compact
+                          />
+                          <div className="space-y-2">
+                            <div>
+                              <Label>URL de l'image</Label>
+                              <Input
+                                value={image.src || ''}
+                                onChange={(e) => handleMaskImageChange(index, { src: e.target.value })}
+                                placeholder="https://..."
+                              />
+                            </div>
+                            <div>
+                              <Label>Texte alternatif</Label>
+                              <Input
+                                value={image.alt || ''}
+                                onChange={(e) => handleMaskImageChange(index, { alt: e.target.value })}
+                                placeholder="Decrivez l'image"
+                              />
+                            </div>
+                            <div>
+                              <Label>Ordre d'affichage (1 = devant)</Label>
+                              <Input
+                                type="number"
+                                value={typeof image.order === 'number' ? image.order : index + 1}
+                                onChange={(e) => handleMaskImageChange(index, { order: Number(e.target.value) })}
+                                className="w-32"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
               {editingSample?.layout === 'home.launch_cta' && (
                 <div className="space-y-4">
                   {/* Menu 1: Contenu principal */}
@@ -2098,7 +2765,7 @@ const BlockSamplesPanel = ({ onBlockCreated }) => {
                   </Collapsible>
                 </div>
               )}
-              {editingSample?.layout !== 'home.cozy_space' && editingSample?.layout !== 'home.systems_showcase' && editingSample?.layout !== 'home.personal_quote' && editingSample?.layout !== 'home.promise' && editingSample?.layout !== 'home.main_hero' && editingSample?.layout !== 'home.launch_cta' && (
+              {editingSample?.layout !== 'home.cozy_space' && editingSample?.layout !== 'home.systems_showcase' && editingSample?.layout !== 'home.personal_quote' && editingSample?.layout !== 'home.promise' && editingSample?.layout !== 'home.main_hero' && editingSample?.layout !== 'home.launch_cta' && editingSample?.layout !== 'home.mask_reveal_scroll' && (
                 <div>
                   <Label>Contenu JSON (avancé)</Label>
                   <Textarea rows={16} value={form.contentJsonText} onChange={handleChange('contentJsonText')} />

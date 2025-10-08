@@ -5,8 +5,15 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 import './MaskRevealScrollSection.css';
 
-const DEFAULT_CONTENT = {
+const DEFAULT_MASK_GRADIENT = 'linear-gradient(125deg, #EDF9FF 0%, #FFE8DB 100%)';
+
+export const DEFAULT_MASK_REVEAL_CONTENT = {
   baseBackgroundColor: '#f9ffe7',
+  backgroundColor: '#f9ffe7',
+  backgroundGradient: DEFAULT_MASK_GRADIENT,
+  backgroundImage: '',
+  backgroundMode: 'color',
+  useDefaultBackground: true,
   backgroundColors: ['#EDF9FF', '#FFECF2', '#FFE8DB'],
   items: [
     {
@@ -101,23 +108,43 @@ const MaskRevealScrollSection = ({ content = {}, isPreview = false }) => {
     const items =
       Array.isArray(content.items) && content.items.length > 0
         ? content.items
-        : DEFAULT_CONTENT.items;
+        : DEFAULT_MASK_REVEAL_CONTENT.items;
     const images =
       Array.isArray(content.images) && content.images.length > 0
         ? content.images
-        : DEFAULT_CONTENT.images;
+        : DEFAULT_MASK_REVEAL_CONTENT.images;
     const backgroundColors =
       Array.isArray(content.backgroundColors) && content.backgroundColors.length > 0
         ? content.backgroundColors
-        : DEFAULT_CONTENT.backgroundColors;
+        : DEFAULT_MASK_REVEAL_CONTENT.backgroundColors;
+
+    const useDefaultBackground = content.useDefaultBackground !== false;
+    const backgroundMode = content.backgroundMode || (content.backgroundImage ? 'image' : content.backgroundGradient ? 'gradient' : 'color');
+    const backgroundGradient = content.backgroundGradient || DEFAULT_MASK_GRADIENT;
+    const backgroundImage = content.backgroundImage || '';
+    const backgroundColor =
+      content.backgroundColor ||
+      content.baseBackgroundColor ||
+      DEFAULT_MASK_REVEAL_CONTENT.backgroundColor;
+
+    const baseBackgroundColor = useDefaultBackground
+      ? content.baseBackgroundColor || backgroundColor || DEFAULT_MASK_REVEAL_CONTENT.baseBackgroundColor
+      : backgroundMode === 'color'
+        ? backgroundColor
+        : content.baseBackgroundColor || backgroundColors[0] || DEFAULT_MASK_REVEAL_CONTENT.baseBackgroundColor;
 
     return {
-      ...DEFAULT_CONTENT,
+      ...DEFAULT_MASK_REVEAL_CONTENT,
       ...content,
       items,
       images,
       backgroundColors,
-      baseBackgroundColor: content.baseBackgroundColor || DEFAULT_CONTENT.baseBackgroundColor,
+      backgroundMode,
+      backgroundGradient,
+      backgroundImage,
+      backgroundColor,
+      useDefaultBackground,
+      baseBackgroundColor,
     };
   }, [content]);
 
@@ -133,15 +160,45 @@ const MaskRevealScrollSection = ({ content = {}, isPreview = false }) => {
       return undefined;
     }
 
-    const { backgroundColors, baseBackgroundColor } = data;
-    const targetBackgroundElement = isPreview ? container : document.body;
-    const originalBodyBackground = !isPreview ? document.body.style.backgroundColor : null;
+    const {
+      backgroundColors,
+      baseBackgroundColor,
+      backgroundMode,
+      backgroundGradient,
+      backgroundImage,
+      backgroundColor,
+      useDefaultBackground,
+    } = data;
+    const targetBackgroundElement = !useDefaultBackground || isPreview ? container : document.body;
+    const shouldControlBodyBackground = !isPreview && useDefaultBackground;
+    const originalBodyBackground = shouldControlBodyBackground ? document.body.style.backgroundColor : null;
 
-    if (baseBackgroundColor) {
+    if (useDefaultBackground) {
+      container.style.backgroundImage = '';
+      container.style.backgroundSize = '';
+      container.style.backgroundRepeat = '';
+      container.style.backgroundPosition = '';
       if (isPreview) {
         container.style.backgroundColor = baseBackgroundColor;
       } else {
+        container.style.backgroundColor = '';
         document.body.style.backgroundColor = baseBackgroundColor;
+      }
+    } else {
+      const resolvedBaseColor = backgroundMode === 'color' ? (backgroundColor || baseBackgroundColor) : baseBackgroundColor;
+      container.style.backgroundColor = resolvedBaseColor;
+      container.style.backgroundImage = '';
+      container.style.backgroundSize = '';
+      container.style.backgroundRepeat = '';
+      container.style.backgroundPosition = '';
+      if (backgroundMode === 'gradient' && backgroundGradient) {
+        container.style.backgroundImage = backgroundGradient;
+        container.style.backgroundSize = 'cover';
+      } else if (backgroundMode === 'image' && backgroundImage) {
+        container.style.backgroundImage = `url(${backgroundImage})`;
+        container.style.backgroundSize = 'cover';
+        container.style.backgroundRepeat = 'no-repeat';
+        container.style.backgroundPosition = 'center';
       }
     }
 
@@ -342,11 +399,16 @@ const MaskRevealScrollSection = ({ content = {}, isPreview = false }) => {
           window.cancelAnimationFrame(animationFrameId);
         }
         lenisInstance?.destroy();
-        if (originalBodyBackground !== null) {
+        if (shouldControlBodyBackground && originalBodyBackground !== null) {
           document.body.style.backgroundColor = originalBodyBackground;
         }
-      } else {
+      }
+      if (container) {
         container.style.backgroundColor = '';
+        container.style.backgroundImage = '';
+        container.style.backgroundSize = '';
+        container.style.backgroundRepeat = '';
+        container.style.backgroundPosition = '';
       }
     };
   }, [data, isPreview]);
