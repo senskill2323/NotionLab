@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useDebounce } from 'use-debounce';
 import {
   AlertCircle,
@@ -17,13 +17,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
@@ -48,18 +41,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
-import HomeBlockLayoutEditor from '@/components/admin/home-blocks/HomeBlockLayoutEditor';
 import {
   getLayoutDefinition,
   getLayoutKeys,
 } from '@/components/admin/home-blocks/layoutRegistry';
-import useHomeBlockEditor, {
-  buildHomeBlockEditorBundle,
-} from '@/components/admin/home-blocks/useHomeBlockEditor';
+import { buildHomeBlockEditorBundle } from '@/components/admin/home-blocks/useHomeBlockEditor';
 
 const DEFAULT_LAYOUT = 'home.main_hero';
 
@@ -105,44 +93,15 @@ const BUILTIN_SAMPLES = BUILTIN_SAMPLE_LAYOUTS.map(({ layout, title, block_type 
 
 const BlockSamplesPanel = ({ onBlockCreated }) => {
   const { toast } = useToast();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [samples, setSamples] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedSamples, setSelectedSamples] = useState(new Set());
-  const [selectAll, setSelectAll] = useState(false);
-  const [isEditOpen, setIsEditOpen] = useState(false);
-  const [editingSample, setEditingSample] = useState(null);
-  const [previewMode, setPreviewMode] = useState('desktop');
   const [query, setQuery] = useState('');
   const [debouncedQuery] = useDebounce(query, 300);
   const [layoutFilter, setLayoutFilter] = useState('all');
-
-  const [metadataForm, setMetadataForm] = useState(() => ({
-    title: '',
-    block_type: 'dynamic',
-    layout: DEFAULT_LAYOUT,
-    htmlContent: '',
-  }));
-
-  const editor = useHomeBlockEditor({
-    initialLayout: DEFAULT_LAYOUT,
-    initialBlockType: 'dynamic',
-    toast,
-  });
-
-  const {
-    editorState,
-    fallbackJson: editorFallbackJson,
-    setEditorState,
-    setSerializedContent,
-    setFallbackJson,
-    reset: resetEditor,
-    hydrateFromRecord,
-    getContentPayload,
-  } = editor;
-
-  const persistedStateRef = useRef(false);
+  const hasSeededRef = useRef(false);
 
   const layoutOptions = useMemo(() => {
     return getLayoutKeys()
@@ -157,16 +116,81 @@ const BlockSamplesPanel = ({ onBlockCreated }) => {
       .sort((a, b) => a.label.localeCompare(b.label));
   }, []);
 
+  const filteredSamples = useMemo(() => {
+    const normalizedQuery = debouncedQuery.trim().toLowerCase();
+
+    return samples.filter((sample) => {
+      if (layoutFilter !== 'all' && sample.layout !== layoutFilter) {
+        return false;
+      }
+
+      if (!normalizedQuery) {
+        return true;
+      }
+
+      const title = (sample.title ?? '').toLowerCase();
+      const layout = (sample.layout ?? '').toLowerCase();
+      return title.includes(normalizedQuery) || layout.includes(normalizedQuery);
+    });
+  }, [debouncedQuery, layoutFilter, samples]);
+
+  const allFilteredSelected =
+    filteredSamples.length > 0 &&
+    filteredSamples.every((sample) => selectedSamples.has(sample.id));
+
+  const handleSelectAll = useCallback(
+    (checked) => {
+      const flag = Boolean(checked);
+      setSelectedSamples(flag ? new Set(filteredSamples.map((sample) => sample.id)) : new Set());
+    },
+    [filteredSamples],
+  );
+
+  const handleSelectSample = useCallback((sampleId, checked) => {
+    setSelectedSamples((previous) => {
+      const next = new Set(previous);
+      if (checked) {
+        next.add(sampleId);
+      } else {
+        next.delete(sampleId);
+      }
+      return next;
+    });
+  }, []);
+
+
+  const handleCreateNewSample = useCallback(() => {
+    navigate('/admin/home-blocks/templates/new');
+  }, [navigate]);
+
+  const handleEdit = useCallback(
+    (sample) => {
+      if (!sample?.id) return;
+      navigate(`/admin/home-blocks/templates/${sample.id}`);
+    },
+    [navigate],
+  );
+
+
+
   const seedBuiltinSamplesIfNeeded = useCallback(async () => {
+    if (hasSeededRef.current) {
+      return;
+    }
+
     try {
       const { data: existing, error } = await supabase
         .from('block_samples')
         .select('id')
         .limit(1);
       if (error) throw error;
-      if (existing && existing.length > 0) return;
+      if (existing && existing.length > 0) {
+        hasSeededRef.current = true;
+        return;
+      }
 
       await supabase.from('block_samples').insert(BUILTIN_SAMPLES);
+      hasSeededRef.current = true;
     } catch (seedError) {
       console.warn('Seed builtin samples failed:', seedError);
     }
@@ -177,6 +201,7 @@ const BlockSamplesPanel = ({ onBlockCreated }) => {
     setError(null);
 
     try {
+      await seedBuiltinSamplesIfNeeded();
       let queryBuilder = supabase
         .from('block_samples')
         .select('*')
@@ -194,6 +219,7 @@ const BlockSamplesPanel = ({ onBlockCreated }) => {
       if (fetchError) throw fetchError;
 
       setSamples(data ?? []);
+      setSelectedSamples(new Set());
     } catch (fetchError) {
       console.error('Error fetching block samples:', fetchError);
       setError("Erreur lors de la récupération des modèles de blocs.");
@@ -205,190 +231,7 @@ const BlockSamplesPanel = ({ onBlockCreated }) => {
     } finally {
       setLoading(false);
     }
-  }, [debouncedQuery, layoutFilter, toast]);
-
-  useEffect(() => {
-    seedBuiltinSamplesIfNeeded().then(fetchSamples);
-  }, [fetchSamples, seedBuiltinSamplesIfNeeded]);
-
-  useEffect(() => {
-    if (samples.length === 0) {
-      setSelectAll(false);
-      setSelectedSamples(new Set());
-      return;
-    }
-
-    setSelectAll(selectedSamples.size === samples.length);
-  }, [samples, selectedSamples]);
-
-  const persistEditorState = useCallback(
-    (sampleId) => {
-      try {
-        sessionStorage.setItem(
-          'blockSamplesEditor',
-          JSON.stringify({
-            open: true,
-            sampleId: sampleId ? String(sampleId) : null,
-            timestamp: Date.now(),
-          }),
-        );
-      } catch (_) {
-        // noop
-      }
-    },
-    [],
-  );
-
-  const clearPersistedEditorState = useCallback(() => {
-    try {
-      sessionStorage.removeItem('blockSamplesEditor');
-    } catch (_) {
-      // noop
-    }
-  }, []);
-
-  const handleCreateNewSample = useCallback(() => {
-    setEditingSample(null);
-    setMetadataForm({
-      title: '',
-      block_type: 'dynamic',
-      layout: DEFAULT_LAYOUT,
-      htmlContent: '',
-    });
-    resetEditor({
-      nextLayout: DEFAULT_LAYOUT,
-      nextBlockType: 'dynamic',
-    });
-    setPreviewMode('desktop');
-    setIsEditOpen(true);
-    persistEditorState(null);
-
-    const params = new URLSearchParams(searchParams);
-    params.set('subtab', 'samples');
-    params.set('editing', 'true');
-    params.delete('sampleId');
-    setSearchParams(params, { replace: true });
-  }, [hydrateFromRecord, persistEditorState, resetEditor, searchParams, setSearchParams]);
-
-  const handleEdit = useCallback(
-    (sample) => {
-      if (!sample) return;
-
-      setEditingSample(sample);
-      setMetadataForm({
-        title: sample.title ?? '',
-        block_type: sample.block_type ?? 'dynamic',
-        layout: sample.layout ?? DEFAULT_LAYOUT,
-        htmlContent:
-          sample.block_type === 'html'
-            ? typeof sample.content === 'string'
-              ? sample.content
-              : sample.content?.html ?? ''
-            : '',
-      });
-
-      if (sample.block_type === 'dynamic') {
-        hydrateFromRecord({
-          recordLayout: sample.layout ?? DEFAULT_LAYOUT,
-          recordBlockType: 'dynamic',
-          recordContent: sample.content ?? {},
-        });
-      } else {
-        resetEditor({
-          nextLayout: DEFAULT_LAYOUT,
-          nextBlockType: 'dynamic',
-          content: {},
-        });
-      }
-
-      setPreviewMode('desktop');
-      setIsEditOpen(true);
-      persistEditorState(sample.id);
-
-      const params = new URLSearchParams(searchParams);
-      params.set('subtab', 'samples');
-      params.set('editing', 'true');
-      params.set('sampleId', String(sample.id));
-      setSearchParams(params, { replace: true });
-    },
-    [hydrateFromRecord, persistEditorState, resetEditor, searchParams, setSearchParams],
-  );
-
-  const closeEditor = useCallback(() => {
-    setIsEditOpen(false);
-    setEditingSample(null);
-    setMetadataForm({
-      title: '',
-      block_type: 'dynamic',
-      layout: DEFAULT_LAYOUT,
-      htmlContent: '',
-    });
-    resetEditor({
-      nextLayout: DEFAULT_LAYOUT,
-      nextBlockType: 'dynamic',
-    });
-    setPreviewMode('desktop');
-    clearPersistedEditorState();
-
-    const params = new URLSearchParams(searchParams);
-    params.delete('editing');
-    params.delete('sampleId');
-    setSearchParams(params, { replace: true });
-  }, [clearPersistedEditorState, resetEditor, searchParams, setSearchParams]);
-
-  const handleDialogOpenChange = useCallback(
-    (open) => {
-      if (!open) closeEditor();
-    },
-    [closeEditor],
-  );
-
-  const handleDelete = useCallback(
-    async (sampleId) => {
-      if (!sampleId) return;
-      const { error: deleteError } = await supabase
-        .from('block_samples')
-        .delete()
-        .eq('id', sampleId);
-      if (deleteError) {
-        toast({
-          title: 'Erreur',
-          description: "Impossible de supprimer le modèle.",
-          variant: 'destructive',
-        });
-        return;
-      }
-      toast({ title: 'Modèle supprimé' });
-      fetchSamples();
-    },
-    [fetchSamples, toast],
-  );
-
-  const handleDuplicate = useCallback(
-    async (sample) => {
-      if (!sample) return;
-      const duplicated = {
-        title: `${sample.title} (Copie)`,
-        block_type: sample.block_type,
-        layout: sample.layout,
-        content: sample.content,
-      };
-      const { error: insertError } = await supabase
-        .from('block_samples')
-        .insert([duplicated]);
-      if (insertError) {
-        toast({
-          title: 'Erreur',
-          description: "Duplication impossible.",
-          variant: 'destructive',
-        });
-        return;
-      }
-      toast({ title: 'Modèle dupliqué' });
-      fetchSamples();
-    },
-    [fetchSamples, toast],
-  );
+  }, [debouncedQuery, layoutFilter, seedBuiltinSamplesIfNeeded, toast]);
 
   const handleImportFromActiveBlocks = useCallback(async () => {
     try {
@@ -460,123 +303,52 @@ const BlockSamplesPanel = ({ onBlockCreated }) => {
     }
   }, [fetchSamples, toast]);
 
-  const handleSelectAll = useCallback(
-    (checked) => {
-      const flag = Boolean(checked);
-      setSelectAll(flag);
-      setSelectedSamples(flag ? new Set(samples.map((sample) => sample.id)) : new Set());
-    },
-    [samples],
-  );
-
-  const handleSelectSample = useCallback((sampleId, checked) => {
-    setSelectedSamples((previous) => {
-      const next = new Set(previous);
-      if (checked) {
-        next.add(sampleId);
-      } else {
-        next.delete(sampleId);
-      }
-      return next;
-    });
-  }, []);
-
-  const handleLayoutChange = useCallback(
-    (nextLayout) => {
-      setMetadataForm((prev) => ({
-        ...prev,
-        layout: nextLayout,
-      }));
-      resetEditor({
-        nextLayout,
-        nextBlockType: 'dynamic',
-      });
-    },
-    [resetEditor],
-  );
-
-  const handleBlockTypeChange = useCallback(
-    (nextType) => {
-      setMetadataForm((prev) => ({
-        ...prev,
-        block_type: nextType,
-        htmlContent: nextType === 'html' ? prev.htmlContent : '',
-      }));
-
-      if (nextType === 'dynamic') {
-        resetEditor({
-          nextLayout: metadataForm.layout ?? DEFAULT_LAYOUT,
-          nextBlockType: 'dynamic',
+  const handleDelete = useCallback(
+    async (sampleId) => {
+      if (!sampleId) return;
+      const { error: deleteError } = await supabase
+        .from('block_samples')
+        .delete()
+        .eq('id', sampleId);
+      if (deleteError) {
+        toast({
+          title: 'Erreur',
+          description: "Impossible de supprimer le modèle.",
+          variant: 'destructive',
         });
-      }
-    },
-    [metadataForm.layout, resetEditor],
-  );
-
-  const handleSaveTemplate = useCallback(async () => {
-    const trimmedTitle = metadataForm.title.trim();
-    if (!trimmedTitle) {
-      toast({
-        title: 'Titre requis',
-        description: 'Veuillez saisir un titre.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    let content;
-    if (metadataForm.block_type === 'dynamic') {
-      try {
-        content = getContentPayload();
-      } catch (_) {
         return;
       }
-    } else {
-      content = metadataForm.htmlContent ?? '';
-    }
-
-    const payload = {
-      title: trimmedTitle,
-      block_type: metadataForm.block_type,
-      layout: metadataForm.layout,
-      content,
-    };
-
-    try {
-      if (editingSample?.id) {
-        const { error: updateError } = await supabase
-          .from('block_samples')
-          .update(payload)
-          .eq('id', editingSample.id);
-        if (updateError) throw updateError;
-        toast({ title: 'Modèle mis à jour' });
-      } else {
-        const { error: insertError } = await supabase
-          .from('block_samples')
-          .insert([payload]);
-        if (insertError) throw insertError;
-        toast({ title: 'Modèle enregistré' });
-      }
-      closeEditor();
+      toast({ title: 'Modèle supprimé' });
       fetchSamples();
-    } catch (saveError) {
-      toast({
-        title: 'Erreur',
-        description: `Impossible de sauvegarder: ${saveError.message}`,
-        variant: 'destructive',
-      });
-    }
-  }, [
-    closeEditor,
-    editor,
-    editingSample?.id,
-    fetchSamples,
-    metadataForm.block_type,
-    metadataForm.htmlContent,
-    metadataForm.layout,
-    metadataForm.title,
-    toast,
-  ]);
+    },
+    [fetchSamples, toast],
+  );
+
+  const handleDuplicate = useCallback(
+    async (sample) => {
+      if (!sample) return;
+      const duplicated = {
+        title: `${sample.title} (Copie)`,
+        block_type: sample.block_type,
+        layout: sample.layout,
+        content: sample.content,
+      };
+      const { error: insertError } = await supabase
+        .from('block_samples')
+        .insert([duplicated]);
+      if (insertError) {
+        toast({
+          title: 'Erreur',
+          description: "Duplication impossible.",
+          variant: 'destructive',
+        });
+        return;
+      }
+      toast({ title: 'Modèle dupliqué' });
+      fetchSamples();
+    },
+    [fetchSamples, toast],
+  );
 
   const handleUseTemplate = useCallback(
     async (sample) => {
@@ -659,26 +431,16 @@ const BlockSamplesPanel = ({ onBlockCreated }) => {
     [onBlockCreated, toast],
   );
 
+
   useEffect(() => {
-    if (persistedStateRef.current) return;
-    persistedStateRef.current = true;
-    try {
-      const raw = sessionStorage.getItem('blockSamplesEditor');
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      if (!parsed?.open) return;
-      if (Date.now() - (parsed.timestamp ?? 0) > 60 * 60 * 1000) {
-        clearPersistedEditorState();
-        return;
-      }
-      const sample = samples.find((item) => String(item.id) === String(parsed.sampleId));
-      if (sample) {
-        handleEdit(sample);
-      }
-    } catch (_) {
-      // noop
-    }
-  }, [clearPersistedEditorState, handleEdit, samples]);
+    setSelectedSamples(new Set());
+  }, [debouncedQuery, layoutFilter]);
+
+  useEffect(() => {
+    fetchSamples();
+  }, [fetchSamples]);
+
+
 
   return (
     <div className="space-y-4">
@@ -744,7 +506,7 @@ const BlockSamplesPanel = ({ onBlockCreated }) => {
             <TableRow className="bg-muted/30">
               <TableHead className="w-12">
                 <Checkbox
-                  checked={selectAll}
+                  checked={allFilteredSelected}
                   onCheckedChange={handleSelectAll}
                   aria-label="Sélectionner tous les modèles"
                 />
@@ -774,11 +536,17 @@ const BlockSamplesPanel = ({ onBlockCreated }) => {
             ) : samples.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="h-24 text-center">
-                  Aucun modèle enregistré.
+                  Aucun mod�le enregistr�.
+                </TableCell>
+              </TableRow>
+            ) : filteredSamples.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                  Aucun mod�le ne correspond � la recherche.
                 </TableCell>
               </TableRow>
             ) : (
-              samples.map((sample) => (
+              filteredSamples.map((sample) => (
                 <TableRow key={sample.id} className="hover:bg-muted/20">
                   <TableCell>
                     <Checkbox
@@ -847,151 +615,6 @@ const BlockSamplesPanel = ({ onBlockCreated }) => {
         </Table>
       </div>
 
-      <Dialog open={isEditOpen} onOpenChange={handleDialogOpenChange}>
-        <DialogContent
-          className="max-w-5xl w-full"
-          onInteractOutside={(event) => event.preventDefault()}
-        >
-          <DialogHeader>
-            <DialogTitle>
-              {editingSample ? `Modifier "${editingSample.title}"` : 'Nouveau modèle'}
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="flex flex-col gap-6 lg:flex-row">
-            <div className="w-full lg:w-[22rem] space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Métadonnées</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="sample-title">Titre</Label>
-                    <Input
-                      id="sample-title"
-                      value={metadataForm.title}
-                      onChange={(event) =>
-                        setMetadataForm((prev) => ({
-                          ...prev,
-                          title: event.target.value,
-                        }))
-                      }
-                      placeholder="Titre du modèle"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Type de contenu</Label>
-                    <Select
-                      value={metadataForm.block_type}
-                      onValueChange={handleBlockTypeChange}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="dynamic">Dynamique (layout)</SelectItem>
-                        <SelectItem value="html">HTML</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {metadataForm.block_type === 'dynamic' && (
-                    <div className="space-y-2">
-                      <Label>Layout</Label>
-                      <Select
-                        value={metadataForm.layout}
-                        onValueChange={handleLayoutChange}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {layoutOptions
-                            .filter((option) => option.blockType !== 'html')
-                            .map((option) => (
-                              <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {metadataForm.block_type === 'html' && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Contenu HTML</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <Textarea
-                      rows={18}
-                      value={metadataForm.htmlContent}
-                      onChange={(event) =>
-                        setMetadataForm((prev) => ({
-                          ...prev,
-                          htmlContent: event.target.value,
-                        }))
-                      }
-                      placeholder="<section>Votre HTML…</section>"
-                    />
-                  </CardContent>
-                </Card>
-              )}
-
-              <div className="flex items-center gap-2">
-                <Button variant="outline" className="flex-1" onClick={closeEditor}>
-                  Annuler
-                </Button>
-                <Button className="flex-1" onClick={handleSaveTemplate}>
-                  Enregistrer
-                </Button>
-              </div>
-            </div>
-
-            {metadataForm.block_type === 'dynamic' && (
-              <div className="flex-1 space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Aperçu</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <ToggleGroup
-                      type="single"
-                      value={previewMode}
-                      onValueChange={(value) => value && setPreviewMode(value)}
-                    >
-                      <ToggleGroupItem value="desktop">Desktop</ToggleGroupItem>
-                      <ToggleGroupItem value="mobile">Mobile</ToggleGroupItem>
-                    </ToggleGroup>
-
-                    <div
-                      className={
-                        previewMode === 'mobile'
-                          ? 'mx-auto w-[420px] border rounded-lg'
-                          : 'border rounded-lg'
-                      }
-                    >
-                      <HomeBlockLayoutEditor
-                        layout={metadataForm.layout}
-                        value={editorState}
-                        onChange={setEditorState}
-                        onContentChange={setSerializedContent}
-                        previewMode={previewMode}
-                        fallbackJson={editorFallbackJson}
-                        onFallbackJsonChange={setFallbackJson}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

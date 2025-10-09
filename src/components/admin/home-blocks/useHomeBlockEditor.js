@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import {
   getLayoutDefinition,
   serializeLayoutContent,
@@ -79,6 +79,12 @@ const useHomeBlockEditor = ({
   const [serializedContent, setSerializedContent] = useState(initialBundle.serialized);
   const [fallbackJson, setFallbackJson] = useState(initialBundle.fallbackJson);
 
+  const editorStateRef = useRef(initialBundle.state);
+
+  useEffect(() => {
+    editorStateRef.current = editorState;
+  }, [editorState]);
+
   const reset = useCallback(
     ({ nextLayout, nextBlockType = 'dynamic', content } = {}) => {
       const resolvedLayout = nextLayout ?? layout ?? initialLayout;
@@ -88,10 +94,12 @@ const useHomeBlockEditor = ({
         return;
       }
 
+      const resolvedContent = content === undefined ? editorStateRef.current : content;
+
       const bundle = buildHomeBlockEditorBundle({
         layout: resolvedLayout,
         blockType: resolvedBlockType,
-        content,
+        content: resolvedContent,
       });
 
       setLayout(resolvedLayout);

@@ -32,27 +32,37 @@ const SystemsShowcaseLayoutEditor = ({ value, onChange }) => {
   };
 
   const updateImage = (index, nextValue) => {
-    const nextImages = [...images];
-    nextImages[index] = nextValue;
-    onChange({
-      ...value,
-      images: nextImages,
+    onChange((current = {}) => {
+      const currentImages = ensureArray(current.images);
+      const nextImages = currentImages.map((img, idx) =>
+        idx === index ? nextValue : img,
+      );
+      return {
+        ...current,
+        images: nextImages,
+      };
     });
     updateUploadStatus(index, 'idle');
   };
 
   const addImage = () => {
-    onChange({
-      ...value,
-      images: [...images, ''],
+    onChange((current = {}) => {
+      const currentImages = ensureArray(current.images);
+      return {
+        ...current,
+        images: [...currentImages, ''],
+      };
     });
     setUploadStatuses((prev) => [...prev, 'idle']);
   };
 
   const removeImage = (index) => {
-    onChange({
-      ...value,
-      images: images.filter((_, i) => i !== index),
+    onChange((current = {}) => {
+      const currentImages = ensureArray(current.images);
+      return {
+        ...current,
+        images: currentImages.filter((_, i) => i !== index),
+      };
     });
     setUploadStatuses((prev) => prev.filter((_, i) => i !== index));
   };

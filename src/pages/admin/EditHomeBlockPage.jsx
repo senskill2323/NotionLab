@@ -1,5 +1,5 @@
  
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Helmet } from 'react-helmet';
 import { useForm, Controller } from 'react-hook-form';
 import { useToast } from '@/components/ui/use-toast';
@@ -68,10 +68,29 @@ const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
     toast,
   });
 
+  const lastLayoutRef = useRef(null);
+  const lastBlockTypeRef = useRef(null);
+  const resetEditorRef = useRef(resetEditor);
+
+  useEffect(() => {
+    resetEditorRef.current = resetEditor;
+  }, [resetEditor]);
+
   useEffect(() => {
     if (!layout) return;
-    resetEditor({ nextLayout: layout, nextBlockType: blockType });
-  }, [layout, blockType, resetEditor]);
+
+    const layoutChanged = lastLayoutRef.current !== layout;
+    const blockTypeChanged = lastBlockTypeRef.current !== blockType;
+
+    if (!layoutChanged && !blockTypeChanged) {
+      return;
+    }
+
+    lastLayoutRef.current = layout;
+    lastBlockTypeRef.current = blockType;
+
+    resetEditorRef.current({ nextLayout: layout, nextBlockType: blockType });
+  }, [layout, blockType]);
 
   const buildBlockPayload = useCallback(
     (formValues, content, overrides = {}) => {
@@ -199,7 +218,7 @@ const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
         });
         if (rpcError) throw rpcError;
 
-        toast({ title: 'Succès', description: `Bloc sauvegardé en tant que ${effectiveStatus}.` });
+        toast({ title: 'Succï¿½s', description: `Bloc sauvegardï¿½ en tant que ${effectiveStatus}.` });
         onSave({ id: newId, ...blockDataForHtml });
       } else {
         const { data, error } = await supabase.functions.invoke('manage-content-block', {
@@ -214,11 +233,11 @@ const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
         if (data?.error) throw new Error(data.error);
 
         const resultingBlock = data ?? { ...payload.metadata, content: payload.content };
-        toast({ title: 'Succès', description: `Bloc sauvegardé en tant que ${resultingBlock.status ?? effectiveStatus}.` });
+        toast({ title: 'Succï¿½s', description: `Bloc sauvegardï¿½ en tant que ${resultingBlock.status ?? effectiveStatus}.` });
         onSave(resultingBlock);
       }
     } catch (error) {
-      toast({ title: 'Erreur', description: `Échec de la sauvegarde: ${error.message}`, variant: 'destructive' });
+      toast({ title: 'Erreur', description: `ï¿½chec de la sauvegarde: ${error.message}`, variant: 'destructive' });
     } finally {
       setIsSubmitting(false);
     }
@@ -471,3 +490,6 @@ const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
 };
 
 export default EditHomeBlockPage;
+
+
+

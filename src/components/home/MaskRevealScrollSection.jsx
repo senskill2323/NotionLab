@@ -282,18 +282,24 @@ const MaskRevealScrollSection = ({ content = {}, isPreview = false }) => {
           trigger: archElement,
           start: 'top top',
           end: 'bottom bottom',
-          scrub: true,
+          scrub: 0.1,
         },
       });
 
       gsap.set(images, {
-        clipPath: 'inset(0)',
         objectPosition: '50% 50%',
         scale: 1,
       });
 
+      images.forEach((image, index) => {
+        gsap.set(image, {
+          clipPath: index === 0 ? 'inset(0)' : 'inset(0px 0px 100%)',
+        });
+      });
+
       images.forEach((currentImage, index) => {
-        if (!images[index + 1]) {
+        const nextImage = images[index + 1];
+        if (!nextImage) {
           return;
         }
 
@@ -318,6 +324,18 @@ const MaskRevealScrollSection = ({ content = {}, isPreview = false }) => {
             currentImage,
             {
               clipPath: 'inset(0px 0px 100%)',
+              duration: 1.5,
+              ease: 'none',
+            },
+            0,
+          )
+          .fromTo(
+            nextImage,
+            {
+              clipPath: 'inset(0px 0px 100%)',
+            },
+            {
+              clipPath: 'inset(0)',
               duration: 1.5,
               ease: 'none',
             },
@@ -354,7 +372,7 @@ const MaskRevealScrollSection = ({ content = {}, isPreview = false }) => {
             trigger: image,
             start: 'top-=70% top+=50%',
             end: 'bottom+=200% bottom',
-            scrub: true,
+            scrub: 0.1,
           },
         });
 

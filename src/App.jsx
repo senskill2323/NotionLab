@@ -55,6 +55,7 @@ import React from 'react';
     import StaticPage from '@/pages/StaticPage';
     import ModuleManagerPage from '@/pages/admin/ModuleManagerPage';
     import TabsEditorPage from '@/pages/admin/TabsEditorPage';
+    import EditBlockSamplePage from '@/pages/admin/EditBlockSamplePage';
 
     const MainLayout = ({ children }) => {
       const location = useLocation();
@@ -126,6 +127,8 @@ import React from 'react';
         <Route path="/admin/pages/new" element={<ProtectedRoute requiredPermission="admin:manage_static_pages"><EditStaticPage /></ProtectedRoute>} />
         <Route path="/admin/pages/:id" element={<ProtectedRoute requiredPermission="admin:manage_static_pages"><EditStaticPage /></ProtectedRoute>} />
         <Route path="/admin/modules" element={<ProtectedRoute requiredPermission="admin:manage_modules"><ModuleManagerPage /></ProtectedRoute>} />
+        <Route path="/admin/home-blocks/templates/new" element={<ProtectedRoute requiredPermission="admin:access_dashboard"><EditBlockSamplePage mode="create" /></ProtectedRoute>} />
+        <Route path="/admin/home-blocks/templates/:sampleId" element={<ProtectedRoute requiredPermission="admin:access_dashboard"><EditBlockSamplePage mode="edit" /></ProtectedRoute>} />
         <Route path="/admin/tabs-editor" element={<ProtectedRoute requiredPermission="admin:manage_tabs_layout"><TabsEditorPage /></ProtectedRoute>} />
         <Route path="/admin/blueprint-palette" element={<ProtectedRoute requiredPermission="admin_blueprints:manage_palette"><Navigate to="/admin/dashboard?tab=blueprints" replace /></ProtectedRoute>} />
         <Route path="/admin/*" element={<Navigate to="/admin/dashboard" replace />} />

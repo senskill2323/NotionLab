@@ -14,10 +14,10 @@ const MainHeroLayoutEditor = ({ value, onChange }) => {
         <ImageUpload
           currentImageUrl={value.imageUrl}
           onImageSelected={(url) =>
-            onChange({
-              ...value,
+            onChange((current) => ({
+              ...(current ?? {}),
               imageUrl: url,
-            })
+            }))
           }
           acceptedTypes={['image/jpeg', 'image/png', 'image/webp']}
           compact
@@ -38,10 +38,10 @@ const MainHeroLayoutEditor = ({ value, onChange }) => {
           step="0.05"
           value={value.overlayOpacity ?? 0}
           onChange={(event) =>
-            onChange({
-              ...value,
+            onChange((current) => ({
+              ...(current ?? {}),
               overlayOpacity: Number(event.target.value),
-            })
+            }))
           }
           className="w-full"
         />

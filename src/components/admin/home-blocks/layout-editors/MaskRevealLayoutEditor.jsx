@@ -25,10 +25,10 @@ const FALLBACK_PALETTE = DEFAULT_MASK_REVEAL_CONTENT.backgroundColors;
 
 const MaskRevealLayoutEditor = ({ value = {}, onChange, presets = {} }) => {
   const emit = (patch) => {
-    onChange({
-      ...value,
+    onChange((current) => ({
+      ...(current ?? {}),
       ...patch,
-    });
+    }));
   };
 
   const handleInput = createInputChangeHandler(value, onChange);
@@ -69,40 +69,54 @@ const MaskRevealLayoutEditor = ({ value = {}, onChange, presets = {} }) => {
     value.backgroundMode ||
     (value.backgroundImage ? 'image' : value.backgroundGradient ? 'gradient' : 'color');
 
-  const updateItems = (nextItems) => {
-    emit({
-      items: nextItems,
-    });
-  };
-
-  const updateImages = (nextImages) => {
-    emit({
-      images: nextImages,
-    });
-  };
-
   const updateItem = (index, patch) => {
-    const nextItems = normalizedItems.map((item, idx) =>
-      idx === index
-        ? {
-            ...item,
-            ...patch,
-          }
-        : { ...item },
-    );
-    updateItems(nextItems);
+    onChange((current = {}) => {
+      const rawItems = ensureArray(current.items, FALLBACK_ITEMS);
+      const length = Math.max(4, FALLBACK_ITEMS.length, rawItems.length);
+      const merged = Array.from({ length }, (_, idx) => ({
+        ...(FALLBACK_ITEMS[idx] ?? {}),
+        ...(rawItems[idx] ?? {}),
+      })).slice(0, 4);
+
+      const nextItems = merged.map((item, idx) =>
+        idx === index
+          ? {
+              ...item,
+              ...patch,
+            }
+          : { ...item },
+      );
+
+      return {
+        ...current,
+        items: nextItems,
+      };
+    });
   };
 
   const updateImage = (index, patch) => {
-    const nextImages = normalizedImages.map((image, idx) =>
-      idx === index
-        ? {
-            ...image,
-            ...patch,
-          }
-        : { ...image },
-    );
-    updateImages(nextImages);
+    onChange((current = {}) => {
+      const rawImages = ensureArray(current.images, FALLBACK_IMAGES);
+      const length = Math.max(4, FALLBACK_IMAGES.length, rawImages.length);
+      const merged = Array.from({ length }, (_, idx) => ({
+        ...(FALLBACK_IMAGES[idx] ?? {}),
+        ...(rawImages[idx] ?? {}),
+      })).slice(0, 4);
+
+      const nextImages = merged.map((image, idx) =>
+        idx === index
+          ? {
+              ...image,
+              ...patch,
+            }
+          : { ...image },
+      );
+
+      return {
+        ...current,
+        images: nextImages,
+      };
+    });
   };
 
   const handleItemFieldChange = (index, field) => (event) => {

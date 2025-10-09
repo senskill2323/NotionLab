@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useMemo, useEffect, useId } from 'react';
 import { Upload, Crop, Loader2, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -35,6 +35,7 @@ const ImageUpload = ({
   const [cropData, setCropData] = useState({ x: 0, y: 0, width: 0, height: 0 });
   const [isDraggingCrop, setIsDraggingCrop] = useState(false);
   const [aspectRatio, setAspectRatio] = useState(cropAspectRatio || 16 / 9);
+  const dialogDescriptionId = useId();
 
   const maxCropWidth = useMemo(() => {
     if (!originalImage) return 0;
@@ -178,44 +179,30 @@ const ImageUpload = ({
     [],
   );
 
-  const applyCrop = useCallback(async () => {
-    if (!originalImage || !canvasRef.current) return;
+  const ensureSupabaseSession = useCallback(async () => {
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession();
 
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
+    if (sessionError) {
+      throw new Error(sessionError.message || 'Impossible de vérifier la session Supabase.');
+    }
 
-    img.onload = async () => {
-      canvas.width = cropData.width;
-      canvas.height = cropData.height;
+    if (!session?.access_token) {
+      throw new Error('Votre session Supabase a expiré. Veuillez vous reconnecter pour continuer.');
+    }
 
-      ctx.drawImage(
-        img,
-        cropData.x,
-        cropData.y,
-        cropData.width,
-        cropData.height,
-        0,
-        0,
-        cropData.width,
-        cropData.height,
-      );
+    return session;
+  }, []);
 
-      canvas.toBlob(async (blob) => {
-        if (blob) {
-          await uploadToSupabase(blob);
-        }
-      }, 'image/webp', 0.9);
-    };
-
-    img.src = originalImage.dataUrl;
-  }, [cropData, originalImage]);
-
-  const uploadToSupabase = async (blob) => {
+  const uploadToSupabase = useCallback(async (blob) => {
     setIsUploading(true);
     onUploadStart();
 
     try {
+      await ensureSupabaseSession();
+
       const timestamp = Date.now();
       const randomId = Math.random().toString(36).substring(2, 15);
       const fileName = `block-image-${timestamp}-${randomId}.webp`;
@@ -257,7 +244,46 @@ const ImageUpload = ({
     } finally {
       setIsUploading(false);
     }
-  };
+  }, [bucketName, ensureSupabaseSession, onImageSelected, onUploadError, onUploadStart, onUploadSuccess, toast]);
+
+  const applyCrop = useCallback(
+    async (event) => {
+      event?.preventDefault();
+      event?.stopPropagation();
+
+      if (!originalImage || !canvasRef.current) return;
+
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+
+      img.onload = async () => {
+        canvas.width = cropData.width;
+        canvas.height = cropData.height;
+
+        ctx.drawImage(
+          img,
+          cropData.x,
+          cropData.y,
+          cropData.width,
+          cropData.height,
+          0,
+          0,
+          cropData.width,
+          cropData.height,
+        );
+
+        canvas.toBlob(async (blob) => {
+          if (blob) {
+            await uploadToSupabase(blob);
+          }
+        }, 'image/webp', 0.9);
+      };
+
+      img.src = originalImage.dataUrl;
+    },
+    [cropData, originalImage, uploadToSupabase],
+  );
 
   const getPointerPosition = useCallback(
     (event) => {
@@ -409,12 +435,16 @@ const ImageUpload = ({
 
   const renderCropperDialog = () => (
     <Dialog open={showCropper} onOpenChange={setShowCropper}>
-      <DialogContent className="max-w-4xl">
+      <DialogContent className="max-w-4xl" aria-describedby={dialogDescriptionId}>
         <DialogHeader>
           <DialogTitle>Recadrer l'image</DialogTitle>
+          Ajustez la zone de recadrage, puis validez pour remplacer l'image sélectionnée.
         </DialogHeader>
+        <p id={dialogDescriptionId} className="sr-only">
+          Ajustez la zone de recadrage, puis validez pour remplacer l'image selectionnee.
+        </p>
 
-        {originalImage && (
+        {showCropper && originalImage && (
           <div className="space-y-5">
             <div
               ref={cropContainerRef}
@@ -487,10 +517,15 @@ const ImageUpload = ({
             <canvas ref={canvasRef} className="hidden" />
 
             <div className="flex gap-2 justify-end">
-              <Button variant="ghost" onClick={() => setShowCropper(false)} disabled={isUploading}>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setShowCropper(false)}
+                disabled={isUploading}
+              >
                 Annuler
               </Button>
-              <Button onClick={applyCrop} disabled={isUploading}>
+              <Button type="button" onClick={applyCrop} disabled={isUploading}>
                 {isUploading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

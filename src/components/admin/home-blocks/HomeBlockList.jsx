@@ -514,7 +514,7 @@ const HomeBlockList = ({ mode = 'list', refreshKey = 0, activeSubTab = 'list' })
     setView('edit');
   };
 
-  const handleBackToList = () => {
+  const handleBackToList = useCallback(() => {
     // Clear the URL parameters for edit mode
     const sp = new URLSearchParams(window.location.search);
     sp.delete('view');
@@ -529,12 +529,15 @@ const HomeBlockList = ({ mode = 'list', refreshKey = 0, activeSubTab = 'list' })
     
     setView('list');
     setSelectedBlockId(null);
-  };
+  }, [setSearchParams]);
 
-  const handleSave = (savedBlock) => {
-    fetchContentBlocks();
-    handleBackToList();
-  }
+  const handleSave = useCallback(
+    (savedBlock) => {
+      fetchContentBlocks();
+      handleBackToList();
+    },
+    [fetchContentBlocks, handleBackToList],
+  );
 
   const handlePreview = (block) => {
     setPreviewingBlock(block);

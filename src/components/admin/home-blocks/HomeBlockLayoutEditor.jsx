@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import CozySpaceSectionWithUpload from './CozySpaceSectionWithUpload';
@@ -47,13 +47,16 @@ const HomeBlockLayoutEditor = ({
   }, [definition, value]);
 
   const [state, setState] = useState(initialState);
+  const stateRef = useRef(initialState);
 
   useEffect(() => {
+    stateRef.current = initialState;
     setState(initialState);
   }, [initialState, layout]);
 
   const emitState = useCallback(
     (nextValue) => {
+      stateRef.current = nextValue;
       setState(nextValue);
       onChange?.(nextValue);
       if (definition) {
@@ -66,12 +69,12 @@ const HomeBlockLayoutEditor = ({
   const handleStateChange = useCallback(
     (nextValue) => {
       if (typeof nextValue === 'function') {
-        emitState(nextValue(state));
+        emitState(nextValue(stateRef.current));
       } else {
         emitState(nextValue);
       }
     },
-    [emitState, state],
+    [emitState],
   );
 
   const previewInfo = useMemo(() => {

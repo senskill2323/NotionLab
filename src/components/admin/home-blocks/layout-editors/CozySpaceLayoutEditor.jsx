@@ -120,10 +120,10 @@ const CozySpaceLayoutEditor = ({ value, onChange }) => {
         <ImageUpload
           currentImageUrl={value.imageUrl}
           onImageSelected={(url) =>
-            onChange({
-              ...value,
+            onChange((current) => ({
+              ...(current ?? {}),
               imageUrl: url,
-            })
+            }))
           }
           acceptedTypes={['image/jpeg', 'image/jpg', 'image/png', 'image/webp']}
           compact
