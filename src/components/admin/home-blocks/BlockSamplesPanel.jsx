@@ -738,7 +738,7 @@ const BlockSamplesPanel = ({ onBlockCreated }) => {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-lg border">
+      <div className="rounded-lg border">
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/30">
@@ -953,7 +953,7 @@ const BlockSamplesPanel = ({ onBlockCreated }) => {
             </div>
 
             {metadataForm.block_type === 'dynamic' && (
-              <div className="flex-1 space-y-4 overflow-hidden">
+              <div className="flex-1 space-y-4">
                 <Card>
                   <CardHeader>
                     <CardTitle>Aperçu</CardTitle>
