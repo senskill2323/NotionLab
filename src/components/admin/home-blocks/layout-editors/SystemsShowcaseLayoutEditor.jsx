@@ -1,13 +1,35 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import ImageUpload from '@/components/ui/image-upload';
+import { Loader2 } from 'lucide-react';
 import { createInputChangeHandler, ensureArray } from './shared';
 
 const SystemsShowcaseLayoutEditor = ({ value, onChange }) => {
   const handleChange = createInputChangeHandler(value, onChange);
   const images = ensureArray(value.images);
+  const [uploadStatuses, setUploadStatuses] = useState(() =>
+    images.map(() => 'idle'),
+  );
+
+  useEffect(() => {
+    const normalized = ensureArray(value.images);
+    setUploadStatuses((prev) => {
+      if (prev.length === normalized.length) {
+        return prev;
+      }
+      return normalized.map((_, index) => prev[index] ?? 'idle');
+    });
+  }, [value.images]);
+
+  const updateUploadStatus = (index, status) => {
+    setUploadStatuses((prev) => {
+      const next = [...prev];
+      next[index] = status;
+      return next;
+    });
+  };
 
   const updateImage = (index, nextValue) => {
     const nextImages = [...images];
@@ -16,6 +38,7 @@ const SystemsShowcaseLayoutEditor = ({ value, onChange }) => {
       ...value,
       images: nextImages,
     });
+    updateUploadStatus(index, 'idle');
   };
 
   const addImage = () => {
@@ -23,6 +46,7 @@ const SystemsShowcaseLayoutEditor = ({ value, onChange }) => {
       ...value,
       images: [...images, ''],
     });
+    setUploadStatuses((prev) => [...prev, 'idle']);
   };
 
   const removeImage = (index) => {
@@ -30,6 +54,7 @@ const SystemsShowcaseLayoutEditor = ({ value, onChange }) => {
       ...value,
       images: images.filter((_, i) => i !== index),
     });
+    setUploadStatuses((prev) => prev.filter((_, i) => i !== index));
   };
 
   return (
@@ -62,8 +87,22 @@ const SystemsShowcaseLayoutEditor = ({ value, onChange }) => {
               onImageSelected={(url) => updateImage(index, url)}
               acceptedTypes={['image/jpeg', 'image/png', 'image/webp']}
               compact
-              allowAspectRatioAdjustment
+              cropAspectRatio={3.357142857142857}
+              onUploadStart={() => updateUploadStatus(index, 'uploading')}
+              onUploadSuccess={() => updateUploadStatus(index, 'idle')}
+              onUploadError={() => updateUploadStatus(index, 'error')}
             />
+            {uploadStatuses[index] === 'uploading' && (
+              <div className="flex items-center gap-2 text-xs text-primary">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Televersement en cours...</span>
+              </div>
+            )}
+            {uploadStatuses[index] === 'error' && (
+              <p className="text-xs text-destructive">
+                Echec du televersement. Verifiez le bucket ou reessayez.
+              </p>
+            )}
             <Input
               value={image}
               onChange={(event) => updateImage(index, event.target.value)}

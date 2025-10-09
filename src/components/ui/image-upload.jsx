@@ -6,6 +6,8 @@ import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+const noop = () => {};
+
 const ImageUpload = ({
   onImageSelected = () => {},
   currentImageUrl = '',
@@ -15,6 +17,9 @@ const ImageUpload = ({
   cropAspectRatio = 16 / 9,
   compact = false,
   allowAspectRatioAdjustment = false,
+  onUploadStart = noop,
+  onUploadSuccess = noop,
+  onUploadError = noop,
 }) => {
   const { toast } = useToast();
   const fileInputRef = useRef(null);
@@ -208,6 +213,7 @@ const ImageUpload = ({
 
   const uploadToSupabase = async (blob) => {
     setIsUploading(true);
+    onUploadStart();
 
     try {
       const timestamp = Date.now();
@@ -225,16 +231,24 @@ const ImageUpload = ({
         data: { publicUrl },
       } = supabase.storage.from(bucketName).getPublicUrl(fileName);
 
+      if (typeof publicUrl !== 'string' || publicUrl.trim().length === 0) {
+        throw new Error(
+          `Supabase n'a pas renvoyé d'URL publique pour le fichier ${fileName}. Vérifiez que le bucket "${bucketName}" est public ou utilisez une URL signée.`,
+        );
+      }
+
       toast({
         title: 'Image telechargee',
-        description: "L'image a ete telechargee avec succes.",
+        description: `L'image a ete telechargee avec succes dans ${bucketName}.`,
       });
 
+      onUploadSuccess(publicUrl);
       onImageSelected(publicUrl);
       setShowCropper(false);
       setOriginalImage(null);
     } catch (error) {
       console.error('Upload error:', error);
+      onUploadError(error);
       toast({
         title: 'Erreur de telechargement',
         description: error.message || "Impossible de telecharger l'image.",

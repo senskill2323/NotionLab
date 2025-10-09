@@ -95,7 +95,32 @@ const SYSTEMS_SHOWCASE_DEFAULTS = Object.freeze({
 
 const normalizeSystemsShowcase = (value = {}, fallback = SYSTEMS_SHOWCASE_DEFAULTS) => {
   const images = ensureArray(value.images, fallback.images)
-    .map((img) => ensureString(img).trim())
+    .map((img) => {
+      if (typeof img === 'string') {
+        const trimmed = img.trim();
+        if (!trimmed || trimmed.toLowerCase() === '[object object]') {
+          return '';
+        }
+        return trimmed;
+      }
+      if (img && typeof img === 'object') {
+        const legacyUrl =
+          img.url ??
+          img.src ??
+          img.href ??
+          img.imageUrl ??
+          img.publicUrl ??
+          img.path ??
+          null;
+        if (typeof legacyUrl === 'string') {
+          const normalized = legacyUrl.trim();
+          return normalized.toLowerCase() === '[object object]' ? '' : normalized;
+        }
+        return '';
+      }
+      const fallback = ensureString(img, '').trim();
+      return fallback.toLowerCase() === '[object object]' ? '' : fallback;
+    })
     .filter(Boolean)
     .slice(0, 4);
 
