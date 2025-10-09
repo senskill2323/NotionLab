@@ -2,6 +2,7 @@ import React from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import ImageUpload from '@/components/ui/image-upload';
 import { createInputChangeHandler, ensureArray } from './shared';
 
 const SystemsShowcaseLayoutEditor = ({ value, onChange }) => {
@@ -41,22 +42,33 @@ const SystemsShowcaseLayoutEditor = ({ value, onChange }) => {
         <Label>Sous titre</Label>
         <Input value={value.titleSuffix} onChange={handleChange('titleSuffix')} />
       </div>
-      <div className="space-y-2">
+      <div className="space-y-3">
         <Label>Images (4 max)</Label>
         {images.map((image, index) => (
-          <div key={index} className="flex gap-2">
+          <div key={index} className="space-y-2 rounded-lg border border-border/40 p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Image {index + 1}</span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => removeImage(index)}
+              >
+                Supprimer
+              </Button>
+            </div>
+            <ImageUpload
+              currentImageUrl={image}
+              onImageSelected={(url) => updateImage(index, url)}
+              acceptedTypes={['image/jpeg', 'image/png', 'image/webp']}
+              compact
+              allowAspectRatioAdjustment
+            />
             <Input
               value={image}
               onChange={(event) => updateImage(index, event.target.value)}
               placeholder="https://..."
             />
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => removeImage(index)}
-            >
-              Supprimer
-            </Button>
           </div>
         ))}
         {images.length < 4 && (
