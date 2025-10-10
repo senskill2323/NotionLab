@@ -195,7 +195,10 @@ CREATE OR REPLACE FUNCTION public.blueprints_upsert_graph(
   p_metadata jsonb,
   p_nodes jsonb,
   p_edges jsonb,
-  p_autosave boolean DEFAULT true
+  p_deleted_node_ids uuid[] DEFAULT NULL,
+  p_deleted_edge_ids uuid[] DEFAULT NULL,
+  p_autosave boolean DEFAULT true,
+  p_expected_autosave_version integer DEFAULT NULL
 )
 RETURNS uuid
 LANGUAGE plpgsql
@@ -206,7 +209,28 @@ DECLARE
   v_actor uuid := auth.uid();
   v_blueprint_id uuid;
   v_owner uuid;
+  v_current_autosave_version integer;
+  v_deleted_node_ids uuid[];
+  v_deleted_edge_ids uuid[];
 BEGIN
+  IF p_deleted_node_ids IS NOT NULL THEN
+    SELECT ARRAY(
+      SELECT DISTINCT id
+      FROM unnest(p_deleted_node_ids) AS id
+      WHERE id IS NOT NULL
+    )
+    INTO v_deleted_node_ids;
+  END IF;
+
+  IF p_deleted_edge_ids IS NOT NULL THEN
+    SELECT ARRAY(
+      SELECT DISTINCT id
+      FROM unnest(p_deleted_edge_ids) AS id
+      WHERE id IS NOT NULL
+    )
+    INTO v_deleted_edge_ids;
+  END IF;
+
   IF v_actor IS NULL THEN
     RAISE EXCEPTION 'Authentication required';
   END IF;
@@ -226,7 +250,7 @@ BEGIN
     );
   ELSE
     v_blueprint_id := p_blueprint_id;
-    SELECT owner_id INTO v_owner
+    SELECT owner_id, autosave_version INTO v_owner, v_current_autosave_version
     FROM public.blueprints
     WHERE id = v_blueprint_id
     FOR UPDATE;
@@ -237,6 +261,11 @@ BEGIN
 
     IF v_owner <> v_actor AND NOT public.is_owner_or_admin(v_actor) THEN
       RAISE EXCEPTION 'Acces refuse';
+    END IF;
+
+    IF p_expected_autosave_version IS NOT NULL AND p_expected_autosave_version <> v_current_autosave_version THEN
+      PERFORM set_config('response.status', '409', true);
+      RAISE EXCEPTION USING ERRCODE = 'P0001', MESSAGE = 'Autosave conflict detected', DETAIL = format('expected version %s but found %s', p_expected_autosave_version, v_current_autosave_version);
     END IF;
 
     UPDATE public.blueprints
@@ -300,12 +329,12 @@ BEGIN
         metadata = EXCLUDED.metadata,
         updated_at = now();
 
+  END IF;
+
+  IF v_deleted_node_ids IS NOT NULL AND array_length(v_deleted_node_ids, 1) IS NOT NULL THEN
     DELETE FROM public.blueprint_nodes
     WHERE blueprint_id = v_blueprint_id
-      AND id NOT IN (
-        SELECT (node->>'id')::uuid FROM jsonb_array_elements(p_nodes) AS node
-        WHERE (node->>'id') IS NOT NULL
-      );
+      AND id = ANY(v_deleted_node_ids);
   END IF;
 
   IF p_edges IS NOT NULL THEN
@@ -340,12 +369,12 @@ BEGIN
         metadata = EXCLUDED.metadata,
         updated_at = now();
 
+  END IF;
+
+  IF v_deleted_edge_ids IS NOT NULL AND array_length(v_deleted_edge_ids, 1) IS NOT NULL THEN
     DELETE FROM public.blueprint_edges
     WHERE blueprint_id = v_blueprint_id
-      AND id NOT IN (
-        SELECT (edge->>'id')::uuid FROM jsonb_array_elements(p_edges) AS edge
-        WHERE (edge->>'id') IS NOT NULL
-      );
+      AND id = ANY(v_deleted_edge_ids);
   END IF;
 
   RETURN v_blueprint_id;

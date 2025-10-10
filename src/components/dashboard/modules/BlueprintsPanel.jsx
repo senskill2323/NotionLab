@@ -37,18 +37,39 @@ const BlueprintsPanel = () => {
   const handleShare = async (id) => {
     try {
       setSharingId(id);
-      const token = await createBlueprintShare(id);
-      if (!token) return;
-      const url = `${window.location.origin}/blueprint-share/${token}`;
-      await navigator.clipboard.writeText(url);
-      toast({ title: 'Lien copiÃ©', description: 'Le lien lecture seule est dans le presse-papiers.' });
+      const share = await createBlueprintShare(id);
+      if (!share?.token) {
+        throw new Error('Share token missing');
+      }
+      const origin = typeof window !== 'undefined' ? window.location.origin : '';
+      const url = origin ? `${origin}/blueprint-share/${share.token}` : `/blueprint-share/${share.token}`;
+      let copySucceeded = false;
+      if (typeof navigator !== 'undefined' && navigator?.clipboard?.writeText) {
+        try {
+          await navigator.clipboard.writeText(url);
+          copySucceeded = true;
+        } catch (copyError) {
+          console.warn(copyError);
+        }
+      }
+      const expiresAt = share.expiresAt ? new Date(share.expiresAt) : null;
+      const expirationDescription = expiresAt
+        ? `Expire le ${expiresAt.toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' })}.`
+        : 'Expire automatiquement dans 7 jours.';
+      toast({
+        title: copySucceeded ? 'Lien copié' : 'Lien généré',
+        description: copySucceeded
+          ? expirationDescription
+          : `${expirationDescription} Copie automatique indisponible. Lien : ${url}`,
+      });
     } catch (error) {
       console.error(error);
-      toast({ title: 'Erreur', description: 'Impossible de gÃ©nÃ©rer un lien de partage.', variant: 'destructive' });
+      toast({ title: 'Erreur', description: 'Impossible de générer un lien de partage.', variant: 'destructive' });
     } finally {
       setSharingId(null);
     }
   };
+
 
   if (loading) {
     return (

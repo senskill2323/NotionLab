@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import ReactFlow, {
   Background,
   Controls,
@@ -10,37 +10,91 @@ import ReactFlow, {
 
 import 'reactflow/dist/style.css';
 
+import BlueprintEdge from '@/components/blueprints/BlueprintEdge';
+
 const MindmapRootNode = ({ data, selected, isConnectable }) => (
   <div
-    className={`relative rounded-full border-2 ${selected ? 'border-primary' : 'border-primary/70'} bg-primary/10 px-8 py-6 shadow-lg backdrop-blur`}
+    className={`relative rounded-lg border-2 ${selected ? 'border-primary' : 'border-primary/70'} bg-white/80 px-8 py-6 shadow-lg backdrop-blur`}
   >
-    <p className="text-base font-semibold text-primary">
+    <p className="text-base font-semibold text-black">
       {data?.title ?? 'Noud central'}
     </p>
     {(data?.fields?.objectif || data?.fields?.contexte) && (
-      <div className="mt-2 text-xs text-primary/70">
+      <div className="mt-2 text-xs text-black/70">
         {data?.fields?.objectif && <p>Objectif : {data.fields.objectif}</p>}
         {data?.fields?.contexte && <p>Contexte : {data.fields.contexte}</p>}
       </div>
     )}
-    <Handle type="target" position={Position.Left} isConnectable={isConnectable} />
-    <Handle type="source" position={Position.Right} isConnectable={isConnectable} />
+    <Handle
+      id="center-target"
+      type="target"
+      position={Position.Top}
+      isConnectable={isConnectable}
+      style={{
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        width: 16,
+        height: 16,
+        opacity: 0,
+      }}
+    />
+    <Handle
+      id="center-source"
+      type="source"
+      position={Position.Bottom}
+      isConnectable={isConnectable}
+      style={{
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        width: 16,
+        height: 16,
+        opacity: 0,
+      }}
+    />
   </div>
 );
 
 const MindmapBubbleNode = ({ data, selected, isConnectable }) => (
   <div
-    className={`relative max-w-[220px] rounded-full border ${selected ? 'border-primary shadow-lg shadow-primary/20' : 'border-border/60'} bg-background/95 px-4 py-3 text-center shadow-sm transition-all`}
+    className={`relative max-w-[220px] rounded-md border ${selected ? 'border-primary shadow-lg shadow-primary/20' : 'border-border/60'} bg-white/80 px-4 py-3 text-center shadow-sm transition-all`}
   >
-    <p className="text-sm font-medium text-foreground/90">{data?.title ?? '�l�ment'}</p>
+    <p className="text-sm font-medium text-black">{data?.title ?? 'élément'}</p>
     {data?.family && (
-      <p className="mt-1 text-[11px] uppercase tracking-wide text-muted-foreground/80">
+      <p className="mt-1 text-[11px] uppercase tracking-wide text-black/70">
         {data.family}
-        {data?.subfamily ? ` \u0007 ${data.subfamily}` : ''}
+        {data?.subfamily ? ` • ${data.subfamily}` : ''}
       </p>
     )}
-    <Handle type="target" position={Position.Left} isConnectable={isConnectable} />
-    <Handle type="source" position={Position.Right} isConnectable={isConnectable} />
+    <Handle
+      id="center-target"
+      type="target"
+      position={Position.Top}
+      isConnectable={isConnectable}
+      style={{
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        width: 14,
+        height: 14,
+        opacity: 0,
+      }}
+    />
+    <Handle
+      id="center-source"
+      type="source"
+      position={Position.Bottom}
+      isConnectable={isConnectable}
+      style={{
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        width: 14,
+        height: 14,
+        opacity: 0,
+      }}
+    />
   </div>
 );
 
@@ -50,7 +104,7 @@ export const blueprintNodeTypes = {
 };
 
 export const blueprintDefaultEdgeOptions = {
-  type: 'smoothstep',
+  type: 'blueprintEdge',
   style: {
     stroke: 'hsl(var(--primary))',
     strokeWidth: 1.5,
@@ -69,6 +123,7 @@ const BlueprintCanvas = ({
   flowWrapperRef,
 }) => {
   const instance = useReactFlow();
+  const edgeTypes = useMemo(() => ({ blueprintEdge: BlueprintEdge }), []);
 
   useEffect(() => {
     if (!instance || nodes.length === 0) return;
@@ -92,14 +147,15 @@ const BlueprintCanvas = ({
           onPaneClick?.();
         }}
         nodeTypes={blueprintNodeTypes}
+        edgeTypes={edgeTypes}
         fitView
         fitViewOptions={{ padding: 0.2, duration: 300 }}
         connectionMode={ConnectionMode.Strict}
         defaultEdgeOptions={blueprintDefaultEdgeOptions}
-        panOnScroll={false}
-        zoomOnScroll={false}
-        panOnDrag={false}
-        zoomOnPinch={false}
+        panOnScroll
+        zoomOnScroll
+        panOnDrag
+        zoomOnPinch
         zoomOnDoubleClick={false}
         selectionOnDrag
         minZoom={0.3}

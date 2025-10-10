@@ -4,7 +4,7 @@ import { NavLink, Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Button } from '@/components/ui/button';
-import { LogOut, LayoutDashboard, Home, Wrench, Bot } from 'lucide-react';
+import { Home, Bot } from 'lucide-react';
 import { useAssistant } from '@/contexts/AssistantContext';
 import ManagedComponent from '@/components/ManagedComponent';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -92,29 +92,6 @@ const Navigation = () => {
               <TooltipContent><p>Forum</p></TooltipContent>
             </Tooltip>
           </ManagedComponent>
-
-          <ManagedComponent componentKey="nav:client_blueprints">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="default" onClick={() => navigate('/blueprint-builder')}>
-                  MyNotion
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent><p>Blueprint Notion</p></TooltipContent>
-            </Tooltip>
-          </ManagedComponent>
-
-          <ManagedComponent componentKey="nav:client_builder" disabledTooltip="Connectez-vous pour utiliser le builder">
-             <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" onClick={() => navigate('/formation-builder')}>
-                  <Wrench className="h-5 w-5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent><p>Builder</p></TooltipContent>
-            </Tooltip>
-          </ManagedComponent>
-
           <ManagedComponent componentKey="nav:assistant">
             <Tooltip>
               <TooltipTrigger asChild>

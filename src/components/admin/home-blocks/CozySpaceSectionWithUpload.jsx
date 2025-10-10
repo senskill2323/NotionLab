@@ -37,8 +37,17 @@ const CozySpaceSectionWithUpload = ({ content = {}, previewMode = 'desktop', onI
   const ctaText = content.ctaText ?? 'Découvrir maintenant';
   const ctaUrl = content.ctaUrl ?? '#';
   const showCta = content.showCta ?? false;
-  const backgroundColor = content.backgroundColor ?? '';
   const useDefaultBackground = content.useDefaultBackground !== false;
+  const backgroundMode =
+    content.backgroundMode === 'solid' || content.backgroundMode === 'gradient'
+      ? content.backgroundMode
+      : 'gradient';
+  const solidColor =
+    content.solidColor || content.backgroundColor || '#1f2937';
+  const gradient =
+    content.gradient ||
+    content.backgroundGradient ||
+    'linear-gradient(135deg, #1f2937 0%, #111827 50%, #0f172a 100%)';
   const isPreviewDesktop = previewMode === 'desktop';
 
   // Map icon name to component
@@ -52,21 +61,32 @@ const CozySpaceSectionWithUpload = ({ content = {}, previewMode = 'desktop', onI
   const imageMinH = isPreviewDesktop ? 'min-h-[400px]' : 'min-h-[300px]';
 
   // Determine background style
-  const backgroundStyle = useDefaultBackground 
-    ? {} 
-    : { backgroundColor: backgroundColor || '#1f2937' };
-  
-  const backgroundClass = useDefaultBackground 
-    ? 'bg-gray-900' 
-    : '';
+  const backgroundStyle = useDefaultBackground
+    ? undefined
+    : backgroundMode === 'solid'
+      ? { backgroundColor: solidColor }
+      : { background: gradient };
+
+  const sectionClassName = [
+    'py-20',
+    isPreviewDesktop ? 'md:py-32' : null,
+    'text-white',
+    'overflow-hidden',
+    'relative',
+    useDefaultBackground ? 'bg-gray-900' : null,
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
     <section 
-      className={`py-20 ${isPreviewDesktop ? 'md:py-32' : ''} ${backgroundClass} text-white overflow-hidden relative`}
+      className={sectionClassName}
       style={backgroundStyle}
     >
       <div className="absolute inset-0 bg-grid-pattern opacity-10"></div>
-      <div className="absolute inset-0 bg-gradient-to-bl from-secondary/20 via-transparent to-transparent"></div>
+      {useDefaultBackground && (
+        <div className="absolute inset-0 bg-gradient-to-bl from-secondary/20 via-transparent to-transparent"></div>
+      )}
       <div className="container mx-auto px-4 relative z-10">
         <motion.div
           variants={containerVariants}

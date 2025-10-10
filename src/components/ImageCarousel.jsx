@@ -21,7 +21,7 @@ const variants = {
   }
 };
 
-const ImageCarousel = ({ images }) => {
+const ImageCarousel = ({ images, aspectRatio }) => {
   const [page, setPage] = useState(0);
 
   const paginate = (newDirection) => {
@@ -39,8 +39,13 @@ const ImageCarousel = ({ images }) => {
     return () => clearInterval(interval);
   }, [page]);
 
+  const containerClassName = `relative w-full overflow-hidden flex items-center justify-center${
+    aspectRatio ? '' : ' h-[300px] md:h-[500px] lg:h-[600px]'
+  }`;
+  const containerStyle = aspectRatio ? { aspectRatio: `${aspectRatio} / 1` } : undefined;
+
   return (
-    <div className="relative w-full h-[300px] md:h-[500px] lg:h-[600px] flex items-center justify-center overflow-hidden">
+    <div className={containerClassName} style={containerStyle}>
       <AnimatePresence initial={false} mode="wait">
         <motion.img
           key={page}

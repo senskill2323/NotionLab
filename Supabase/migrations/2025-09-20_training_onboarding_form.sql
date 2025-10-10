@@ -417,7 +417,7 @@ insert into public.training_onboarding_sections (slug, title, description, icon,
 values
   ('format_mode', 'Format & mode', 'Choisis le format de la formation et l''accompagnement souhait?.', 'Monitor', 1),
   ('objectifs_livrables', 'Objectifs & livrables', 'D?finis les r?sultats attendus de la formation.', 'Target', 2),
-  ('domaines', 'Domaines ? piloter', 'Liste les espaces Notion ? cadrer en priorit?.', 'LayoutDashboard', 3),
+  ('domaines', 'Domaines ? piloter', 'Liste les espaces Notion ? cadrer en priorité?.', 'LayoutDashboard', 3),
   ('niveau_notion', 'Connaissances Notion', 'Situe ton niveau actuel sur les briques cl?s de Notion.', 'Brain', 4),
   ('outils_actuels', 'Outils actuels', 'Les outils que tu utilises aujourd''hui.', 'Boxes', 5),
   ('ia_automatisation', 'IA & automatisations', 'Ton usage de l''IA et des automatisations.', 'Bot', 6),

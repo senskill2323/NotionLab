@@ -48,7 +48,7 @@ const SystemsShowcase = ({ content = {} }) => {
         viewport={{ once: true, amount: 0.3 }} 
         transition={{ duration: 0.8 }}
       >
-        <ImageCarousel images={images} />
+        <ImageCarousel images={images} aspectRatio={3.357142857142857} />
       </motion.div>
     </section>
 

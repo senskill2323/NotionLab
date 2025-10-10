@@ -118,7 +118,7 @@ export const useFormationBuilder = () => {
 
     if (isInitial) {
       setTimeout(() => {
-        setViewport({ x: 61.2, y: 36.2, zoom: 1.16 }, { duration: 800 });
+        setViewport({ x: 61.2, y: 36.2, zoom: 0.93 }, { duration: 800 });
       }, 100);
     } else {
        setTimeout(() => fitView({ padding: 0.2, duration: 800 }), 100);

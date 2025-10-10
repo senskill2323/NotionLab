@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import HomeBlockList from '@/components/admin/home-blocks/HomeBlockList';
 import BlockSamplesPanel from '@/components/admin/home-blocks/BlockSamplesPanel';
 
-const HomeBlockManagementPanel = () => {
+export default function HomeBlockManagementPanel() {
   const [searchParams, setSearchParams] = useSearchParams();
   const initial = (searchParams.get('editing') === 'true' && searchParams.get('view') !== 'edit')
     ? 'samples'
@@ -69,7 +69,7 @@ const HomeBlockManagementPanel = () => {
     <div className="space-y-4">
       <Tabs value={activeSubTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="bg-green-50 dark:bg-green-900/20">
-          <TabsTrigger value="list">Liste des bloques</TabsTrigger>
+          <TabsTrigger value="list">Liste des blocs</TabsTrigger>
           <TabsTrigger value="samples">Bibliothèque de modèles</TabsTrigger>
         </TabsList>
         <TabsContent value="list" className="mt-4" forceMount style={{ display: activeSubTab === 'list' ? 'block' : 'none' }}>
@@ -81,6 +81,4 @@ const HomeBlockManagementPanel = () => {
       </Tabs>
     </div>
   );
-};
-
-export default HomeBlockManagementPanel;
+}

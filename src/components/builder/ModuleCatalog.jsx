@@ -35,8 +35,8 @@ export const ModuleCatalog = ({ onAddModuleToFlow }) => {
   };
 
   return (
-    <div className="bg-card rounded-lg p-4 flex flex-col h-full shadow-lg">
-      <div className="flex justify-between items-center mb-4 pb-2 border-b">
+    <div className="bg-card rounded-lg p-3 flex flex-col h-full shadow-lg">
+      <div className="flex justify-between items-center mb-3 pb-1.5 border-b">
         <div className="flex items-center gap-2">
           <h2 className="text-lg font-bold gradient-text">Catalogue de Modules</h2>
           {canManageCatalog && (
@@ -54,12 +54,12 @@ export const ModuleCatalog = ({ onAddModuleToFlow }) => {
         onSave={handleAddFamily}
       />
       
-      <ScrollArea className="flex-grow pr-3 -mr-3">
+      <ScrollArea className="flex-grow pr-2 -mr-2">
         {catalog.length > 0 ? (
           <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragEnd={handleDragEnd}>
             <SortableContext items={catalog.map(f => `family-${f.id}`)} strategy={verticalListSortingStrategy}>
               <AnimatePresence>
-                <motion.div layout className="space-y-4">
+                <motion.div layout className="space-y-3">
                   {catalog.map((family) => (
                      <motion.div
                       key={family.id}

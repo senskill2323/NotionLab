@@ -72,4 +72,4 @@ Table public.themes sans ALTER TABLE ... ENABLE ROW LEVEL SECURITY ni policies (
 RPC set_active_theme SECURITY DEFINER sans garde (comment TODO) → exécution par tout rôle pouvant appeler l’RPC, potentielle élévation; absence de vérif role côté SQL ou signature.
 Les tokens JSON peuvent contenir chaînes arbitraires; injection CSS possible (pas échappées) si rôles non admin y accèdent.
 XSS/CSRF: interactions via Supabase JS (auth, fetch) → pas de CSRF classique, mais absence de validation côté client sur theme.name/descriptions (affichés via React, donc échappés). Rester vigilant sur surfaces HTML (Popover descriptions).
-Encodage accent cassé dans theme-constants.js et toasts (thème → th�me) — probablement fichier enregistré en ISO; impact UX.
+Encodage accent cassé dans theme-constants.js et toasts (thème → thème) — probablement fichier enregistré en ISO; impact UX.

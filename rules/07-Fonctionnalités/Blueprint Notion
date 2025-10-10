@@ -1,0 +1,60 @@
+Résumé
+
+Builder Blueprint client orchestré par le shell ReactFlow et le hook métier pour charger/sauver les graphes Supabase (src/pages/BlueprintBuilderPage.jsx:17, src/hooks/useBlueprintBuilder.js:145).
+Vue de partage lecture seule qui hydrate ReactFlow via le RPC get_blueprint_public sécurisé par token (src/pages/BlueprintSharePage.jsx:32, src/lib/blueprints/blueprintApi.js:183).
+Back-office palette (familles/items) permettant d’alimenter la palette du builder côté client (src/pages/admin/BlueprintPaletteAdminPage.jsx:64, src/lib/blueprints/blueprintApi.js:210).
+Stack
+
+ReactFlow + @dnd-kit gèrent la scène et le drag/drop des bulles (src/pages/BlueprintBuilderPage.jsx:3, src/components/blueprints/BlueprintCanvas.jsx:101, src/components/blueprints/BlueprintPalette.jsx:75).
+useBlueprintBuilder centralise état local, historique, autosave avec use-debounce et gestion des conflits (src/hooks/useBlueprintBuilder.js:145, src/hooks/useBlueprintBuilder.js:833).
+Persistance Supabase encapsulée dans les helpers RPC (graphes, duplications, partages, palette) (src/lib/blueprints/blueprintApi.js:42, src/lib/blueprints/blueprintApi.js:107, src/lib/blueprints/blueprintApi.js:168, src/lib/blueprints/blueprintApi.js:216).
+Admin palette en React Hook Form + RPC dédiés pour CRUD familles/items (src/pages/admin/BlueprintPaletteAdminPage.jsx:123, src/pages/admin/BlueprintPaletteAdminPage.jsx:176, src/lib/blueprints/blueprintApi.js:216).
+API publique
+
+Pages : BlueprintBuilderPage (ReactFlowProvider + shell) (src/pages/BlueprintBuilderPage.jsx:301), BlueprintSharePage (lecteur token) (src/pages/BlueprintSharePage.jsx:179).
+Composants : BlueprintCanvas/blueprintNodeTypes (src/components/blueprints/BlueprintCanvas.jsx:101), BlueprintPalette/getDefaultBlueprintPalette (src/components/blueprints/BlueprintPalette.jsx:72), BlueprintInspector (src/components/blueprints/BlueprintInspector.jsx:14), BlueprintBuilderHeader (src/components/blueprints/BlueprintBuilderHeader.jsx:21), BlueprintShareDialog (src/components/blueprints/BlueprintShareDialog.jsx:9), BlueprintsPanel (src/components/dashboard/modules/BlueprintsPanel.jsx:137).
+Hooks & utilitaires : useBlueprintBuilder (src/hooks/useBlueprintBuilder.js:145), sanitizeBlueprintGraph (src/lib/blueprints/graphUtils.js:24), emitBlueprintAutosaveTelemetry (src/lib/blueprints/telemetry.js:28), helpers Supabase (src/lib/blueprints/blueprintApi.js:42).
+Structure (fichiers)
+
+Pages client dédiées (src/pages/BlueprintBuilderPage.jsx:1, src/pages/BlueprintSharePage.jsx:1).
+Composants du builder (src/components/blueprints/BlueprintCanvas.jsx:1, src/components/blueprints/BlueprintPalette.jsx:1, src/components/blueprints/BlueprintInspector.jsx:1).
+Couche métier & API (src/hooks/useBlueprintBuilder.js:1, src/lib/blueprints/blueprintApi.js:1, src/lib/blueprints/graphUtils.js:1).
+Intégrations shell et dashboard (src/components/Navigation.jsx:96, src/components/dashboard/modules/BlueprintsPanel.jsx:1, src/pages/admin/BlueprintPaletteAdminPage.jsx:1).
+Dépendances
+
+ReactFlowProvider et contrôles ReactFlow pour le canvas (src/pages/BlueprintBuilderPage.jsx:4, src/components/blueprints/BlueprintCanvas.jsx:3).
+@dnd-kit (drag depuis la palette) (src/pages/BlueprintBuilderPage.jsx:3, src/components/blueprints/BlueprintPalette.jsx:75).
+use-debounce pour throttler autosave/historique (src/hooks/useBlueprintBuilder.js:3, src/hooks/useBlueprintBuilder.js:833).
+uuid pour ids stables côté client (src/hooks/useBlueprintBuilder.js:5, src/lib/blueprints/graphUtils.js:1).
+Admin : react-hook-form + framer-motion pour formulaires/dialogues (src/pages/admin/BlueprintPaletteAdminPage.jsx:3, src/pages/admin/BlueprintPaletteAdminPage.jsx:4).
+Supabase JS custom pour RPC/SELECT (src/pages/admin/BlueprintPaletteAdminPage.jsx:14, src/lib/blueprints/blueprintApi.js:1).
+Flux de données
+
+Au montage, le hook charge palette (RPC) et liste des blueprints avant de router vers le premier ou d’en créer un (src/hooks/useBlueprintBuilder.js:1064, src/hooks/useBlueprintBuilder.js:1086, src/hooks/useBlueprintBuilder.js:1095).
+Sélection d’un blueprint hydrate nodes/edges, normalise les IDs et prépare l’historique (src/hooks/useBlueprintBuilder.js:878, src/lib/blueprints/graphUtils.js:24).
+Toute modification déclenche snapshot d’historique puis enfile une autosave persistée via blueprints_upsert_graph avec gestion des conflits/versioning (src/hooks/useBlueprintBuilder.js:493, src/hooks/useBlueprintBuilder.js:719, src/lib/blueprints/blueprintApi.js:107).
+Dashboard BlueprintsPanel consomme listBlueprints et peut créer un lien de partage copie presse-papiers (src/components/dashboard/modules/BlueprintsPanel.jsx:24, src/components/dashboard/modules/BlueprintsPanel.jsx:37).
+Vue partage récupère le graphe public (token + nettoyage) et reconstruit la scène en lecture seule (src/pages/BlueprintSharePage.jsx:49, src/lib/blueprints/blueprintApi.js:183).
+Admin palette charge tables Supabase directement puis appelle les RPC upsert/delete pour familles/items (src/pages/admin/BlueprintPaletteAdminPage.jsx:64, src/pages/admin/BlueprintPaletteAdminPage.jsx:123, src/pages/admin/BlueprintPaletteAdminPage.jsx:176).
+État & effets
+
+États pilotés par useBlueprintBuilder : listes, sélection, historique, autosave, queues et sets Set pour diff persistante (src/hooks/useBlueprintBuilder.js:150, src/hooks/useBlueprintBuilder.js:182).
+Effets de navigation et fallback blueprintId (création auto, redirection) (src/hooks/useBlueprintBuilder.js:1086, src/hooks/useBlueprintBuilder.js:1107).
+Autosave debounce + retry exponential (queue + processAutosaveQueue) (src/hooks/useBlueprintBuilder.js:493, src/hooks/useBlueprintBuilder.js:833).
+Undo/redo via snapshots historyRef et scheduleHistorySnapshot (déclenché sur onNodesChange/onEdgesChange) (src/hooks/useBlueprintBuilder.js:282, src/hooks/useBlueprintBuilder.js:1133).
+I/O DB (PostgREST/RPC/SQL)
+
+Tables principales : public.blueprints, blueprint_nodes, blueprint_edges, blueprint_snapshots, blueprint_shares (Supabase/migrations/2025-10-07_blueprint_mindmap_module.sql:3, Supabase/migrations/2025-10-15_blueprint_owner_denormalization.sql:3).
+RPCs graphes : list_blueprints (Supabase/migrations/2025-10-07_blueprint_mindmap_module.sql:372), get_blueprint (Supabase/migrations/2025-10-07_blueprint_mindmap_module.sql:388), blueprints_upsert_graph (autosave/version) (Supabase/migrations/2025-10-07_blueprint_mindmap_module.sql:435), duplicate_blueprint (Supabase/migrations/2025-10-07_blueprint_mindmap_module.sql:626), create_blueprint_snapshot (Supabase/migrations/2025-10-07_blueprint_mindmap_module.sql:718).
+Partage public : create_blueprint_share (TTL, rotation, métadonnées) (Supabase/migrations/2025-10-30_blueprint_share_ttl.sql:14), get_blueprint_public (strip owner) (Supabase/migrations/2025-10-15_blueprint_owner_denormalization.sql:556).
+Palette : tables familles/items + RPC get_blueprint_palette_catalog / upsert / delete (Supabase/migrations/2025-10-20_blueprint_palette_catalog.sql:3, Supabase/migrations/2025-10-20_blueprint_palette_api.sql:3, Supabase/migrations/2025-10-20_blueprint_palette_api.sql:46, Supabase/migrations/2025-10-20_blueprint_palette_api.sql:95).
+Renommage contrôlé via rename_blueprint_with_version pour verrouiller l’autosave_version (Supabase/migrations/2025-10-31_rename_blueprint_with_version.sql:3).
+Realtime (listen/broadcast)
+
+Aucun canal Supabase n’est souscrit ; cohérence assurée par refetch + état local/historique (src/hooks/useBlueprintBuilder.js:1086, src/hooks/useBlueprintBuilder.js:349).
+Sécurité (RLS, XSS, CSRF)
+
+RLS propriétaire/admin sur blueprints et tables enfants (Supabase/migrations/2025-10-07_blueprint_mindmap_module.sql:122, Supabase/migrations/2025-10-07_blueprint_mindmap_module.sql:207, Supabase/migrations/2025-10-07_blueprint_mindmap_module.sql:247, Supabase/migrations/2025-10-07_blueprint_mindmap_module.sql:287, Supabase/migrations/2025-10-07_blueprint_mindmap_module.sql:327).
+Partages publics lisibles uniquement via header x-blueprint-token et liens à durée limitée (Supabase/migrations/2025-10-31_blueprint_shares_token_policy.sql:6, Supabase/migrations/2025-10-30_blueprint_share_ttl.sql:14).
+Routes protégées par ProtectedRoute et permission client_blueprints:*, navigation conditionnelle via ManagedComponent (src/components/ProtectedRoute.jsx:17, src/components/Navigation.jsx:96, src/contexts/PermissionsContext.jsx:36).
+Rendu React (pas d’innerHTML), inputs contrôlés pour éviter XSS ; appels Supabase signés par session donc pas de surface CSRF côté client (src/components/blueprints/BlueprintInspector.jsx:14, src/lib/blueprints/blueprintApi.js:42).

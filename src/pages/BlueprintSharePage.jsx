@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { ReactFlowProvider } from 'reactflow';
 import { Loader2, AlertTriangle } from 'lucide-react';
+import { Helmet } from 'react-helmet';
 
 import ReactFlow, { Background } from 'reactflow';
 import 'reactflow/dist/style.css';
@@ -32,6 +33,21 @@ const BlueprintShareContent = () => {
   const { token } = useParams();
   const [payload, setPayload] = useState(null);
   const [status, setStatus] = useState('loading');
+
+  const baseTitle = 'Blueprint partagé – NotionLab';
+  const blueprintTitle = payload?.blueprint?.title?.trim();
+  const pageTitle = blueprintTitle ? `${blueprintTitle} – Partage blueprint` : baseTitle;
+
+  const helmet = (
+    <Helmet htmlAttributes={{ referrerpolicy: 'no-referrer' }}>
+      <title>{pageTitle}</title>
+      <meta name="robots" content="noindex,nofollow" />
+      <meta name="referrer" content="no-referrer" />
+      <meta httpEquiv="Cache-Control" content="no-store, max-age=0, must-revalidate" />
+      <meta httpEquiv="Pragma" content="no-cache" />
+      <meta httpEquiv="Expires" content="0" />
+    </Helmet>
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -99,46 +115,58 @@ const BlueprintShareContent = () => {
 
   if (status === 'loading') {
     return (
-      <div className="flex h-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      <>
+        {helmet}
+        <div className="flex h-full items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </>
     );
   }
 
   if (status === 'not-found') {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-        <AlertTriangle className="h-8 w-8 text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">Ce blueprint n'est plus disponible ou le lien est invalide.</p>
-      </div>
+      <>
+        {helmet}
+        <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+          <AlertTriangle className="h-8 w-8 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">Ce blueprint n'est plus disponible ou le lien est invalide.</p>
+        </div>
+      </>
     );
   }
 
   if (status === 'error') {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-        <AlertTriangle className="h-8 w-8 text-destructive" />
-        <p className="text-sm text-muted-foreground">Impossible de charger le blueprint partagé.</p>
-      </div>
+      <>
+        {helmet}
+        <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+          <AlertTriangle className="h-8 w-8 text-destructive" />
+          <p className="text-sm text-muted-foreground">Impossible de charger le blueprint partagé.</p>
+        </div>
+      </>
     );
   }
 
   return (
-    <div className="flex h-full flex-col">
-      <header className="border-b border-border/70 bg-card/80 px-4 py-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-semibold text-foreground">{payload.blueprint?.title ?? 'Blueprint partagé'}</p>
-            <p className="text-xs text-muted-foreground">
+    <>
+      {helmet}
+      <div className="flex h-full flex-col">
+        <header className="border-b border-border/70 bg-card/80 px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-foreground">{payload.blueprint?.title ?? 'Blueprint partagé'}</p>
+              <p className="text-xs text-muted-foreground">
               Consultation lecture seule • généré le {new Date(payload.blueprint?.updated_at ?? payload.blueprint?.created_at ?? Date.now()).toLocaleString('fr-FR')}
-            </p>
+              </p>
+            </div>
           </div>
-        </div>
-      </header>
-      <main className="flex flex-1">
-        <ShareCanvas nodes={payload.nodes} edges={payload.edges} />
-      </main>
-    </div>
+        </header>
+        <main className="flex flex-1">
+          <ShareCanvas nodes={payload.nodes} edges={payload.edges} />
+        </main>
+      </div>
+    </>
   );
 };
 

@@ -1,10 +1,11 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
-import { Database, Zap, Plug } from 'lucide-react';
+import { Database, Zap, Plug, ChevronDown } from 'lucide-react';
 
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 const BLUEPRINT_PALETTE = [
   {
@@ -112,23 +113,36 @@ const PaletteItem = ({ item, familyLabel }) => {
 
 const PaletteSection = ({ family, items }) => {
   const Icon = family.icon ?? Database;
+  const [isOpen, setIsOpen] = useState(true);
+
   return (
-    <div className="space-y-3">
+    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="space-y-3">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Icon className="h-4 w-4 text-primary" />
           <h3 className="text-sm font-semibold text-foreground/90">{family.label}</h3>
         </div>
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className="rounded-md p-1 text-muted-foreground transition hover:bg-accent/70"
+            aria-label={isOpen ? `Masquer ${family.label}` : `Afficher ${family.label}`}
+          >
+            <ChevronDown className={cn('h-4 w-4 transition-transform', isOpen ? 'rotate-180' : 'rotate-0')} />
+          </button>
+        </CollapsibleTrigger>
       </div>
-      {family.description && (
-        <p className="text-xs text-muted-foreground/80">{family.description}</p>
-      )}
-      <div className="space-y-2">
-        {items.map((item) => (
-          <PaletteItem key={item.id} item={item} familyLabel={family.label} />
-        ))}
-      </div>
-    </div>
+      <CollapsibleContent className="space-y-2 pt-1">
+        {family.description && (
+          <p className="text-xs text-muted-foreground/80">{family.description}</p>
+        )}
+        <div className="space-y-2">
+          {items.map((item) => (
+            <PaletteItem key={item.id} item={item} familyLabel={family.label} />
+          ))}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 };
 
@@ -151,7 +165,7 @@ const BlueprintPalette = ({ searchTerm, onSearchChange, catalog }) => {
   }, [catalog, normalizedSearch]);
 
   return (
-    <aside className="flex h-full flex-col gap-4 overflow-hidden border-r border-border/70 bg-muted/20 p-4">
+    <aside className="flex h-full min-h-0 flex-col gap-4 overflow-hidden border-r border-border/70 bg-muted/20 p-4">
       <div className="space-y-2">
         <p className="text-sm font-medium text-foreground">Palette</p>
         <Input
@@ -161,7 +175,7 @@ const BlueprintPalette = ({ searchTerm, onSearchChange, catalog }) => {
           className="h-9"
         />
       </div>
-      <div className="space-y-6">
+      <div className="blueprint-palette-scroll flex-1 space-y-6 overflow-y-auto pr-1">
         {filteredFamilies.map(({ family, items }) => (
           <PaletteSection key={family.id} family={family} items={items} />
         ))}

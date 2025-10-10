@@ -2,20 +2,20 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useDebounce } from 'use-debounce';
 import { 
-  Eye, Edit, Trash2, MoreHorizontal, MoreVertical, Search, Filter, Plus, 
+  Eye, Edit, Trash2, MoreHorizontal, MoreVertical, Search, Plus, 
   ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Archive, RotateCcw, Copy, 
   ArrowUpDown, ArrowUp, ArrowDown, X, Check, Bookmark, Loader2, 
-  Star, AlertCircle, Layers, Code 
+  AlertCircle, Layers, Code 
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { supabase } from '@/lib/customSupabaseClient';
-import { useSessionRefresh } from '@/lib/sessionRefreshBus';
+import { emitSessionRefresh, useSessionRefresh } from '@/lib/sessionRefreshBus';
 import { useToast } from '@/components/ui/use-toast';
 import EditHomeBlockPage from '@/pages/admin/EditHomeBlockPage';
 import BlockPreview from '@/components/admin/home-blocks/BlockPreview';
@@ -104,6 +104,23 @@ const HomeBlockList = ({ mode = 'list', refreshKey = 0, activeSubTab = 'list' })
     persistEditorState(view, selectedBlockId);
   }, [view, selectedBlockId]);
 
+  // Listen to realtime changes on content_blocks to refresh list/dashboard automatically.
+  useEffect(() => {
+    const channel = supabase
+      .channel('content_blocks-home-blocks-list')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'content_blocks' },
+        () => emitSessionRefresh({ source: 'content-blocks-realtime' }),
+      );
+
+    channel.subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   // Clear persisted state on component unmount
   useEffect(() => {
     return () => {
@@ -161,7 +178,6 @@ const HomeBlockList = ({ mode = 'list', refreshKey = 0, activeSubTab = 'list' })
   // Filters state
   const [query, setQuery] = useState(searchParams.get('query') || '');
   const [status, setStatus] = useState(searchParams.get('status') || 'all');
-  const [isFeatured, setIsFeatured] = useState(searchParams.get('featured') === 'true');
   const [sortField, setSortField] = useState(searchParams.get('sortField') || 'order_index');
   const [sortDir, setSortDir] = useState(searchParams.get('sortDir') || 'asc');
   const [page, setPage] = useState(parseInt(searchParams.get('page') || '1', 10));
@@ -181,49 +197,79 @@ const HomeBlockList = ({ mode = 'list', refreshKey = 0, activeSubTab = 'list' })
 
     const effectiveStatus = isArchivesMode ? 'archived' : status;
     const filters = {
-      title: debouncedQuery,
+      title: debouncedQuery?.trim?.() || '',
       status: effectiveStatus === 'all' ? '' : effectiveStatus,
-      featured: isFeatured,
     };
 
     const sort = { field: sortField, dir: sortDir };
-    try {
-      // Direct client query (no Edge Function) to avoid CORS issues
+
+    const fallbackQuery = async () => {
       let query = supabase.from('content_blocks').select('*', { count: 'exact' });
-      if (debouncedQuery && debouncedQuery.trim() !== '') {
-        query = query.ilike('title', `%${debouncedQuery.trim()}%`);
+      if (filters.title) {
+        query = query.ilike('title', `%${filters.title}%`);
       }
-      if (isArchivesMode) {
+      if (filters.status) {
+        query = query.eq('status', filters.status);
+      } else if (isArchivesMode) {
         query = query.eq('status', 'archived');
-      } else {
-        if (status && status !== 'all') {
-          query = query.eq('status', status);
-        }
-        // Suppression du filtre .neq('status', 'archived') pour afficher tous les blocs
       }
-      if (isFeatured) {
-        // Quand l'option « à la une » est activée, on n'affiche que les blocs mis en avant
-        // pour que le réordonnancement corresponde exactement à la liste visible.
-        query = query.gt('priority', 0);
-      }
-      // Secondary sort by chosen field
-      query = query.order(sortField, { ascending: (sortDir !== 'desc') });
+
+      query = query.order(sortField, { ascending: sortDir !== 'desc' });
       const from = (page - 1) * perPage;
       const to = from + perPage - 1;
       query = query.range(from, to);
 
       const { data: items, count, error: qErr } = await query;
       if (qErr) throw qErr;
-      setBlocks(items || []);
-      setTotal(count || 0);
+      return { items: items ?? [], total: count ?? 0 };
+    };
+
+    try {
+      const { data, error: edgeError } = await supabase.functions.invoke('content-blocks-search', {
+        body: {
+          filters,
+          sort,
+          page,
+          perPage,
+        },
+      });
+
+      if (edgeError) {
+        throw new Error(edgeError.message || 'content-blocks-search failed');
+      }
+
+      if (!data || typeof data !== 'object') {
+        throw new Error('Réponse vide du service de recherche des blocs.');
+      }
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      const items = Array.isArray(data.items) ? data.items : [];
+      const totalCount = Number(data.total ?? 0);
+      const pageSize = Number(data.perPage ?? perPage);
+
+      setBlocks(items);
+      setTotal(Number.isFinite(totalCount) ? totalCount : 0);
+      if (Number.isFinite(pageSize) && pageSize > 0 && pageSize !== perPage) {
+        setPerPage(pageSize);
+      }
     } catch (err) {
-      console.error('Content blocks query failed:', err);
-      setError("Erreur lors de la récupération des blocs de contenu. " + (err?.message || ''));
-      toast({ title: "Erreur", description: "Impossible de charger les blocs.", variant: "destructive" });
+      console.warn('content-blocks-search failed, falling back to direct query', err);
+      try {
+        const fallback = await fallbackQuery();
+        setBlocks(fallback.items);
+        setTotal(fallback.total);
+      } catch (fallbackError) {
+        console.error('Content blocks query failed:', fallbackError);
+        setError("Erreur lors de la récupération des blocs de contenu. " + (fallbackError?.message || ''));
+        toast({ title: "Erreur", description: "Impossible de charger les blocs.", variant: "destructive" });
+      }
     } finally {
       setLoading(false);
     }
-  }, [debouncedQuery, status, isFeatured, sortField, sortDir, page, perPage, toast, mode]);
+  }, [debouncedQuery, status, sortField, sortDir, page, perPage, toast, mode, isArchivesMode]);
 
   useSessionRefresh(() => {
     if (view === 'list' && activeSubTab === 'list') {
@@ -249,7 +295,6 @@ const HomeBlockList = ({ mode = 'list', refreshKey = 0, activeSubTab = 'list' })
     const newSearchParams = new URLSearchParams(freshParams);
     if (query) newSearchParams.set('query', query); else newSearchParams.delete('query');
     if (status !== 'all') newSearchParams.set('status', status); else newSearchParams.delete('status');
-    if (isFeatured) newSearchParams.set('featured', 'true'); else newSearchParams.delete('featured');
     if (sortField !== 'order_index') newSearchParams.set('sortField', sortField); else newSearchParams.delete('sortField');
     if (sortDir !== 'asc') newSearchParams.set('sortDir', sortDir); else newSearchParams.delete('sortDir');
     if (page > 1) newSearchParams.set('page', page.toString()); else newSearchParams.delete('page');
@@ -260,22 +305,11 @@ const HomeBlockList = ({ mode = 'list', refreshKey = 0, activeSubTab = 'list' })
     }
 
     setSearchParams(newSearchParams, { replace: true });
-  }, [debouncedQuery, status, isFeatured, sortField, sortDir, page, view, fetchContentBlocks]);
+  }, [debouncedQuery, status, sortField, sortDir, page, view, fetchContentBlocks]);
 
   const handlePageChange = (newPage) => {
     if (newPage > 0 && newPage <= Math.ceil(total / perPage)) {
       setPage(newPage);
-    }
-  };
-
-  const handleFeatureToggle = async (block) => {
-    const newPriority = block.priority > 0 ? 0 : 1;
-    const { error } = await supabase.from('content_blocks').update({ priority: newPriority }).eq('id', block.id);
-    if (error) {
-      toast({ title: "Erreur", description: "Impossible de mettre à jour le statut 'à la une'.", variant: "destructive" });
-    } else {
-      toast({ title: "Succès", description: "Statut 'à la une' mis à jour." });
-      fetchContentBlocks();
     }
   };
 
@@ -514,7 +548,7 @@ const HomeBlockList = ({ mode = 'list', refreshKey = 0, activeSubTab = 'list' })
     setView('edit');
   };
 
-  const handleBackToList = () => {
+  const handleBackToList = useCallback(() => {
     // Clear the URL parameters for edit mode
     const sp = new URLSearchParams(window.location.search);
     sp.delete('view');
@@ -529,12 +563,15 @@ const HomeBlockList = ({ mode = 'list', refreshKey = 0, activeSubTab = 'list' })
     
     setView('list');
     setSelectedBlockId(null);
-  };
+  }, [setSearchParams]);
 
-  const handleSave = (savedBlock) => {
-    fetchContentBlocks();
-    handleBackToList();
-  }
+  const handleSave = useCallback(
+    (savedBlock) => {
+      fetchContentBlocks();
+      handleBackToList();
+    },
+    [fetchContentBlocks, handleBackToList],
+  );
 
   const handlePreview = (block) => {
     setPreviewingBlock(block);
@@ -693,56 +730,57 @@ const HomeBlockList = ({ mode = 'list', refreshKey = 0, activeSubTab = 'list' })
   };
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
-        <h2 className="text-xl font-semibold">Gestion des Blocs Actifs</h2>
+    <div className="space-y-4">
+      <div className="flex justify-between gap-2 flex-col md:flex-row md:items-center">
         <Button className="rounded-full bg-red-600 hover:bg-red-700 text-white focus:ring-red-500" onClick={handleCreate}>
           <Plus className="h-4 w-4 mr-2" />
           Ajouter un bloque
         </Button>
       </div>
-      <div className="bg-muted/50 dark:bg-card/30 p-3 rounded-lg space-y-3">
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="relative flex-grow">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Rechercher par titre..."
-              className="pl-10"
-              value={query}
-              onChange={(e) => { setQuery(e.target.value); setPage(1); }}
-            />
+      <div className="rounded-lg border bg-muted/30 dark:bg-card/30/60 p-4 space-y-4">
+        <div className="flex flex-col md:flex-row md:items-end gap-4">
+          <div className="flex-1">
+            <Label htmlFor="blocks-search" className="mb-2 block text-sm font-medium">
+              Rechercher un bloc
+            </Label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                id="blocks-search"
+                placeholder="Rechercher un bloc..."
+                className="pl-10"
+                value={query}
+                onChange={(e) => { setQuery(e.target.value); setPage(1); }}
+              />
+            </div>
           </div>
           {!isArchivesMode && (
-            <Select value={status} onValueChange={(value) => { setStatus(value); setPage(1); }}>
-              <SelectTrigger className="w-full md:w-[180px]">
-                <SelectValue placeholder="Par statut" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous les statuts</SelectItem>
-                <SelectItem value="draft">Brouillon</SelectItem>
-                <SelectItem value="published">Publié</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="w-full md:w-64">
+              <Label htmlFor="status-filter" className="mb-2 block text-sm font-medium">
+                Filtrer par statut
+              </Label>
+              <Select value={status} onValueChange={(value) => { setStatus(value); setPage(1); }}>
+                <SelectTrigger id="status-filter">
+                  <SelectValue placeholder="Tous les statuts" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous les statuts</SelectItem>
+                  <SelectItem value="draft">Brouillon</SelectItem>
+                  <SelectItem value="published">Publié</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           )}
         </div>
-        {!isArchivesMode && (
-          <div className="flex items-center space-x-2">
-            <Checkbox id="featured" checked={isFeatured} onCheckedChange={(checked) => { setIsFeatured(Boolean(checked)); setPage(1); }} />
-            <label htmlFor="featured" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-              Afficher et ordonner les bloques « à la une »
-            </label>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 text-sm text-muted-foreground">
+          <div className="flex gap-4">
+            <button className="hover:text-primary" onClick={() => handleAction('advanced-filters')}>Afficher les filtres avancés</button>
+            <button className="hover:text-primary" onClick={() => { setQuery(''); setStatus('all'); setPage(1); }}>Réinitialiser tous les filtres</button>
+            <button className="hover:text-primary" onClick={() => handleAction('export')}>Exporter</button>
           </div>
-        )}
-      </div>
-
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 text-sm text-muted-foreground">
-        <div className="flex gap-4">
-          <button className="hover:text-primary" onClick={() => handleAction('advanced-filters')}>Afficher les filtres avancés</button>
-          <button className="hover:text-primary" onClick={() => { setQuery(''); setStatus('all'); setIsFeatured(false); setPage(1); }}>Réinitialiser tous les filtres</button>
-          <button className="hover:text-primary" onClick={() => handleAction('export')}>Exporter</button>
-        </div>
-        <div className="flex items-center gap-4">
-          <span>Trier par: Les plus récents</span>
+          <div className="flex items-center gap-4">
+            <span>Trier par: Les plus récents</span>
+          </div>
         </div>
       </div>
 
@@ -750,7 +788,7 @@ const HomeBlockList = ({ mode = 'list', refreshKey = 0, activeSubTab = 'list' })
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/30 text-sm">
-              <TableHead className="w-12 text-center">À la une</TableHead>
+              <TableHead className="w-12 text-center">Prévisualiser</TableHead>
               <TableHead className="w-24 text-center">Ordre</TableHead>
               <TableHead>Titre</TableHead>
               <TableHead>Type</TableHead>
@@ -769,8 +807,14 @@ const HomeBlockList = ({ mode = 'list', refreshKey = 0, activeSubTab = 'list' })
               blocks.map((block, idx) => (
                 <TableRow key={block.id} className="hover:bg-muted/50 text-sm">
                   <TableCell className="text-center">
-                    <Button variant="ghost" size="icon" onClick={() => handleFeatureToggle(block)}>
-                      <Star className={`h-5 w-5 ${block.priority > 0 ? 'text-yellow-400 fill-current' : 'text-muted-foreground'}`} />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handlePreview(block)}
+                      disabled={block.block_type !== 'dynamic'}
+                      aria-label="Prévisualiser le bloc"
+                    >
+                      <Eye className="h-4 w-4" />
                     </Button>
                   </TableCell>
                   <TableCell className="text-center">
@@ -833,7 +877,7 @@ const HomeBlockList = ({ mode = 'list', refreshKey = 0, activeSubTab = 'list' })
                         <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleEdit(block.id)} disabled={block.layout === 'home.formations'}>
+                        <DropdownMenuItem onClick={() => handleEdit(block.id)}>
                           <Edit className="mr-2 h-4 w-4" />
                           <span>Éditer</span>
                         </DropdownMenuItem>
@@ -889,3 +933,4 @@ const HomeBlockList = ({ mode = 'list', refreshKey = 0, activeSubTab = 'list' })
 };
 
 export default HomeBlockList;
+
