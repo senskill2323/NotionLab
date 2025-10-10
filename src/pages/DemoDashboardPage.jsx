@@ -29,8 +29,7 @@ const moduleProps = {
   client_homepage: {
     user: demoDashboardData.user,
     hero: demoDashboardData.homepage.hero,
-    highlights: demoDashboardData.homepage.highlights,
-    quickLinks: demoDashboardData.homepage.quickLinks,
+    kpis: demoDashboardData.kpis,
   },
   client_formations: {
     data: demoDashboardData.formations,

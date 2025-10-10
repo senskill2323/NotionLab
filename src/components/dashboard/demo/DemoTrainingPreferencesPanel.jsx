@@ -30,7 +30,7 @@ const DemoTrainingPreferencesPanel = ({ data, onAction }) => {
     <Card className="h-full border border-border/60 shadow-sm">
       <CardContent className="p-4 md:p-5 space-y-3">
         <ModuleHeader
-          title="Onboarding formation"
+          title="Questionnaire preferences de formation"
           Icon={ClipboardList}
           variant="slate"
           iconClassName="text-teal-500"
@@ -101,4 +101,3 @@ const DemoTrainingPreferencesPanel = ({ data, onAction }) => {
 };
 
 export default DemoTrainingPreferencesPanel;
-

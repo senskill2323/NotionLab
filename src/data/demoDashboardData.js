@@ -1,4 +1,4 @@
-export const demoDashboardLayout = {
+const demoDashboardLayout = {
   rows: [
     {
       rowId: "demo-row-hero",
@@ -9,8 +9,7 @@ export const demoDashboardLayout = {
     {
       rowId: "demo-row-learning",
       columns: [
-        { colId: "demo-col-formations", moduleKey: "client_formations", span: 7 },
-        { colId: "demo-col-kpi", moduleKey: "client_kpi", span: 5 },
+        { colId: "demo-col-formations", moduleKey: "client_formations", span: 12 },
       ],
     },
     {
@@ -44,7 +43,7 @@ export const demoDashboardLayout = {
   ],
 };
 
-export const demoDashboardData = {
+const demoDashboardData = {
   user: {
     firstName: "Alex",
     lastName: "Martin",
@@ -62,38 +61,6 @@ export const demoDashboardData = {
         scheduledAt: "2025-03-19T14:00:00.000Z",
       },
     },
-    highlights: [
-      {
-        id: "highlight-formation",
-        label: "Module actif",
-        value: "Certification Notion Pro",
-        description: "Session 2 disponible",
-      },
-      {
-        id: "highlight-ticket",
-        label: "Support",
-        value: "1 ticket en suivi",
-        description: "Derniere reponse il y a 3h",
-      },
-      {
-        id: "highlight-blueprint",
-        label: "Nouveau blueprint",
-        value: "Pilotage OKR",
-        description: "Version 2025 prete",
-      },
-    ],
-    quickLinks: [
-      {
-        id: "link-builder",
-        label: "Essayer le builder de formation",
-        description: "Creez un parcours sur mesure en 5 minutes.",
-      },
-      {
-        id: "link-request",
-        label: "Planifier un point avec un coach",
-        description: "Choisissez un horaire qui vous convient.",
-      },
-    ],
   },
   formations: {
     enrolments: [
@@ -103,7 +70,6 @@ export const demoDashboardData = {
         status: "En cours",
         lastActivity: "Il y a 2 jours",
         nextStep: "Atelier pipeline mardi 14h",
-        progress: 68,
         type: "formation",
       },
       {
@@ -112,25 +78,19 @@ export const demoDashboardData = {
         status: "A relancer",
         lastActivity: "Il y a 9 jours",
         nextStep: "Ouvrir le module Automatisations",
-        progress: 32,
         type: "formation",
       },
     ],
     customJourneys: [
       {
         id: "journey-onboarding",
-        title: "Parcours onboarding interne",
+        title: "mon premier parcours de formation personnalise",
         status: "Brouillon",
         updatedAt: "2025-03-10",
       },
     ],
   },
   kpis: {
-    mood: {
-      value: "motive",
-      label: "Motivation elevee",
-      emoji: "🚀",
-    },
     metrics: [
       {
         id: "kpi-open-tickets",
@@ -171,7 +131,7 @@ export const demoDashboardData = {
       {
         id: "ticket-automation",
         reference: "NL-4821",
-        title: "Automatiser la creation de comptes clients",
+        title: "Comment je fais pour voir mes taches depuis le telephone?",
         priority: "Haut",
         status: "En cours",
         createdAt: "2025-03-14T09:30:00.000Z",
@@ -181,7 +141,7 @@ export const demoDashboardData = {
       {
         id: "ticket-blueprint",
         reference: "NL-4812",
-        title: "Question sur le blueprint OKR 2025",
+        title: "Besoin d aide avec le module de note IA de Notion svp!",
         priority: "Moyen",
         status: "A traiter",
         createdAt: "2025-03-15T16:20:00.000Z",
@@ -205,7 +165,7 @@ export const demoDashboardData = {
     items: [
       {
         id: "resource-crm",
-        title: "Template CRM - Edition equipe",
+        title: "Comment creer une relation de base de donnees",
         type: "Template",
         format: "Notion",
         category: "CRM",
@@ -230,7 +190,7 @@ export const demoDashboardData = {
     steps: [
       {
         id: "step-profile",
-        label: "Profil equipe",
+        label: "mes outils informatiques",
         status: "done",
         description: "Equipe et objectifs renseignes",
       },
@@ -242,7 +202,7 @@ export const demoDashboardData = {
       },
       {
         id: "step-workshop",
-        label: "Atelier de lancement",
+        label: "Mes connaissances en informatique...",
         status: "scheduled",
         description: "19 mars - 14h00 (Teams)",
       },
@@ -252,24 +212,11 @@ export const demoDashboardData = {
     usage: {
       sessionsThisWeek: 7,
       averageDuration: "04:32",
-      savedTime: "1h20",
     },
     prompts: [
       "Comment je fais une relation entre un contact et un projet ?",
       "Comment je cree une nouvelle base de donnees ?",
       "Pourquoi ma tache n apparait pas dans ma vue de base de donnee ?",
-    ],
-    lastUpdates: [
-      {
-        id: "assistant-update-1",
-        title: "Nouveaux prompts proposes",
-        description: "Le module Assistant suggere maintenant des prompts selon la formation active.",
-      },
-      {
-        id: "assistant-update-2",
-        title: "Export conversation",
-        description: "Telechargez vos echanges en PDF pour les partager en interne.",
-      },
     ],
   },
   blueprints: {
@@ -298,3 +245,7 @@ export const demoDashboardData = {
     ],
   },
 };
+
+export { demoDashboardLayout, demoDashboardData };
+export default demoDashboardData;
+

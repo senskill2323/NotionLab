@@ -1,40 +1,27 @@
 import React from "react";
-import {
-  Activity,
-  Gauge,
-  Smile,
-  Target,
-  TrendingUp,
-  Zap,
-} from "lucide-react";
-import ModuleHeader from "@/components/dashboard/ModuleHeader";
+import { Activity, Gauge, Target, TrendingUp, Zap } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 
 const colorClasses = {
   blue: {
     container:
-      "bg-gradient-to-br from-blue-50 to-blue-100/40 dark:from-blue-950/20 dark:to-blue-900/10 border-blue-200/40 dark:border-blue-800/40",
-    icon: "bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-300",
+      "border-blue-200/60 bg-blue-50/50 dark:border-blue-800/40 dark:bg-blue-950/10",
+    icon: "text-blue-500 dark:text-blue-300",
   },
   green: {
     container:
-      "bg-gradient-to-br from-emerald-50 to-emerald-100/40 dark:from-emerald-950/20 dark:to-emerald-900/10 border-emerald-200/40 dark:border-emerald-800/40",
-    icon:
-      "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-300",
+      "border-emerald-200/60 bg-emerald-50/50 dark:border-emerald-800/40 dark:bg-emerald-950/10",
+    icon: "text-emerald-500 dark:text-emerald-300",
   },
   orange: {
     container:
-      "bg-gradient-to-br from-amber-50 to-amber-100/40 dark:from-amber-950/20 dark:to-amber-900/10 border-amber-200/40 dark:border-amber-800/40",
-    icon:
-      "bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-300",
+      "border-amber-200/60 bg-amber-50/50 dark:border-amber-800/40 dark:bg-amber-950/10",
+    icon: "text-amber-500 dark:text-amber-300",
   },
   purple: {
     container:
-      "bg-gradient-to-br from-violet-50 to-violet-100/40 dark:from-violet-950/20 dark:to-violet-900/10 border-violet-200/40 dark:border-violet-800/40",
-    icon:
-      "bg-violet-100 text-violet-600 dark:bg-violet-900/40 dark:text-violet-300",
+      "border-violet-200/60 bg-violet-50/50 dark:border-violet-800/40 dark:bg-violet-950/10",
+    icon: "text-violet-500 dark:text-violet-300",
   },
 };
 
@@ -47,53 +34,26 @@ const metricIcon = {
 
 const DemoKPIPanel = ({ data, onAction }) => {
   const metrics = data?.metrics ?? [];
-  const mood = data?.mood;
 
   return (
     <Card className="h-full border border-border/60 shadow-sm">
-      <CardContent className="p-4 md:p-5 space-y-3">
-        <ModuleHeader
-          title="KPIs personnels"
-          Icon={Target}
-          variant="slate"
-          iconClassName="text-blue-500"
-          actions={
-            <Button
-              size="sm"
-              variant="outline"
+      <CardContent className="p-3 md:p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <Target className="h-4 w-4 text-blue-500" />
+            <span>KPIs personnels</span>
+          </div>
+          {onAction && (
+            <button
+              type="button"
               onClick={() => onAction?.("exporter mes KPI")}
+              className="text-[0.7rem] font-medium text-primary hover:underline"
             >
               Exporter
-            </Button>
-          }
-        />
-
-        <div className="rounded-xl border border-border/60 bg-card/90 p-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-xl">
-                {mood?.emoji ?? ":)"}
-              </span>
-              <div>
-                <p className="text-sm font-semibold">
-                  Mon etat d esprit du moment
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {mood?.label ?? "Pret pour la prochaine session"}
-                </p>
-              </div>
-            </div>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => onAction?.("changer mon humeur")}
-            >
-              Mettre a jour
-            </Button>
-          </div>
+            </button>
+          )}
         </div>
-
-        <div className="grid gap-2 md:grid-cols-2">
+        <div className="grid gap-2 sm:grid-cols-2">
           {metrics.map((metric) => {
             const palette = colorClasses[metric.color] ?? colorClasses.blue;
             const Icon = metricIcon[metric.color] ?? Activity;
@@ -101,31 +61,25 @@ const DemoKPIPanel = ({ data, onAction }) => {
             return (
               <div
                 key={metric.id}
-                className={`rounded-xl border px-3.5 py-3.5 shadow-sm transition hover:shadow-md ${palette.container}`}
+                className={`rounded-md border px-3 py-3 text-left shadow-sm transition hover:shadow-md ${palette.container}`}
               >
-                <div className="flex items-center justify-between">
-                  <div
-                    className={`flex h-9 w-9 items-center justify-center rounded-lg ${palette.icon}`}
-                  >
-                    <Icon className="h-4 w-4" />
-                  </div>
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <Icon className={`h-4 w-4 ${palette.icon}`} />
                   {metric.trend !== undefined && (
-                    <Badge
-                      variant={metric.trend >= 0 ? "default" : "secondary"}
-                      className="text-xs"
-                    >
+                    <span className="font-medium text-[0.65rem]">
                       {metric.trend >= 0 ? "+" : ""}
                       {metric.trend}%
-                    </Badge>
+                    </span>
                   )}
                 </div>
-                <p className="mt-3 text-2xl font-semibold">{metric.value}</p>
-                <p className="text-sm font-medium text-muted-foreground">
-                  {metric.label}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {metric.subtitle}
-                </p>
+                <div>
+                  <p className="text-sm font-medium text-foreground">
+                    {metric.label}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {metric.value} · {metric.subtitle}
+                  </p>
+                </div>
               </div>
             );
           })}
@@ -136,4 +90,3 @@ const DemoKPIPanel = ({ data, onAction }) => {
 };
 
 export default DemoKPIPanel;
-
