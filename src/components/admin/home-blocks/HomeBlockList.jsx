@@ -877,7 +877,7 @@ const HomeBlockList = ({ mode = 'list', refreshKey = 0, activeSubTab = 'list' })
                         <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleEdit(block.id)} disabled={block.layout === 'home.formations'}>
+                        <DropdownMenuItem onClick={() => handleEdit(block.id)}>
                           <Edit className="mr-2 h-4 w-4" />
                           <span>Éditer</span>
                         </DropdownMenuItem>
