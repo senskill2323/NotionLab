@@ -643,8 +643,6 @@ const FORMATIONS_DEFAULTS = Object.freeze({
 const normalizeFormations = (value = {}, fallback = FORMATIONS_DEFAULTS) => {
   const fallbackCta = fallback.cta ?? FORMATIONS_CTA_DEFAULT;
   const rawCta = value.cta ?? {};
-  const fallbackBadge = fallback.badge ?? FORMATIONS_BADGE_DEFAULT;
-  const rawBadge = value.badge ?? {};
 
   const resolvedModeRaw = ensureString(
     rawCta.backgroundMode,
@@ -665,24 +663,6 @@ const normalizeFormations = (value = {}, fallback = FORMATIONS_DEFAULTS) => {
     gradient: ensureString(rawCta.gradient, fallbackCta.gradient),
   };
 
-  const legacyBadgeLabel = ensureString(value.badgeLabel, '').trim();
-  const normalizedBadgeLabel =
-    ensureString(
-      rawBadge.label,
-      legacyBadgeLabel || fallbackBadge.label,
-    ).trim() || fallbackBadge.label;
-
-  const normalizedBadge = {
-    enabled: ensureBoolean(rawBadge.enabled, fallbackBadge.enabled ?? true),
-    label: normalizedBadgeLabel,
-    textColor:
-      ensureString(rawBadge.textColor, fallbackBadge.textColor).trim() ||
-      fallbackBadge.textColor,
-    backgroundColor:
-      ensureString(rawBadge.backgroundColor, fallbackBadge.backgroundColor).trim() ||
-      fallbackBadge.backgroundColor,
-  };
-
   return {
     title: ensureString(value.title, fallback.title),
     titleSuffix: ensureString(value.titleSuffix, fallback.titleSuffix),
@@ -692,7 +672,6 @@ const normalizeFormations = (value = {}, fallback = FORMATIONS_DEFAULTS) => {
       fallback.backgroundImageUrl,
     ),
     cta: normalizedCta,
-    badge: normalizedBadge,
   };
 };
 
