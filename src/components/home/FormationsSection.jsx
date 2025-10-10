@@ -49,6 +49,8 @@ const FormationsSection = ({ content = {} }) => {
   const titleSuffix = content.titleSuffix || 'formations';
   const subtitle = content.subtitle || "Choisissez la formation qui correspond à votre niveau et vos objectifs.\n            Chaque formation est conçue pour vous faire progresser rapidement.";
   const backgroundImageUrl = content.backgroundImageUrl || 'https://images.unsplash.com/photo-1687754946970-5ff99224bd70';
+  const ctaConfig = content.cta || {};
+  const showCta = ctaConfig.enabled !== false;
 
   useEffect(() => {
     const fetchFormations = async () => {
@@ -176,9 +178,16 @@ const FormationsSection = ({ content = {} }) => {
             })}
           </div>
         )}
-        <div className="mt-16">
-          <FormationBuilderCTA />
-        </div>
+        {showCta && (
+          <div className="mt-16">
+            <FormationBuilderCTA
+              headline={ctaConfig.headline}
+              buttonLabel={ctaConfig.buttonLabel}
+              buttonLink={ctaConfig.buttonLink}
+              backgroundColor={ctaConfig.backgroundColor}
+            />
+          </div>
+        )}
       </div>
     </section>
   );

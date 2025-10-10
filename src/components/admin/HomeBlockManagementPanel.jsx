@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import HomeBlockList from '@/components/admin/home-blocks/HomeBlockList';
 import BlockSamplesPanel from '@/components/admin/home-blocks/BlockSamplesPanel';
 
-const HomeBlockManagementPanel = () => {
+export default function HomeBlockManagementPanel() {
   const [searchParams, setSearchParams] = useSearchParams();
   const initial = (searchParams.get('editing') === 'true' && searchParams.get('view') !== 'edit')
     ? 'samples'
@@ -81,6 +81,4 @@ const HomeBlockManagementPanel = () => {
       </Tabs>
     </div>
   );
-};
-
-export default HomeBlockManagementPanel;
+}

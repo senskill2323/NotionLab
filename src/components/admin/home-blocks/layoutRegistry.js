@@ -394,6 +394,15 @@ const normalizeStats = (value = {}, fallback = STATS_DEFAULTS) => ({
   subtitle: ensureString(value.subtitle, fallback.subtitle),
 });
 
+const FORMATIONS_CTA_DEFAULT = Object.freeze({
+  enabled: true,
+  headline:
+    'Connectez-vous pour acceder au builder de formation et selectionnez vos modules',
+  buttonLabel: 'Connectez-vous pour acceder au Builder',
+  buttonLink: '/inscription',
+  backgroundColor: 'linear-gradient(90deg, #7c3aed 0%, #4f46e5 100%)',
+});
+
 const FORMATIONS_DEFAULTS = Object.freeze({
   title: 'Mes ',
   titleSuffix: 'formations',
@@ -401,17 +410,35 @@ const FORMATIONS_DEFAULTS = Object.freeze({
     "Choisissez la formation qui correspond à votre niveau et vos objectifs. Chaque formation est conçue pour vous faire progresser rapidement.",
   backgroundImageUrl:
     'https://images.unsplash.com/photo-1687754946970-5ff99224bd70',
+  cta: FORMATIONS_CTA_DEFAULT,
 });
 
-const normalizeFormations = (value = {}, fallback = FORMATIONS_DEFAULTS) => ({
-  title: ensureString(value.title, fallback.title),
-  titleSuffix: ensureString(value.titleSuffix, fallback.titleSuffix),
-  subtitle: ensureString(value.subtitle, fallback.subtitle),
-  backgroundImageUrl: ensureString(
-    value.backgroundImageUrl,
-    fallback.backgroundImageUrl,
-  ),
-});
+const normalizeFormations = (value = {}, fallback = FORMATIONS_DEFAULTS) => {
+  const fallbackCta = fallback.cta ?? FORMATIONS_CTA_DEFAULT;
+  const rawCta = value.cta ?? {};
+
+  const normalizedCta = {
+    enabled: ensureBoolean(rawCta.enabled, fallbackCta.enabled ?? true),
+    headline: ensureString(rawCta.headline, fallbackCta.headline),
+    buttonLabel: ensureString(rawCta.buttonLabel, fallbackCta.buttonLabel),
+    buttonLink: ensureString(rawCta.buttonLink, fallbackCta.buttonLink),
+    backgroundColor: ensureString(
+      rawCta.backgroundColor,
+      fallbackCta.backgroundColor,
+    ),
+  };
+
+  return {
+    title: ensureString(value.title, fallback.title),
+    titleSuffix: ensureString(value.titleSuffix, fallback.titleSuffix),
+    subtitle: ensureString(value.subtitle, fallback.subtitle),
+    backgroundImageUrl: ensureString(
+      value.backgroundImageUrl,
+      fallback.backgroundImageUrl,
+    ),
+    cta: normalizedCta,
+  };
+};
 
 const normalizeMaskReveal = (
   value = {},
