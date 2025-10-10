@@ -145,7 +145,7 @@ const HomeBlockLayoutEditor = ({
 
   return (
     <div className="flex flex-col lg:flex-row gap-6">
-      <Card className="lg:w-[26rem] flex-shrink-0">
+      <Card className="lg:w-[33rem] flex-shrink-0">
         <CardContent className="space-y-4 pt-6">{renderedEditor}</CardContent>
       </Card>
       <Card className="flex-1 min-w-0">

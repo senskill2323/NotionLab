@@ -24,6 +24,12 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 import { SketchPicker } from 'react-color';
 import { cn } from '@/lib/utils';
 import {
@@ -163,64 +169,75 @@ const PromiseLayoutEditor = ({ value = {}, onChange }) => {
 
       <div className="space-y-4">
         <Label>Promesses</Label>
-        {items.map((item, index) => {
-          const IconComponent =
-            promiseIcons.find((icon) => icon.name === item.icon)?.icon || Users;
-          return (
-            <div key={index} className="border rounded-lg p-4 space-y-3">
-              <div className="flex items-center gap-2">
-                <IconComponent className="w-4 h-4 text-primary" />
-                <span className="text-sm text-muted-foreground">Bloc #{index + 1}</span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => removeItem(index)}
-                  className="ml-auto"
-                >
-                  Supprimer
-                </Button>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div>
-                  <Label>Icône</Label>
-                  <select
-                    className="w-full rounded border border-input bg-background px-3 py-2 text-sm"
-                    value={item.icon}
-                    onChange={(event) =>
-                      updateItem(index, { icon: event.target.value })
-                    }
+        <Accordion type="single" collapsible defaultValue="item-0" className="space-y-3">
+          {items.map((item, index) => {
+            const IconComponent =
+              promiseIcons.find((icon) => icon.name === item.icon)?.icon || Users;
+            return (
+            <AccordionItem key={index} value={`item-${index}`} className="border rounded-lg">
+              <AccordionTrigger className="px-4 py-2">
+                <div className="flex items-center gap-3 text-left">
+                  <IconComponent className="h-4 w-4 text-primary" />
+                  <span className="font-medium">Bloc #{index + 1}</span>
+                  <span className="text-xs text-muted-foreground truncate max-w-[12rem]">
+                    {item.title || 'Sans titre'}
+                  </span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="px-4 pb-4 pt-0">
+                <div className="flex items-center justify-end pb-3">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeItem(index)}
+                    className="text-destructive hover:text-destructive"
                   >
-                    {promiseIcons.map(({ name }) => (
-                      <option key={name} value={name}>
-                        {name}
-                      </option>
-                    ))}
-                  </select>
+                    Supprimer
+                  </Button>
                 </div>
-                <div>
-                  <Label>Titre</Label>
-                  <Input
-                    value={item.title}
-                    onChange={(event) =>
-                      updateItem(index, { title: event.target.value })
-                    }
-                  />
+                <div className="grid gap-3 md:grid-cols-[1fr_2fr]">
+                  <div>
+                    <Label>Icône</Label>
+                    <select
+                      className="w-full rounded border border-input bg-background px-3 py-2 text-sm"
+                      value={item.icon}
+                      onChange={(event) =>
+                        updateItem(index, { icon: event.target.value })
+                      }
+                    >
+                      {promiseIcons.map(({ name }) => (
+                        <option key={name} value={name}>
+                          {name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <Label>Titre</Label>
+                    <Input
+                      value={item.title}
+                      onChange={(event) =>
+                        updateItem(index, { title: event.target.value })
+                      }
+                    />
+                  </div>
                 </div>
-                <div>
+                <div className="mt-3">
                   <Label>Description</Label>
                   <Textarea
-                    rows={2}
+                    rows={3}
                     value={item.text}
                     onChange={(event) =>
                       updateItem(index, { text: event.target.value })
                     }
                   />
                 </div>
-              </div>
-            </div>
+              </AccordionContent>
+            </AccordionItem>
           );
         })}
+        </Accordion>
         <Button type="button" variant="outline" onClick={addItem}>
           Ajouter une promesse
         </Button>
