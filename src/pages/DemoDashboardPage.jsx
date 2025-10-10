@@ -119,13 +119,13 @@ const DemoDashboardPage = () => {
         />
       </Helmet>
       <div className="min-h-screen">
-        <div className="pt-10 pb-8">
+        <div className="pt-8 pb-6">
           <div className="w-full px-4">
             <motion.div
-              initial={{ opacity: 0, y: 30 }}
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7 }}
-              className="mb-6"
+              className="mb-4"
             >
               <h1 className="text-xl md:text-2xl font-semibold mb-1.5">
                 Bonjour{" "}
@@ -139,7 +139,7 @@ const DemoDashboardPage = () => {
               </p>
             </motion.div>
 
-            <div className="space-y-4">
+            <div className="space-y-3">
               {demoDashboardLayout.rows.map((row) => {
                 const normalizedRow = normalizeRow(row);
                 if (!normalizedRow.columns.length) {
@@ -147,7 +147,7 @@ const DemoDashboardPage = () => {
                 }
 
                 return (
-                  <div key={normalizedRow.rowId} className="grid grid-cols-12 gap-4">
+                  <div key={normalizedRow.rowId} className="grid grid-cols-12 gap-3">
                     {normalizedRow.columns.map((col) => {
                       const Component = componentMap[col.moduleKey];
                       if (!Component) {
@@ -178,4 +178,3 @@ const DemoDashboardPage = () => {
 };
 
 export default DemoDashboardPage;
-

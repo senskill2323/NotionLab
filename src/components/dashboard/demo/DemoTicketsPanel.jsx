@@ -9,7 +9,14 @@ import {
 import ModuleHeader from "@/components/dashboard/ModuleHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
+import {
+  Table,
+  TableHeader,
+  TableRow,
+  TableHead,
+  TableBody,
+  TableCell,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -54,7 +61,7 @@ const DemoTicketsPanel = ({ data, onAction }) => {
   const renderTable = (tickets) => {
     if (tickets.length === 0) {
       return (
-        <div className="py-8 text-center text-sm text-muted-foreground">
+        <div className="py-6 text-center text-sm text-muted-foreground">
           Aucun ticket dans cette vue pour la demo.
         </div>
       );
@@ -75,35 +82,35 @@ const DemoTicketsPanel = ({ data, onAction }) => {
         <TableBody>
           {tickets.map((ticket) => (
             <TableRow key={ticket.id} className="align-middle">
-              <TableCell className="py-3">
+              <TableCell className="py-2.5">
                 <div className="flex flex-col">
                   <span className="text-sm font-medium">{ticket.title}</span>
                   <span className="text-xs text-muted-foreground">
-                    {ticket.reference} • cree le {formatDate(ticket.createdAt)}
+                    {ticket.reference} - cree le {formatDate(ticket.createdAt)}
                   </span>
                 </div>
               </TableCell>
-              <TableCell className="py-3">
+              <TableCell className="py-2.5">
                 <Badge className={`${priorityClass(ticket.priority)} text-xs`}>
                   <ShieldAlert className="mr-1 h-3 w-3" />
                   {ticket.priority}
                 </Badge>
               </TableCell>
-              <TableCell className="py-3">
+              <TableCell className="py-2.5">
                 <Badge variant="outline" className="text-xs">
                   {ticket.status}
                 </Badge>
               </TableCell>
-              <TableCell className="py-3 text-sm text-muted-foreground">
+              <TableCell className="py-2.5 text-sm text-muted-foreground">
                 <div className="flex items-center gap-2">
                   <Clock className="h-3.5 w-3.5" />
                   {formatDate(ticket.lastReplyAt)}
                 </div>
               </TableCell>
-              <TableCell className="py-3 text-sm text-muted-foreground">
+              <TableCell className="py-2.5 text-sm text-muted-foreground">
                 {ticket.assignedTo}
               </TableCell>
-              <TableCell className="py-3 text-right">
+              <TableCell className="py-2.5 text-right">
                 <Button
                   size="sm"
                   variant="ghost"
@@ -122,7 +129,7 @@ const DemoTicketsPanel = ({ data, onAction }) => {
 
   return (
     <Card className="h-full border border-border/60 shadow-sm">
-      <CardContent className="p-4 md:p-5 space-y-4">
+      <CardContent className="p-4 md:p-5 space-y-3">
         <ModuleHeader
           title="Support et tickets"
           Icon={Ticket}
@@ -150,10 +157,10 @@ const DemoTicketsPanel = ({ data, onAction }) => {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="open" className="mt-4">
+          <TabsContent value="open" className="mt-3">
             {renderTable(openTickets)}
           </TabsContent>
-          <TabsContent value="archive" className="mt-4">
+          <TabsContent value="archive" className="mt-3">
             {renderTable(archivedTickets)}
           </TabsContent>
         </Tabs>

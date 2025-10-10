@@ -28,7 +28,7 @@ const DemoTrainingPreferencesPanel = ({ data, onAction }) => {
 
   return (
     <Card className="h-full border border-border/60 shadow-sm">
-      <CardContent className="p-4 md:p-5 space-y-4">
+      <CardContent className="p-4 md:p-5 space-y-3">
         <ModuleHeader
           title="Onboarding formation"
           Icon={ClipboardList}
@@ -50,7 +50,7 @@ const DemoTrainingPreferencesPanel = ({ data, onAction }) => {
             <span>Progression du brief</span>
             <span>{progress}%</span>
           </div>
-          <div className="mt-2 h-2 rounded-full bg-muted">
+          <div className="mt-1.5 h-2 rounded-full bg-muted">
             <div
               className="h-2 rounded-full bg-teal-500"
               style={{ width: `${progress}%` }}
@@ -58,7 +58,7 @@ const DemoTrainingPreferencesPanel = ({ data, onAction }) => {
           </div>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           {steps.map((step) => {
             const Icon = statusIcon[step.status] ?? Circle;
             const variant = statusVariant[step.status] ?? "outline";
@@ -66,11 +66,11 @@ const DemoTrainingPreferencesPanel = ({ data, onAction }) => {
             return (
               <div
                 key={step.id}
-                className="rounded-lg border border-border/60 bg-background/90 p-4"
+                className="rounded-lg border border-border/60 bg-background/90 p-3.5"
               >
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
+                  <div className="flex items-center gap-2.5">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-muted">
                       <Icon className="h-4 w-4 text-teal-500" />
                     </span>
                     <div>
@@ -90,7 +90,7 @@ const DemoTrainingPreferencesPanel = ({ data, onAction }) => {
             );
           })}
           {steps.length === 0 && (
-            <div className="rounded-lg border border-dashed border-border/70 bg-muted/20 p-6 text-center text-sm text-muted-foreground">
+            <div className="rounded-lg border border-dashed border-border/70 bg-muted/20 p-5 text-center text-sm text-muted-foreground">
               Les etapes d onboarding seront affichees ici.
             </div>
           )}

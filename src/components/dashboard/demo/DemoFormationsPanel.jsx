@@ -8,7 +8,14 @@ import {
 } from "lucide-react";
 import ModuleHeader from "@/components/dashboard/ModuleHeader";
 import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -28,7 +35,7 @@ const DemoFormationsPanel = ({ data, onAction }) => {
 
   return (
     <Card className="h-full border border-border/60 shadow-sm">
-      <CardContent className="p-4 md:p-5 space-y-4">
+      <CardContent className="p-4 md:p-5 space-y-3">
         <ModuleHeader
           title="Mes formations"
           Icon={GraduationCap}
@@ -62,16 +69,15 @@ const DemoFormationsPanel = ({ data, onAction }) => {
               <TableRow>
                 <TableHead>Formation</TableHead>
                 <TableHead className="w-[120px]">Statut</TableHead>
-                <TableHead className="w-[150px]">Progression</TableHead>
-                <TableHead className="w-[160px]">Derniere activite</TableHead>
-                <TableHead className="w-[180px]">Prochaine etape</TableHead>
-                <TableHead className="w-[120px]" />
+                <TableHead className="w-[170px]">Derniere activite</TableHead>
+                <TableHead className="w-[200px]">Prochaine etape</TableHead>
+                <TableHead className="w-[140px]" />
               </TableRow>
             </TableHeader>
             <TableBody>
               {enrolments.map((formation) => (
                 <TableRow key={formation.id} className="align-middle">
-                  <TableCell className="py-3">
+                  <TableCell className="py-2.5">
                     <div className="flex flex-col">
                       <span className="font-medium text-sm">
                         {formation.title}
@@ -81,34 +87,21 @@ const DemoFormationsPanel = ({ data, onAction }) => {
                       </span>
                     </div>
                   </TableCell>
-                  <TableCell className="py-3">
+                  <TableCell className="py-2.5">
                     <Badge variant={statusVariant(formation.status)}>
                       {formation.status}
                     </Badge>
                   </TableCell>
-                  <TableCell className="py-3">
-                    <div className="flex flex-col gap-1">
-                      <div className="h-2 rounded-full bg-muted">
-                        <div
-                          className="h-2 rounded-full bg-emerald-500"
-                          style={{ width: `${formation.progress ?? 0}%` }}
-                        />
-                      </div>
-                      <span className="text-xs text-muted-foreground">
-                        {formation.progress ?? 0}% complete
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-3 text-sm">
+                  <TableCell className="py-2.5 text-sm">
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Clock className="h-3.5 w-3.5" />
                       {formation.lastActivity}
                     </div>
                   </TableCell>
-                  <TableCell className="py-3 text-sm text-muted-foreground">
+                  <TableCell className="py-2.5 text-sm text-muted-foreground">
                     {formation.nextStep}
                   </TableCell>
-                  <TableCell className="py-3">
+                  <TableCell className="py-2.5">
                     <div className="flex items-center gap-2 justify-end">
                       <Button
                         variant="ghost"
@@ -133,7 +126,7 @@ const DemoFormationsPanel = ({ data, onAction }) => {
               ))}
               {enrolments.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-28 text-center text-sm">
+                  <TableCell colSpan={5} className="h-24 text-center text-sm">
                     Aucune formation active dans cette demo.
                   </TableCell>
                 </TableRow>
@@ -143,7 +136,7 @@ const DemoFormationsPanel = ({ data, onAction }) => {
         </div>
 
         {journeys.length > 0 && (
-          <div className="rounded-lg border border-dashed border-border/60 bg-muted/20 p-4">
+          <div className="rounded-lg border border-dashed border-border/60 bg-muted/20 p-3">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-semibold">Parcours personnalises</p>
@@ -159,7 +152,7 @@ const DemoFormationsPanel = ({ data, onAction }) => {
                 Ouvrir le builder
               </Button>
             </div>
-            <div className="mt-3 grid gap-3 md:grid-cols-2">
+            <div className="mt-2 grid gap-3 md:grid-cols-2">
               {journeys.map((journey) => (
                 <div
                   key={journey.id}
@@ -183,4 +176,3 @@ const DemoFormationsPanel = ({ data, onAction }) => {
 };
 
 export default DemoFormationsPanel;
-

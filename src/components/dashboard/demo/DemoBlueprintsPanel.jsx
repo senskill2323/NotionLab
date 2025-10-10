@@ -22,9 +22,9 @@ const DemoBlueprintsPanel = ({ data, onAction }) => {
 
   return (
     <Card className="h-full border border-border/60 shadow-sm">
-      <CardContent className="p-4 md:p-5 space-y-4">
+      <CardContent className="p-4 md:p-5 space-y-3">
         <ModuleHeader
-          title="Blueprints disponibles"
+          title="Carte mentale de votre espace Notion"
           Icon={GitBranch}
           variant="slate"
           iconClassName="text-pink-500"
@@ -39,11 +39,11 @@ const DemoBlueprintsPanel = ({ data, onAction }) => {
           }
         />
 
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="grid gap-2 md:grid-cols-3">
           {blueprints.map((blueprint) => (
             <div
               key={blueprint.id}
-              className="rounded-lg border border-border/60 bg-background/90 p-4 shadow-sm transition hover:border-primary/40 hover:shadow-md"
+              className="rounded-lg border border-border/60 bg-background/90 p-3.5 shadow-sm transition hover:border-primary/40 hover:shadow-md"
             >
               <div className="flex items-start justify-between gap-2">
                 <h3 className="text-sm font-semibold">{blueprint.title}</h3>
@@ -54,7 +54,7 @@ const DemoBlueprintsPanel = ({ data, onAction }) => {
               <p className="mt-2 text-xs text-muted-foreground">
                 {blueprint.description}
               </p>
-              <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+              <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
                 <span>MAJ {blueprint.updatedAt}</span>
                 <Button
                   size="sm"
@@ -71,7 +71,7 @@ const DemoBlueprintsPanel = ({ data, onAction }) => {
         </div>
 
         {blueprints.length === 0 && (
-          <div className="rounded-lg border border-dashed border-border/70 bg-muted/20 p-6 text-center text-sm text-muted-foreground">
+          <div className="rounded-lg border border-dashed border-border/70 bg-muted/20 p-5 text-center text-sm text-muted-foreground">
             Aucune maquette blueprint n est associee a cette demo pour le moment.
           </div>
         )}
@@ -81,4 +81,3 @@ const DemoBlueprintsPanel = ({ data, onAction }) => {
 };
 
 export default DemoBlueprintsPanel;
-

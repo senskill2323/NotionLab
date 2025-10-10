@@ -51,7 +51,7 @@ const DemoKPIPanel = ({ data, onAction }) => {
 
   return (
     <Card className="h-full border border-border/60 shadow-sm">
-      <CardContent className="p-4 md:p-5 space-y-4">
+      <CardContent className="p-4 md:p-5 space-y-3">
         <ModuleHeader
           title="KPIs personnels"
           Icon={Target}
@@ -68,11 +68,11 @@ const DemoKPIPanel = ({ data, onAction }) => {
           }
         />
 
-        <div className="rounded-xl border border-border/60 bg-card/90 p-4">
+        <div className="rounded-xl border border-border/60 bg-card/90 p-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-2xl">
-                {mood?.emoji ?? "🙂"}
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-xl">
+                {mood?.emoji ?? ":)"}
               </span>
               <div>
                 <p className="text-sm font-semibold">
@@ -93,7 +93,7 @@ const DemoKPIPanel = ({ data, onAction }) => {
           </div>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-2 md:grid-cols-2">
           {metrics.map((metric) => {
             const palette = colorClasses[metric.color] ?? colorClasses.blue;
             const Icon = metricIcon[metric.color] ?? Activity;
@@ -101,11 +101,11 @@ const DemoKPIPanel = ({ data, onAction }) => {
             return (
               <div
                 key={metric.id}
-                className={`rounded-xl border px-4 py-4 shadow-sm transition hover:shadow-md ${palette.container}`}
+                className={`rounded-xl border px-3.5 py-3.5 shadow-sm transition hover:shadow-md ${palette.container}`}
               >
                 <div className="flex items-center justify-between">
                   <div
-                    className={`flex h-10 w-10 items-center justify-center rounded-lg ${palette.icon}`}
+                    className={`flex h-9 w-9 items-center justify-center rounded-lg ${palette.icon}`}
                   >
                     <Icon className="h-4 w-4" />
                   </div>
@@ -119,7 +119,7 @@ const DemoKPIPanel = ({ data, onAction }) => {
                     </Badge>
                   )}
                 </div>
-                <p className="mt-4 text-2xl font-semibold">{metric.value}</p>
+                <p className="mt-3 text-2xl font-semibold">{metric.value}</p>
                 <p className="text-sm font-medium text-muted-foreground">
                   {metric.label}
                 </p>
