@@ -10,6 +10,9 @@ import PromiseSection from '@/components/home/PromiseSection';
 import StatsSection from '@/components/home/StatsSection';
 import SupportSection from '@/components/home/SupportSection';
 import SystemsShowcase from '@/components/home/SystemsShowcase';
+import FullpageWideImage, {
+  DEFAULT_WIDE_IMAGE_URL,
+} from '@/components/home/FullpageWideImage';
 import TubesCursorSection from '@/components/home/TubesCursorSection';
 import Footer from '@/components/Footer';
 import {
@@ -92,6 +95,7 @@ const SYSTEMS_SHOWCASE_DEFAULTS = Object.freeze({
   images: [],
   buttonText: 'Faites un tour du propriétaire',
   buttonLink: '/mes-systemes',
+  showButton: true,
 });
 
 const normalizeSystemsShowcase = (value = {}, fallback = SYSTEMS_SHOWCASE_DEFAULTS) => {
@@ -131,8 +135,22 @@ const normalizeSystemsShowcase = (value = {}, fallback = SYSTEMS_SHOWCASE_DEFAUL
     images,
     buttonText: ensureString(value.buttonText, fallback.buttonText),
     buttonLink: ensureString(value.buttonLink, fallback.buttonLink),
+    showButton: ensureBoolean(value.showButton, fallback.showButton),
   };
 };
+
+const FULLPAGE_WIDEIMAGE_DEFAULTS = Object.freeze({
+  imageUrl: DEFAULT_WIDE_IMAGE_URL,
+  imageAlt: 'Illustration large',
+});
+
+const normalizeFullpageWideImage = (
+  value = {},
+  fallback = FULLPAGE_WIDEIMAGE_DEFAULTS,
+) => ({
+  imageUrl: ensureString(value.imageUrl, fallback.imageUrl),
+  imageAlt: ensureString(value.imageAlt, fallback.imageAlt),
+});
 
 const COZY_SPACE_DEFAULT_SOLID = '#1f2937';
 const COZY_SPACE_DEFAULT_GRADIENT =
@@ -754,7 +772,7 @@ const normalizeMaskReveal = (
 
 const FOOTER_DEFAULTS = Object.freeze({
   logoUrl:
-    'https://horizons-cdn.hostinger.com/33d72ce2-b6b0-4274-b8ce-63300e44633e/logo_clair-U67WQ.png',
+    'https://kiudpvvqpbkzeybogrnq.supabase.co/storage/v1/object/public/site-assets/home/NewLogo_YV.png',
   address: '1315 La Sarraz, Suisse',
   email: 'Vallottonyann@gmail.com',
   phone: '079 576 52 24',
@@ -794,6 +812,13 @@ const LAYOUT_DEFINITIONS = {
     defaults: SYSTEMS_SHOWCASE_DEFAULTS,
     normalize: normalizeSystemsShowcase,
     preview: createPreview(SystemsShowcase),
+  }),
+  'home.fullpage_wideimage': createDefinition({
+    id: 'home.fullpage_wideimage',
+    label: 'Accueil • Image large',
+    defaults: FULLPAGE_WIDEIMAGE_DEFAULTS,
+    normalize: normalizeFullpageWideImage,
+    preview: createPreview(FullpageWideImage),
   }),
   'home.cozy_space': createDefinition({
     id: 'home.cozy_space',

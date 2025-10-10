@@ -21,6 +21,8 @@ const SystemsShowcase = ({ content = {} }) => {
     : defaultCarouselImages;
   const buttonText = content.buttonText || 'Faites un tour du propriétaire';
   const buttonLink = content.buttonLink || '/mes-systemes';
+  const shouldShowButton =
+    typeof content.showButton === 'boolean' ? content.showButton : true;
 
   return (
   <>
@@ -52,23 +54,25 @@ const SystemsShowcase = ({ content = {} }) => {
       </motion.div>
     </section>
 
-    <section className="py-10 bg-background/70">
-      <div className="container mx-auto px-4 text-center">
-        <motion.div 
-          initial={{ opacity: 0, y: 30 }} 
-          whileInView={{ opacity: 1, y: 0 }} 
-          viewport={{ once: true, amount: 0.5 }} 
-          transition={{ duration: 0.8 }}
-        >
-          <Link to={buttonLink}>
-            <Button size="xl" className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700 shadow-lg hover:shadow-purple-500/50 transition-all duration-300 transform hover:scale-105 text-xl py-8 px-10 font-extrabold">
-              {buttonText}
-              <ArrowRight className="ml-3 w-7 h-7" />
-            </Button>
-          </Link>
-        </motion.div>
-      </div>
-    </section>
+    {shouldShowButton ? (
+      <section className="py-10 bg-background/70">
+        <div className="container mx-auto px-4 text-center">
+          <motion.div 
+            initial={{ opacity: 0, y: 30 }} 
+            whileInView={{ opacity: 1, y: 0 }} 
+            viewport={{ once: true, amount: 0.5 }} 
+            transition={{ duration: 0.8 }}
+          >
+            <Link to={buttonLink}>
+              <Button size="xl" className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700 shadow-lg hover:shadow-purple-500/50 transition-all duration-300 transform hover:scale-105 text-xl py-8 px-10 font-extrabold">
+                {buttonText}
+                <ArrowRight className="ml-3 w-7 h-7" />
+              </Button>
+            </Link>
+          </motion.div>
+        </div>
+      </section>
+    ) : null}
   </>
   );
 };

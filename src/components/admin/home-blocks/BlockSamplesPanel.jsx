@@ -54,6 +54,7 @@ const DEFAULT_LAYOUT = 'home.main_hero';
 const BUILTIN_SAMPLE_LAYOUTS = [
   { layout: 'home.main_hero', title: 'Accueil – Hero Principal' },
   { layout: 'home.systems_showcase', title: 'Accueil – Vitrine' },
+  { layout: 'home.fullpage_wideimage', title: 'Accueil – Image large' },
   { layout: 'home.promise', title: 'Accueil – Promesse' },
   { layout: 'home.cozy_space', title: 'Accueil – Espace confortable' },
   { layout: 'home.personal_quote', title: 'Accueil – Citation' },

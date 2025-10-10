@@ -2,6 +2,7 @@
 import CozySpaceLayoutEditor from './CozySpaceLayoutEditor';
 import MainHeroLayoutEditor from './MainHeroLayoutEditor';
 import SystemsShowcaseLayoutEditor from './SystemsShowcaseLayoutEditor';
+import FullpageWideImageLayoutEditor from './FullpageWideImageLayoutEditor';
 import StatsLayoutEditor from './StatsLayoutEditor';
 import FormationsLayoutEditor from './FormationsLayoutEditor';
 import SupportLayoutEditor from './SupportLayoutEditor';
@@ -19,6 +20,7 @@ const layoutEditorMap = {
   'home.cozy_space': CozySpaceLayoutEditor,
   'home.main_hero': MainHeroLayoutEditor,
   'home.systems_showcase': SystemsShowcaseLayoutEditor,
+  'home.fullpage_wideimage': FullpageWideImageLayoutEditor,
   'home.stats': StatsLayoutEditor,
   'home.formations': FormationsLayoutEditor,
   'home.support': SupportLayoutEditor,

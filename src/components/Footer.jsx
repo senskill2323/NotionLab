@@ -23,7 +23,7 @@ const Footer = ({ content = {}, isPreview = false }) => {
     path: '/connexion'
   }];
 
-  const logoUrl = content.logoUrl || 'https://horizons-cdn.hostinger.com/33d72ce2-b6b0-4274-b8ce-63300e44633e/logo_clair-U67WQ.png';
+  const logoUrl = content.logoUrl || 'https://kiudpvvqpbkzeybogrnq.supabase.co/storage/v1/object/public/site-assets/home/NewLogo_YV.png';
   const address = content.address || '1315 La Sarraz, Suisse';
   const email = content.email || 'Vallottonyann@gmail.com';
   const phone = content.phone || '079 576 52 24';
@@ -37,7 +37,7 @@ const Footer = ({ content = {}, isPreview = false }) => {
           {/* About Section */}
           <div className="md:col-span-2 lg:col-span-1">
             <Link to="/" className="flex items-center space-x-2 mb-4">
-              <img src={logoUrl} alt="NotionLab Logo" className="h-[11.2px]" />
+              <img src={logoUrl} alt="NotionLab Logo" className="w-[150px] max-w-full h-auto" />
             </Link>
             <p className="text-muted-foreground text-sm">
               Formations et systèmes Notion sur-mesure pour transformer votre productivité.

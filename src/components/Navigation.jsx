@@ -64,7 +64,11 @@ const Navigation = () => {
     >
       <div className="container flex h-16 items-center justify-between">
         <Link to="/" className="flex items-center space-x-2">
-          <img src="https://horizons-cdn.hostinger.com/33d72ce2-b6b0-4274-b8ce-63300e44633e/48f2550880a00112af4a099100dbb649.png" alt="Yann Vallotton Logo" className="h-[55.016px]" />
+          <img
+            src="https://kiudpvvqpbkzeybogrnq.supabase.co/storage/v1/object/public/site-assets/home/NewLogo_YV.png"
+            alt="Yann Vallotton Logo"
+            className="h-[55.016px]"
+          />
         </Link>
         <nav className="hidden md:flex items-center space-x-6">
           {isAdminDashboard ? (

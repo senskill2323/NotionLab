@@ -2,16 +2,23 @@ import React, { useEffect, useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import ImageUpload from '@/components/ui/image-upload';
 import { Loader2 } from 'lucide-react';
-import { createInputChangeHandler, ensureArray } from './shared';
+import {
+  createBooleanToggleHandler,
+  createInputChangeHandler,
+  ensureArray,
+} from './shared';
 
 const SystemsShowcaseLayoutEditor = ({ value, onChange }) => {
   const handleChange = createInputChangeHandler(value, onChange);
+  const handleBooleanChange = createBooleanToggleHandler(value, onChange);
   const images = ensureArray(value.images);
   const [uploadStatuses, setUploadStatuses] = useState(() =>
     images.map(() => 'idle'),
   );
+  const showButton = value.showButton === undefined ? true : Boolean(value.showButton);
 
   useEffect(() => {
     const normalized = ensureArray(value.images);
@@ -125,6 +132,19 @@ const SystemsShowcaseLayoutEditor = ({ value, onChange }) => {
             Ajouter une image
           </Button>
         )}
+      </div>
+      <div className="flex items-center justify-between rounded-lg border border-border/40 p-3">
+        <div className="space-y-1">
+          <Label htmlFor="systems-showcase-show-button">Afficher le bouton</Label>
+          <p className="text-xs text-muted-foreground">
+            Masquez le CTA si vous souhaitez ne montrer que la galerie.
+          </p>
+        </div>
+        <Switch
+          id="systems-showcase-show-button"
+          checked={showButton}
+          onCheckedChange={handleBooleanChange('showButton')}
+        />
       </div>
       <div>
         <Label>Texte du bouton</Label>
