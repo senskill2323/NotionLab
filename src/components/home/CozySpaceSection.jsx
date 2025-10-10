@@ -46,6 +46,9 @@ const CozySpaceSection = ({ content = {}, previewMode = 'desktop' }) => {
     content.imageAlt ??
     "Un espace de travail moderne et confortable avec un ordinateur portable ouvert sur une application de formation";
   const showBadge = content.showBadge !== false;
+  const showCta = content.showCta === true;
+  const ctaText = content.ctaText ?? 'Découvrir maintenant';
+  const ctaUrl = content.ctaUrl ?? '#';
   const isPreviewDesktop = previewMode === 'desktop';
 
   const useDefaultBackground = content.useDefaultBackground !== false;
@@ -131,6 +134,16 @@ const CozySpaceSection = ({ content = {}, previewMode = 'desktop' }) => {
               {titleText}
             </h2>
             <p className="mb-8 text-xl text-gray-300">{descriptionText}</p>
+            {showCta && (
+              <div className="mt-8">
+                <a
+                  href={ctaUrl}
+                  className="inline-flex items-center rounded-lg bg-secondary px-8 py-4 text-base font-semibold text-white shadow-lg transition-colors duration-200 hover:bg-secondary/90 hover:shadow-xl"
+                >
+                  {ctaText}
+                </a>
+              </div>
+            )}
           </motion.div>
 
           <motion.div
