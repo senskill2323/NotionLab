@@ -10,7 +10,6 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import TiptapEditor from '@/components/admin/TiptapEditor';
@@ -102,14 +101,22 @@ const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
       const normalizedBlockType =
         layoutDefinition?.blockType ?? formValues.block_type ?? 'dynamic';
 
+      const normalizeNumber = (value) => {
+        if (value === null || value === undefined || value === '') {
+          return null;
+        }
+        const parsed = Number(value);
+        return Number.isNaN(parsed) ? null : parsed;
+      };
+
       const metadata = {
         title: formValues.title,
         status: effectiveStatus,
         type: formValues.type,
         block_type: normalizedBlockType,
         layout: normalizedLayout,
-        order_index: formValues.order_index,
-        priority: formValues.priority,
+        order_index: normalizeNumber(formValues.order_index),
+        priority: normalizeNumber(formValues.priority),
         author_id: overrides.authorId ?? (user?.id ?? null),
         publication_date: formValues.publication_date,
         end_date: formValues.end_date,
@@ -274,15 +281,37 @@ const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
           </div>
         </header>
 
-        <Tabs defaultValue="details" className="w-full">
-          <TabsList>
-            <TabsTrigger value="details">Détail du bloque</TabsTrigger>
-            <TabsTrigger value="gallery_images" disabled>Galerie des images</TabsTrigger>
-            <TabsTrigger value="gallery_docs" disabled>Galerie des documents</TabsTrigger>
-          </TabsList>
-          <TabsContent value="details">
-            <form>
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-6">
+        <div className="w-full">
+          <form>
+            <Controller
+              name="type"
+              control={control}
+              render={({ field }) => (
+                <input type="hidden" {...field} value={field.value ?? ''} />
+              )}
+            />
+            <Controller
+              name="layout"
+              control={control}
+              render={({ field }) => (
+                <input type="hidden" {...field} value={field.value ?? ''} />
+              )}
+            />
+            <Controller
+              name="order_index"
+              control={control}
+              render={({ field }) => (
+                <input type="hidden" {...field} value={field.value ?? ''} />
+              )}
+            />
+            <Controller
+              name="priority"
+              control={control}
+              render={({ field }) => (
+                <input type="hidden" {...field} value={field.value ?? ''} />
+              )}
+            />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-6">
                 <div className="lg:col-span-2 space-y-6">
                   <Card>
                     <CardContent className="pt-6">
@@ -316,7 +345,6 @@ const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
                             onFallbackJsonChange={setFallbackJson}
                           />
                         )}
-
                       </div>
                     </CardContent>
                   </Card>
@@ -363,53 +391,6 @@ const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
                               <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent>
                             </Popover>
                           )} />
-                        </div>
-                      </div>
-                      <div>
-                        <Label htmlFor="type">Catégorie du bloque</Label>
-                        <Controller name="type" control={control} render={({ field }) => (
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="hero">Hero</SelectItem>
-                              <SelectItem value="teaser">Teaser</SelectItem>
-                              <SelectItem value="carousel">Carrousel</SelectItem>
-                              <SelectItem value="cta">CTA</SelectItem>
-                              <SelectItem value="article_list">Liste d’articles</SelectItem>
-                              <SelectItem value="html">HTML libre</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        )} />
-                      </div>
-                      <div>
-                        <Label htmlFor="layout">Emplacement (Layout)</Label>
-                         <Controller name="layout" control={control} render={({ field }) => (
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="home.main_hero">home.main_hero</SelectItem>
-                              <SelectItem value="home.systems_showcase">home.systems_showcase</SelectItem>
-                              <SelectItem value="home.stats">home.stats</SelectItem>
-                              <SelectItem value="home.formations">home.formations</SelectItem>
-                              <SelectItem value="home.support">home.support</SelectItem>
-                              <SelectItem value="home.promise">home.promise</SelectItem>
-                              <SelectItem value="home.cozy_space">home.cozy_space</SelectItem>
-                              <SelectItem value="home.personal_quote">home.personal_quote</SelectItem>
-                              <SelectItem value="home.final_cta">home.final_cta</SelectItem>
-                              <SelectItem value="home.launch_cta">home.launch_cta</SelectItem>
-                              <SelectItem value="global.footer">global.footer</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        )} />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="order_index">Ordre d’affichage</Label>
-                          <Input id="order_index" type="number" {...register('order_index', { valueAsNumber: true })} />
-                        </div>
-                        <div>
-                          <Label htmlFor="priority">Priorité</Label>
-                          <Input id="priority" type="number" {...register('priority', { valueAsNumber: true })} />
                         </div>
                       </div>
                     </CardContent>
@@ -473,17 +454,12 @@ const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
                           </Select>
                         )} />
                       </div>
-                      <Button variant="outline" className="w-full" onClick={() => handleAction('preview')}>
-                        <Eye className="h-4 w-4 mr-2" />
-                        Prévisualiser
-                      </Button>
                     </CardContent>
                   </Card>
                 </div>
               </div>
-            </form>
-          </TabsContent>
-        </Tabs>
+          </form>
+        </div>
       </div>
     </>
   );

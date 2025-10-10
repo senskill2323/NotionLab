@@ -515,8 +515,16 @@ const SUPPORT_DEFAULT_SOLID = '#111827';
 const SUPPORT_DEFAULT_GRADIENT =
   'linear-gradient(135deg, #1f2937 0%, #111827 50%, #0f172a 100%)';
 
+const SUPPORT_BADGE_DEFAULT = Object.freeze({
+  enabled: true,
+  label: 'Votre Bouée de Sauvetage Notion',
+  textColor: '#2563eb',
+  backgroundColor: '#dbeafe',
+});
+
 const SUPPORT_DEFAULTS = Object.freeze({
   badgeLabel: 'Votre Bouée de Sauvetage Notion',
+  badge: SUPPORT_BADGE_DEFAULT,
   title: 'Ne restez jamais bloqué.',
   subtitle:
     "Le vrai « plus » de mon projet, c'est un système qui vous aide ! Vous avez une ligne directe avec un expert Notion, et j'espère à la longue, plusieurs passionnés qui me rejoindront.",
@@ -530,6 +538,10 @@ const SUPPORT_DEFAULTS = Object.freeze({
 });
 
 const normalizeSupport = (value = {}, fallback = SUPPORT_DEFAULTS) => {
+  const legacyBadgeLabel = ensureString(value.badgeLabel, '').trim();
+  const fallbackBadge = fallback.badge ?? SUPPORT_BADGE_DEFAULT;
+  const rawBadge = value.badge ?? {};
+
   const useDefaultBackground = ensureBoolean(
     value.useDefaultBackground,
     fallback.useDefaultBackground,
@@ -557,16 +569,34 @@ const normalizeSupport = (value = {}, fallback = SUPPORT_DEFAULTS) => {
     legacyGradient ||
     fallback.gradient;
 
-  if (!value.backgroundMode) {
-    if (legacyGradient) {
-      backgroundMode = 'gradient';
-    } else if (legacyColor) {
-      backgroundMode = 'solid';
-    }
+  if (!value.gradient && legacyGradient) {
+    backgroundMode = 'gradient';
   }
 
+  if (!value.solidColor && legacyColor) {
+    backgroundMode = backgroundMode === 'gradient' ? 'gradient' : 'solid';
+  }
+
+  const normalizedBadgeLabel =
+    ensureString(
+      rawBadge.label,
+      legacyBadgeLabel || fallbackBadge.label,
+    ).trim() || fallbackBadge.label;
+
+  const normalizedBadge = {
+    enabled: ensureBoolean(rawBadge.enabled, fallbackBadge.enabled ?? true),
+    label: normalizedBadgeLabel,
+    textColor:
+      ensureString(rawBadge.textColor, fallbackBadge.textColor).trim() ||
+      fallbackBadge.textColor,
+    backgroundColor:
+      ensureString(rawBadge.backgroundColor, fallbackBadge.backgroundColor).trim() ||
+      fallbackBadge.backgroundColor,
+  };
+
   return {
-    badgeLabel: ensureString(value.badgeLabel, fallback.badgeLabel),
+    badgeLabel: normalizedBadge.label,
+    badge: normalizedBadge,
     title: ensureString(value.title, fallback.title),
     subtitle: ensureString(value.subtitle, fallback.subtitle),
     imageUrl: ensureString(value.imageUrl, fallback.imageUrl),
@@ -613,6 +643,8 @@ const FORMATIONS_DEFAULTS = Object.freeze({
 const normalizeFormations = (value = {}, fallback = FORMATIONS_DEFAULTS) => {
   const fallbackCta = fallback.cta ?? FORMATIONS_CTA_DEFAULT;
   const rawCta = value.cta ?? {};
+  const fallbackBadge = fallback.badge ?? FORMATIONS_BADGE_DEFAULT;
+  const rawBadge = value.badge ?? {};
 
   const resolvedModeRaw = ensureString(
     rawCta.backgroundMode,
@@ -633,6 +665,24 @@ const normalizeFormations = (value = {}, fallback = FORMATIONS_DEFAULTS) => {
     gradient: ensureString(rawCta.gradient, fallbackCta.gradient),
   };
 
+  const legacyBadgeLabel = ensureString(value.badgeLabel, '').trim();
+  const normalizedBadgeLabel =
+    ensureString(
+      rawBadge.label,
+      legacyBadgeLabel || fallbackBadge.label,
+    ).trim() || fallbackBadge.label;
+
+  const normalizedBadge = {
+    enabled: ensureBoolean(rawBadge.enabled, fallbackBadge.enabled ?? true),
+    label: normalizedBadgeLabel,
+    textColor:
+      ensureString(rawBadge.textColor, fallbackBadge.textColor).trim() ||
+      fallbackBadge.textColor,
+    backgroundColor:
+      ensureString(rawBadge.backgroundColor, fallbackBadge.backgroundColor).trim() ||
+      fallbackBadge.backgroundColor,
+  };
+
   return {
     title: ensureString(value.title, fallback.title),
     titleSuffix: ensureString(value.titleSuffix, fallback.titleSuffix),
@@ -642,6 +692,7 @@ const normalizeFormations = (value = {}, fallback = FORMATIONS_DEFAULTS) => {
       fallback.backgroundImageUrl,
     ),
     cta: normalizedCta,
+    badge: normalizedBadge,
   };
 };
 

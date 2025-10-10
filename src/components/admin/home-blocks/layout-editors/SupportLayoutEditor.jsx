@@ -6,6 +6,12 @@ import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 import { SketchPicker } from 'react-color';
 import { cn } from '@/lib/utils';
 import ImageUpload from '@/components/ui/image-upload';
@@ -25,6 +31,12 @@ const gradientPresets = [
 
 const DEFAULT_SOLID = '#111827';
 const DEFAULT_GRADIENT = gradientPresets[0];
+const BADGE_DEFAULTS = Object.freeze({
+  enabled: true,
+  label: 'Votre Bouee de Sauvetage Notion',
+  textColor: '#2563eb',
+  backgroundColor: '#dbeafe',
+});
 
 const SupportLayoutEditor = ({ value = {}, onChange }) => {
   const handleChange = createInputChangeHandler(value, onChange);
@@ -36,6 +48,65 @@ const SupportLayoutEditor = ({ value = {}, onChange }) => {
     value.backgroundMode === 'solid' || value.backgroundMode === 'gradient'
       ? value.backgroundMode
       : 'gradient';
+
+  const badgeLabelFallback =
+    typeof value.badgeLabel === 'string' && value.badgeLabel.trim().length > 0
+      ? value.badgeLabel
+      : BADGE_DEFAULTS.label;
+  const badge = {
+    enabled: value?.badge?.enabled ?? true,
+    label: value?.badge?.label ?? badgeLabelFallback,
+    textColor: value?.badge?.textColor ?? BADGE_DEFAULTS.textColor,
+    backgroundColor:
+      value?.badge?.backgroundColor ?? BADGE_DEFAULTS.backgroundColor,
+  };
+  const badgeEnabled = badge.enabled !== false;
+
+  const updateBadge = (patch) => {
+    onChange((current) => {
+      const currentBadge = current?.badge ?? {};
+      const legacyLabel =
+        typeof current?.badgeLabel === 'string' &&
+        current.badgeLabel.trim().length > 0
+          ? current.badgeLabel
+          : BADGE_DEFAULTS.label;
+
+      const merged = {
+        enabled: currentBadge.enabled ?? true,
+        label: currentBadge.label ?? legacyLabel,
+        textColor: currentBadge.textColor ?? BADGE_DEFAULTS.textColor,
+        backgroundColor:
+          currentBadge.backgroundColor ?? BADGE_DEFAULTS.backgroundColor,
+        ...patch,
+      };
+
+      const next = {
+        ...(current ?? {}),
+        badge: merged,
+      };
+
+      if ('badgeLabel' in next) {
+        delete next.badgeLabel;
+      }
+
+      return next;
+    });
+  };
+
+  const handleBadgeInput = (field) => (event) => {
+    const nextValue =
+      event && typeof event === 'object' && 'target' in event
+        ? event.target.value
+        : event;
+    updateBadge({ [field]: nextValue ?? '' });
+  };
+
+  const handleBadgeToggle = (checked) =>
+    updateBadge({ enabled: Boolean(checked) });
+
+  const handleBadgeColorChange = (field) => (color) => {
+    updateBadge({ [field]: color.hex });
+  };
 
   const setField = (field) => (nextValue) =>
     onChange((current) => ({
@@ -65,13 +136,124 @@ const SupportLayoutEditor = ({ value = {}, onChange }) => {
   return (
     <div className="space-y-6">
       <div className="space-y-4">
-        <div>
-          <Label>Badge</Label>
-          <Input
-            value={value.badgeLabel ?? ''}
-            onChange={handleChange('badgeLabel')}
-          />
-        </div>
+        <Accordion type="single" collapsible>
+          <AccordionItem value="badge">
+            <AccordionTrigger>Badge</AccordionTrigger>
+            <AccordionContent>
+              <div className="space-y-4 pt-2">
+                <div className="flex items-center justify-between rounded-md border p-3">
+                  <div>
+                    <Label className="text-sm font-medium">Afficher le badge</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Controle l'affichage et le style du badge au-dessus du titre.
+                    </p>
+                  </div>
+                  <Switch checked={badgeEnabled} onCheckedChange={handleBadgeToggle} />
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <Label>Texte du badge</Label>
+                    <Input
+                      value={badge.label ?? ''}
+                      onChange={handleBadgeInput('label')}
+                      disabled={!badgeEnabled}
+                      placeholder="Ex. Support prioritaire"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Laissez vide pour conserver le texte par defaut.
+                    </p>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Couleur du texte</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            disabled={!badgeEnabled}
+                            className="w-full justify-start gap-3"
+                          >
+                            <span
+                              className="h-5 w-5 rounded-md border"
+                              style={{
+                                background: badge.textColor ?? BADGE_DEFAULTS.textColor,
+                              }}
+                            />
+                            <span className="text-xs text-muted-foreground">
+                              Choisir une couleur
+                            </span>
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <SketchPicker
+                            disableAlpha
+                            color={badge.textColor ?? BADGE_DEFAULTS.textColor}
+                            onChangeComplete={handleBadgeColorChange('textColor')}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <Input
+                        value={badge.textColor ?? BADGE_DEFAULTS.textColor}
+                        onChange={handleBadgeInput('textColor')}
+                        disabled={!badgeEnabled}
+                        placeholder={BADGE_DEFAULTS.textColor}
+                        className="font-mono text-sm"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Utilisez un code hex (ex. #2563eb).
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Couleur de fond</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            disabled={!badgeEnabled}
+                            className="w-full justify-start gap-3"
+                          >
+                            <span
+                              className="h-5 w-5 rounded-md border"
+                              style={{
+                                background:
+                                  badge.backgroundColor ?? BADGE_DEFAULTS.backgroundColor,
+                              }}
+                            />
+                            <span className="text-xs text-muted-foreground">
+                              Choisir une couleur
+                            </span>
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <SketchPicker
+                            disableAlpha
+                            color={badge.backgroundColor ?? BADGE_DEFAULTS.backgroundColor}
+                            onChangeComplete={handleBadgeColorChange('backgroundColor')}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <Input
+                        value={badge.backgroundColor ?? BADGE_DEFAULTS.backgroundColor}
+                        onChange={handleBadgeInput('backgroundColor')}
+                        disabled={!badgeEnabled}
+                        placeholder={BADGE_DEFAULTS.backgroundColor}
+                        className="font-mono text-sm"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Definissez la couleur d'arriere-plan du badge.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
         <div>
           <Label>Titre</Label>
           <Input value={value.title ?? ''} onChange={handleChange('title')} />

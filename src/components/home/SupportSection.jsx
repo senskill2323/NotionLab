@@ -2,6 +2,10 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { LifeBuoy } from 'lucide-react';
 
+const BADGE_LABEL_FALLBACK = 'Votre Bouee de Sauvetage Notion';
+const BADGE_TEXT_COLOR_FALLBACK = '#2563eb';
+const BADGE_BACKGROUND_COLOR_FALLBACK = '#dbeafe';
+
 const SupportSection = ({ content = {} }) => {
   const containerVariants = {
     hidden: {
@@ -29,7 +33,25 @@ const SupportSection = ({ content = {} }) => {
       }
     }
   };
-  const badgeLabel = content.badgeLabel || 'Votre Bouée de Sauvetage Notion';
+  const badgeConfig = content.badge || {};
+  const legacyBadgeLabel =
+    typeof content.badgeLabel === 'string' && content.badgeLabel.trim().length > 0
+      ? content.badgeLabel.trim()
+      : BADGE_LABEL_FALLBACK;
+  const badgeLabel =
+    typeof badgeConfig.label === 'string' && badgeConfig.label.trim().length > 0
+      ? badgeConfig.label.trim()
+      : legacyBadgeLabel;
+  const showBadge = badgeConfig.enabled !== false;
+  const badgeTextColor =
+    badgeConfig.textColor && badgeConfig.textColor.trim().length > 0
+      ? badgeConfig.textColor.trim()
+      : BADGE_TEXT_COLOR_FALLBACK;
+  const badgeBackgroundColor =
+    badgeConfig.backgroundColor && badgeConfig.backgroundColor.trim().length > 0
+      ? badgeConfig.backgroundColor.trim()
+      : BADGE_BACKGROUND_COLOR_FALLBACK;
+  const renderBadge = showBadge && badgeLabel;
   const title = content.title || 'Ne restez jamais bloqué.';
   const subtitle =
     content.subtitle ||
@@ -86,10 +108,21 @@ const SupportSection = ({ content = {} }) => {
         >
           <motion.div variants={itemVariants}>
             <div className="mb-4">
-              <span className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-sm font-medium text-primary">
-                <LifeBuoy className="mr-2 h-5 w-5" />
-                {badgeLabel}
-              </span>
+              <div className="min-h-[2.25rem]">
+                {renderBadge && (
+                  <span
+                    className="inline-flex items-center rounded-full border px-4 py-1.5 text-sm font-medium"
+                    style={{
+                      color: badgeTextColor,
+                      backgroundColor: badgeBackgroundColor,
+                      borderColor: badgeTextColor,
+                    }}
+                  >
+                    <LifeBuoy className="mr-2 h-5 w-5" style={{ color: badgeTextColor }} />
+                    {badgeLabel}
+                  </span>
+                )}
+              </div>
             </div>
             <h2 className="mb-6 text-4xl font-extrabold leading-tight md:text-5xl">
               {title}
