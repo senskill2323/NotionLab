@@ -218,7 +218,7 @@ const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
         });
         if (rpcError) throw rpcError;
 
-        toast({ title: 'Succ�s', description: `Bloc sauvegard� en tant que ${effectiveStatus}.` });
+        toast({ title: 'Succès', description: `Bloc sauvegardé en tant que ${effectiveStatus}.` });
         onSave({ id: newId, ...blockDataForHtml });
       } else {
         const { data, error } = await supabase.functions.invoke('manage-content-block', {
@@ -233,11 +233,11 @@ const EditHomeBlockPage = ({ blockId, onBack, onSave }) => {
         if (data?.error) throw new Error(data.error);
 
         const resultingBlock = data ?? { ...payload.metadata, content: payload.content };
-        toast({ title: 'Succ�s', description: `Bloc sauvegard� en tant que ${resultingBlock.status ?? effectiveStatus}.` });
+        toast({ title: 'Succès', description: `Bloc sauvegardé en tant que ${resultingBlock.status ?? effectiveStatus}.` });
         onSave(resultingBlock);
       }
     } catch (error) {
-      toast({ title: 'Erreur', description: `�chec de la sauvegarde: ${error.message}`, variant: 'destructive' });
+      toast({ title: 'Erreur', description: `échec de la sauvegarde: ${error.message}`, variant: 'destructive' });
     } finally {
       setIsSubmitting(false);
     }

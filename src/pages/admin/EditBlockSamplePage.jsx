@@ -98,8 +98,8 @@ const EditBlockSamplePage = ({ mode = 'edit' }) => {
 
       if (!sampleId) {
         toast({
-          title: 'Mod�le introuvable',
-          description: "Identifiant de mod�le invalide.",
+          title: 'Modèle introuvable',
+          description: "Identifiant de modèle invalide.",
           variant: 'destructive',
         });
         handleBack();
@@ -117,8 +117,8 @@ const EditBlockSamplePage = ({ mode = 'edit' }) => {
 
       if (error || !data) {
         toast({
-          title: 'Mod�le introuvable',
-          description: "Impossible de charger ce mod�le.",
+          title: 'Modèle introuvable',
+          description: "Impossible de charger ce modèle.",
           variant: 'destructive',
         });
         handleBack();
@@ -228,14 +228,14 @@ const EditBlockSamplePage = ({ mode = 'edit' }) => {
       if (isNew) {
         const { error } = await supabase.from('block_samples').insert([payload]);
         if (error) throw error;
-        toast({ title: 'Mod�le enregistr�' });
+        toast({ title: 'Modèle enregistré' });
       } else {
         const { error } = await supabase
           .from('block_samples')
           .update(payload)
           .eq('id', sampleId);
         if (error) throw error;
-        toast({ title: 'Mod�le mis � jour' });
+        toast({ title: 'Modèle mis à jour' });
       }
       handleBack();
     } catch (error) {
@@ -259,7 +259,7 @@ const EditBlockSamplePage = ({ mode = 'edit' }) => {
     toast,
   ]);
 
-  const pageTitle = isNew ? 'Nouveau mod�le de bloc' : `Modifier ${metadataForm.title || 'un mod�le'}`;
+  const pageTitle = isNew ? 'Nouveau modèle de bloc' : `Modifier ${metadataForm.title || 'un modèle'}`;
 
   if (loading) {
     return (
@@ -277,15 +277,15 @@ const EditBlockSamplePage = ({ mode = 'edit' }) => {
 
       <Button variant="ghost" className="h-auto px-0 gap-2 text-muted-foreground" onClick={handleBack}>
         <ArrowLeft className="h-4 w-4" />
-        Retour � la biblioth�que
+        Retour à la bibliothèque
       </Button>
 
       <div className="space-y-2">
         <h1 className="text-2xl font-semibold">{pageTitle}</h1>
         <p className="text-sm text-muted-foreground">
           {isNew
-            ? 'Cr�ez un mod�le r�utilisable pour vos blocs d’accueil.'
-            : 'Modifiez les m�tadonn�es et le contenu du mod�le selectionn�.'}
+            ? 'Créez un modèle réutilisable pour vos blocs d’accueil.'
+            : 'Modifiez les métadonnées et le contenu du modèle selectionné.'}
         </p>
       </div>
 
@@ -293,7 +293,7 @@ const EditBlockSamplePage = ({ mode = 'edit' }) => {
         <div className="w-full lg:w-[22rem] space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Informations g�n�rales</CardTitle>
+              <CardTitle>Informations générales</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
@@ -307,7 +307,7 @@ const EditBlockSamplePage = ({ mode = 'edit' }) => {
                       title: event.target.value,
                     }))
                   }
-                  placeholder="Titre du mod�le"
+                  placeholder="Titre du modèle"
                 />
               </div>
 
@@ -388,7 +388,7 @@ const EditBlockSamplePage = ({ mode = 'edit' }) => {
           <div className="flex-1 space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Aper�u</CardTitle>
+                <CardTitle>Aperçu</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <ToggleGroup

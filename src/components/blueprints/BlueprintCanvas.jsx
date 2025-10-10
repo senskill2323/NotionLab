@@ -60,7 +60,7 @@ const MindmapBubbleNode = ({ data, selected, isConnectable }) => (
   <div
     className={`relative max-w-[220px] rounded-md border ${selected ? 'border-primary shadow-lg shadow-primary/20' : 'border-border/60'} bg-white/80 px-4 py-3 text-center shadow-sm transition-all`}
   >
-    <p className="text-sm font-medium text-black">{data?.title ?? '�l�ment'}</p>
+    <p className="text-sm font-medium text-black">{data?.title ?? 'élément'}</p>
     {data?.family && (
       <p className="mt-1 text-[11px] uppercase tracking-wide text-black/70">
         {data.family}

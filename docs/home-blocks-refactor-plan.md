@@ -21,7 +21,7 @@
   - Creation d'une bibliotheque de composants d'eédition (`src/components/admin/home-blocks/layout-editors/`) couvrant les 13 layouts recenses (CozySpace, LaunchCTA, MaskReveal, etc.) avec API normalisee (`value`, `onChange`).  
   - Mutualisation des helpers (`shared.js`) pour gerer textes, booleens et collections (ajout/suppression, re-ordonnancement).  
   - Export d'un `layoutEditorMap` reutilisable par les ecrans front et futures integrations.
-- [x] Etape 4 - Creation de l'orchestrateur d'e�dition unifie  
+- [x] Etape 4 - Creation de l'orchestrateur d'édition unifie  
   - Introduction du hook `useHomeBlockEditor` et de `buildHomeBlockEditorBundle` pour partager hydratation, serialisation et fallback JSON entre tous les ecrans.  
   - Deplacement des helpers de normalisation (tubes, mask, ensure*) dans `layoutRegistry.shared.js` afin d'eliminer les duplications et garantir la meme logique de sanitisation.  
   - Exposition d'une API commune (`reset`, `hydrateFromRecord`, `getContentPayload`) pour gerer erreurs et toasts de maniere coherente.

@@ -15,7 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { supabase } from '@/lib/customSupabaseClient';
-import { useSessionRefresh } from '@/lib/sessionRefreshBus';
+import { emitSessionRefresh, useSessionRefresh } from '@/lib/sessionRefreshBus';
 import { useToast } from '@/components/ui/use-toast';
 import EditHomeBlockPage from '@/pages/admin/EditHomeBlockPage';
 import BlockPreview from '@/components/admin/home-blocks/BlockPreview';
@@ -104,6 +104,23 @@ const HomeBlockList = ({ mode = 'list', refreshKey = 0, activeSubTab = 'list' })
     persistEditorState(view, selectedBlockId);
   }, [view, selectedBlockId]);
 
+  // Listen to realtime changes on content_blocks to refresh list/dashboard automatically.
+  useEffect(() => {
+    const channel = supabase
+      .channel('content_blocks-home-blocks-list')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'content_blocks' },
+        () => emitSessionRefresh({ source: 'content-blocks-realtime' }),
+      );
+
+    channel.subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   // Clear persisted state on component unmount
   useEffect(() => {
     return () => {
@@ -181,49 +198,86 @@ const HomeBlockList = ({ mode = 'list', refreshKey = 0, activeSubTab = 'list' })
 
     const effectiveStatus = isArchivesMode ? 'archived' : status;
     const filters = {
-      title: debouncedQuery,
+      title: debouncedQuery?.trim?.() || '',
       status: effectiveStatus === 'all' ? '' : effectiveStatus,
       featured: isFeatured,
     };
 
     const sort = { field: sortField, dir: sortDir };
-    try {
-      // Direct client query (no Edge Function) to avoid CORS issues
+
+    const fallbackQuery = async () => {
       let query = supabase.from('content_blocks').select('*', { count: 'exact' });
-      if (debouncedQuery && debouncedQuery.trim() !== '') {
-        query = query.ilike('title', `%${debouncedQuery.trim()}%`);
+      if (filters.title) {
+        query = query.ilike('title', `%${filters.title}%`);
       }
-      if (isArchivesMode) {
-        query = query.eq('status', 'archived');
+      if (filters.status) {
+        query = query.eq('status', filters.status);
+      } else if (!isArchivesMode) {
+        query = query.neq('status', 'archived');
       } else {
-        if (status && status !== 'all') {
-          query = query.eq('status', status);
-        }
-        // Suppression du filtre .neq('status', 'archived') pour afficher tous les blocs
+        query = query.eq('status', 'archived');
       }
-      if (isFeatured) {
-        // Quand l'option « à la une » est activée, on n'affiche que les blocs mis en avant
-        // pour que le réordonnancement corresponde exactement à la liste visible.
+
+      if (filters.featured) {
         query = query.gt('priority', 0);
       }
-      // Secondary sort by chosen field
-      query = query.order(sortField, { ascending: (sortDir !== 'desc') });
+
+      query = query.order(sortField, { ascending: sortDir !== 'desc' });
       const from = (page - 1) * perPage;
       const to = from + perPage - 1;
       query = query.range(from, to);
 
       const { data: items, count, error: qErr } = await query;
       if (qErr) throw qErr;
-      setBlocks(items || []);
-      setTotal(count || 0);
+      return { items: items ?? [], total: count ?? 0 };
+    };
+
+    try {
+      const { data, error: edgeError } = await supabase.functions.invoke('content-blocks-search', {
+        body: {
+          filters,
+          sort,
+          page,
+          perPage,
+        },
+      });
+
+      if (edgeError) {
+        throw new Error(edgeError.message || 'content-blocks-search failed');
+      }
+
+      if (!data || typeof data !== 'object') {
+        throw new Error('Réponse vide du service de recherche des blocs.');
+      }
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      const items = Array.isArray(data.items) ? data.items : [];
+      const totalCount = Number(data.total ?? 0);
+      const pageSize = Number(data.perPage ?? perPage);
+
+      setBlocks(items);
+      setTotal(Number.isFinite(totalCount) ? totalCount : 0);
+      if (Number.isFinite(pageSize) && pageSize > 0 && pageSize !== perPage) {
+        setPerPage(pageSize);
+      }
     } catch (err) {
-      console.error('Content blocks query failed:', err);
-      setError("Erreur lors de la récupération des blocs de contenu. " + (err?.message || ''));
-      toast({ title: "Erreur", description: "Impossible de charger les blocs.", variant: "destructive" });
+      console.warn('content-blocks-search failed, falling back to direct query', err);
+      try {
+        const fallback = await fallbackQuery();
+        setBlocks(fallback.items);
+        setTotal(fallback.total);
+      } catch (fallbackError) {
+        console.error('Content blocks query failed:', fallbackError);
+        setError("Erreur lors de la récupération des blocs de contenu. " + (fallbackError?.message || ''));
+        toast({ title: "Erreur", description: "Impossible de charger les blocs.", variant: "destructive" });
+      }
     } finally {
       setLoading(false);
     }
-  }, [debouncedQuery, status, isFeatured, sortField, sortDir, page, perPage, toast, mode]);
+  }, [debouncedQuery, status, isFeatured, sortField, sortDir, page, perPage, toast, mode, isArchivesMode]);
 
   useSessionRefresh(() => {
     if (view === 'list' && activeSubTab === 'list') {

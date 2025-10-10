@@ -1389,7 +1389,7 @@ const scheduleHistorySnapshot = useCallback(
             ? new Date(share.expiresAt).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' })
             : null;
           toast({
-            title: 'Lien g�n�r�',
+            title: 'Lien généré',
             description: expiresLabel
               ? `Expiration le ${expiresLabel}.`
               : 'Le lien expire automatiquement dans 7 jours.',
@@ -1398,7 +1398,7 @@ const scheduleHistorySnapshot = useCallback(
         return share;
       } catch (error) {
         console.error(error);
-        toast({ title: 'Erreur', description: 'Impossible de g�n�rer un lien de partage.', variant: 'destructive' });
+        toast({ title: 'Erreur', description: 'Impossible de générer un lien de partage.', variant: 'destructive' });
         return null;
       }
     },

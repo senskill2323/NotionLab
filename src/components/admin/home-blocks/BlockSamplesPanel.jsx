@@ -536,13 +536,13 @@ const BlockSamplesPanel = ({ onBlockCreated }) => {
             ) : samples.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="h-24 text-center">
-                  Aucun mod�le enregistr�.
+                  Aucun modèle enregistré.
                 </TableCell>
               </TableRow>
             ) : filteredSamples.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
-                  Aucun mod�le ne correspond � la recherche.
+                  Aucun modèle ne correspond à la recherche.
                 </TableCell>
               </TableRow>
             ) : (
