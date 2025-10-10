@@ -1,6 +1,7 @@
 import CozySpaceSection from '@/components/home/CozySpaceSection';
 import FinalCTA from '@/components/home/FinalCTA';
 import FormationsSection from '@/components/home/FormationsSection';
+import GoogleReviewsSection from '@/components/home/GoogleReviewsSection';
 import LaunchCTA from '@/components/home/LaunchCTA';
 import MainHeroSection from '@/components/home/MainHeroSection';
 import MaskRevealScrollSection from '@/components/home/MaskRevealScrollSection';
@@ -207,6 +208,48 @@ const normalizeCozySpace = (value = {}, fallback = COZY_SPACE_DEFAULTS) => {
     backgroundMode,
     solidColor: solidColor || fallback.solidColor,
     gradient: gradient || fallback.gradient,
+  };
+};
+
+const GOOGLE_REVIEWS_DEFAULTS = Object.freeze({
+  title: 'Ils parlent de nous sur Google',
+  subtitle:
+    "Des avis authentiques d entrepreneurs et d equipes qui utilisent NotionLab au quotidien.",
+  ctaLabel: 'Laisser un avis',
+  ctaHref: 'https://g.page/r/CXKl03Z0yiEFEAI/review',
+  placeId: '',
+  limit: 6,
+  locale: 'fr',
+  highlightColor: '#4285F4',
+  backgroundVariant: 'dark',
+  showRatingSummary: true,
+});
+
+const normalizeGoogleReviews = (value = {}, fallback = GOOGLE_REVIEWS_DEFAULTS) => {
+  const locale = ensureString(value.locale, fallback.locale).trim().toLowerCase();
+  const limit = clamp(ensureNumber(value.limit, fallback.limit), 1, 10);
+  const placeId = ensureString(value.placeId, fallback.placeId).trim();
+  const highlightColor = ensureString(
+    value.highlightColor,
+    fallback.highlightColor,
+  ).trim();
+  const backgroundVariantRaw = ensureString(
+    value.backgroundVariant,
+    fallback.backgroundVariant,
+  ).trim();
+  const backgroundVariant = backgroundVariantRaw === 'light' ? 'light' : 'dark';
+
+  return {
+    title: ensureString(value.title, fallback.title),
+    subtitle: ensureString(value.subtitle, fallback.subtitle),
+    ctaLabel: ensureString(value.ctaLabel, fallback.ctaLabel),
+    ctaHref: ensureString(value.ctaHref, fallback.ctaHref),
+    placeId,
+    limit,
+    locale: locale || fallback.locale,
+    highlightColor: highlightColor || fallback.highlightColor,
+    backgroundVariant,
+    showRatingSummary: value.showRatingSummary !== false,
   };
 };
 
@@ -818,6 +861,13 @@ const LAYOUT_DEFINITIONS = {
       content,
       isPreview: context.previewMode !== 'live',
     })),
+  }),
+  'home.google_reviews': createDefinition({
+    id: 'home.google_reviews',
+    label: 'Accueil \u0007 Avis Google',
+    defaults: GOOGLE_REVIEWS_DEFAULTS,
+    normalize: normalizeGoogleReviews,
+    preview: createPreview(GoogleReviewsSection),
   }),
   'home.tubes_cursor': createDefinition({
     id: 'home.tubes_cursor',

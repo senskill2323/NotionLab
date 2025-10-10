@@ -63,6 +63,7 @@ const BUILTIN_SAMPLE_LAYOUTS = [
   { layout: 'home.formations', title: 'Accueil – Formations' },
   { layout: 'home.support', title: 'Accueil – Support' },
   { layout: 'home.mask_reveal_scroll', title: 'Accueil – Masque défilant' },
+  { layout: 'home.google_reviews', title: 'Accueil - Avis Google' },
   { layout: 'home.tubes_cursor', title: 'Accueil – Tubes interactifs' },
   { layout: 'global.footer', title: 'Global – Pied de page' },
   { layout: 'home.header', title: 'Accueil – Header HTML', block_type: 'html' },

@@ -10,6 +10,7 @@ import PersonalQuoteLayoutEditor from './PersonalQuoteLayoutEditor';
 import FinalCtaLayoutEditor from './FinalCtaLayoutEditor';
 import LaunchCtaLayoutEditor from './LaunchCtaLayoutEditor';
 import MaskRevealLayoutEditor from './MaskRevealLayoutEditor';
+import GoogleReviewsLayoutEditor from './GoogleReviewsLayoutEditor';
 import TubesCursorLayoutEditor from './TubesCursorLayoutEditor';
 import FooterLayoutEditor from './FooterLayoutEditor';
 import HtmlLayoutEditor from './HtmlLayoutEditor';
@@ -26,6 +27,7 @@ const layoutEditorMap = {
   'home.final_cta': FinalCtaLayoutEditor,
   'home.launch_cta': LaunchCtaLayoutEditor,
   'home.mask_reveal_scroll': MaskRevealLayoutEditor,
+  'home.google_reviews': GoogleReviewsLayoutEditor,
   'home.tubes_cursor': TubesCursorLayoutEditor,
   'global.footer': FooterLayoutEditor,
   'home.header': HtmlLayoutEditor,

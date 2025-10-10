@@ -14,6 +14,7 @@ import PersonalQuoteSection from '@/components/home/PersonalQuoteSection';
 import FinalCTA from '@/components/home/FinalCTA';
 import LaunchCTA from '@/components/home/LaunchCTA';
 import TubesCursorSection from '@/components/home/TubesCursorSection';
+import GoogleReviewsSection from '@/components/home/GoogleReviewsSection';
 import Footer from '@/components/Footer';
 
 const BlockPreview = ({ block, isOpen, onOpenChange }) => {
@@ -60,6 +61,8 @@ const BlockPreview = ({ block, isOpen, onOpenChange }) => {
         return <LaunchCTA {...props} />;
       case 'home.tubes_cursor':
         return <TubesCursorSection {...props} />;
+      case 'home.google_reviews':
+        return <GoogleReviewsSection {...props} />;
       case 'global.footer':
         return <Footer {...props} isPreview={true} />;
       default:
