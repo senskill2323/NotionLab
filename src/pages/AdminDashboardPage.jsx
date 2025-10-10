@@ -27,6 +27,7 @@ import UserFormationSubmissionsPanel from '@/components/admin/UserFormationSubmi
 import OnboardingQuestionsAdminPanel from '@/components/admin/formation-live/OnboardingQuestionsAdminPanel';
 import AssistantSettingsPanel from '@/components/admin/AssistantSettingsPanel';
 import BlueprintPaletteAdminPage from '@/pages/admin/BlueprintPaletteAdminPage';
+import EmailNotificationsPanel from '@/components/admin/EmailNotificationsPanel';
 
 const adminComponentMap = {
   UserManagementPanel,
@@ -46,6 +47,7 @@ const adminComponentMap = {
   UserFormationSubmissionsPanel,
   OnboardingQuestionsAdminPanel,
   BlueprintPaletteAdminPage,
+  EmailNotificationsPanel,
 };
 
 const KpiCard = ({ title, value, subValue, loading }) => (
