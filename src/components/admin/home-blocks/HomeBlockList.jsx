@@ -212,9 +212,7 @@ const HomeBlockList = ({ mode = 'list', refreshKey = 0, activeSubTab = 'list' })
       }
       if (filters.status) {
         query = query.eq('status', filters.status);
-      } else if (!isArchivesMode) {
-        query = query.neq('status', 'archived');
-      } else {
+      } else if (isArchivesMode) {
         query = query.eq('status', 'archived');
       }
 
