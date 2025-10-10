@@ -444,8 +444,7 @@ const BlockSamplesPanel = ({ onBlockCreated }) => {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
-        <h2 className="text-xl font-semibold">Bibliothèque de modèles</h2>
+      <div className="flex justify-between gap-2 flex-col md:flex-row md:items-center">
         <div className="flex gap-2">
           <Button variant="outline" onClick={handleImportFromActiveBlocks}>
             <Layers className="mr-2 h-4 w-4" />

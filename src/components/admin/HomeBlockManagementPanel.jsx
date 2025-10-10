@@ -69,7 +69,7 @@ const HomeBlockManagementPanel = () => {
     <div className="space-y-4">
       <Tabs value={activeSubTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="bg-green-50 dark:bg-green-900/20">
-          <TabsTrigger value="list">Liste des bloques</TabsTrigger>
+          <TabsTrigger value="list">Liste des blocs</TabsTrigger>
           <TabsTrigger value="samples">Bibliothèque de modèles</TabsTrigger>
         </TabsList>
         <TabsContent value="list" className="mt-4" forceMount style={{ display: activeSubTab === 'list' ? 'block' : 'none' }}>
