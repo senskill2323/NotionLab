@@ -133,6 +133,10 @@ const normalizeSystemsShowcase = (value = {}, fallback = SYSTEMS_SHOWCASE_DEFAUL
   };
 };
 
+const COZY_SPACE_DEFAULT_SOLID = '#1f2937';
+const COZY_SPACE_DEFAULT_GRADIENT =
+  'linear-gradient(135deg, #1f2937 0%, #111827 50%, #0f172a 100%)';
+
 const COZY_SPACE_DEFAULTS = Object.freeze({
   badgeText: 'Votre Espace Privilégié',
   badgeIcon: 'Sparkles',
@@ -147,29 +151,68 @@ const COZY_SPACE_DEFAULTS = Object.freeze({
   ctaText: 'Découvrir maintenant',
   ctaUrl: '#',
   useDefaultBackground: true,
-  backgroundColor: '#1f2937',
+  backgroundMode: 'gradient',
+  solidColor: COZY_SPACE_DEFAULT_SOLID,
+  gradient: COZY_SPACE_DEFAULT_GRADIENT,
 });
 
-const normalizeCozySpace = (value = {}, fallback = COZY_SPACE_DEFAULTS) => ({
-  badgeText: ensureString(value.badgeText, fallback.badgeText),
-  badgeIcon: ensureString(value.badgeIcon, fallback.badgeIcon),
-  showBadge: ensureBoolean(
-    value.showBadge,
-    fallback.showBadge,
-  ),
-  title: ensureString(value.title, fallback.title),
-  description: ensureString(value.description, fallback.description),
-  imageUrl: ensureString(value.imageUrl, fallback.imageUrl),
-  imageAlt: ensureString(value.imageAlt, fallback.imageAlt),
-  showCta: ensureBoolean(value.showCta, fallback.showCta),
-  ctaText: ensureString(value.ctaText, fallback.ctaText),
-  ctaUrl: ensureString(value.ctaUrl, fallback.ctaUrl),
-  useDefaultBackground: ensureBoolean(
+const normalizeCozySpace = (value = {}, fallback = COZY_SPACE_DEFAULTS) => {
+  const useDefaultBackground = ensureBoolean(
     value.useDefaultBackground,
     fallback.useDefaultBackground,
-  ),
-  backgroundColor: ensureString(value.backgroundColor, fallback.backgroundColor),
-});
+  );
+
+  const rawMode = ensureString(
+    value.backgroundMode,
+    fallback.backgroundMode,
+  ).toLowerCase();
+  let backgroundMode =
+    rawMode === 'solid' || rawMode === 'gradient'
+      ? rawMode
+      : fallback.backgroundMode;
+
+  const legacyColor = ensureString(value.backgroundColor, '').trim();
+  const legacyGradient = ensureString(value.backgroundGradient, '').trim();
+
+  let solidColor =
+    ensureString(value.solidColor, '').trim() ||
+    legacyColor ||
+    fallback.solidColor;
+
+  let gradient =
+    ensureString(value.gradient, '').trim() ||
+    legacyGradient ||
+    fallback.gradient;
+
+  if (!value.backgroundMode) {
+    if (legacyGradient) {
+      backgroundMode = 'gradient';
+    } else if (legacyColor) {
+      backgroundMode = 'solid';
+    }
+  }
+
+  return {
+    badgeText: ensureString(value.badgeText, fallback.badgeText),
+    badgeIcon: ensureString(value.badgeIcon, fallback.badgeIcon),
+    showBadge: ensureBoolean(value.showBadge, fallback.showBadge),
+    title: ensureString(value.title, fallback.title),
+    description: ensureString(value.description, fallback.description),
+    imageUrl: ensureString(value.imageUrl, fallback.imageUrl),
+    imageAlt: ensureString(value.imageAlt, fallback.imageAlt),
+    showCta: ensureBoolean(value.showCta, fallback.showCta),
+    ctaText: ensureString(value.ctaText, fallback.ctaText),
+    ctaUrl: ensureString(value.ctaUrl, fallback.ctaUrl),
+    useDefaultBackground,
+    backgroundMode,
+    solidColor: solidColor || fallback.solidColor,
+    gradient: gradient || fallback.gradient,
+  };
+};
+
+const PROMISE_DEFAULT_SOLID = '#1f2937';
+const PROMISE_DEFAULT_GRADIENT =
+  'linear-gradient(135deg, #4338ca 0%, #1d4ed8 50%, #0f172a 100%)';
 
 const PROMISE_DEFAULTS = Object.freeze({
   title: 'Ma promesse,',
@@ -200,7 +243,10 @@ const PROMISE_DEFAULTS = Object.freeze({
   useBackgroundImage: false,
   backgroundImage: '',
   useDefaultBackground: true,
-  backgroundColor: '',
+  backgroundMode: 'gradient',
+  solidColor: PROMISE_DEFAULT_SOLID,
+  gradient: PROMISE_DEFAULT_GRADIENT,
+  backgroundColor: PROMISE_DEFAULT_SOLID,
   backgroundOpacity: 0.5,
 });
 
@@ -219,47 +265,116 @@ const buildPromiseItems = (items, fallbackItems) => {
   });
 };
 
-const buildPromiseState = (value = {}, fallback = PROMISE_DEFAULTS) => ({
-    title: ensureString(value.title ?? value.pr_title, fallback.title),
-    titleSuffix: ensureString(
-      value.titleSuffix ?? value.pr_titleSuffix,
-      fallback.titleSuffix,
+const buildPromiseState = (value = {}, fallback = PROMISE_DEFAULTS) => {
+  const title = ensureString(value.title ?? value.pr_title, fallback.title);
+  const titleSuffix = ensureString(
+    value.titleSuffix ?? value.pr_titleSuffix,
+    fallback.titleSuffix,
+  );
+
+  const items = buildPromiseItems(
+    value.items ?? value.pr_items,
+    fallback.items,
+  );
+
+  const showCta = ensureBoolean(
+    value.showCta ?? value.pr_showCta,
+    fallback.showCta,
+  );
+  const ctaText = ensureString(
+    value.ctaText ?? value.pr_ctaText,
+    fallback.ctaText,
+  );
+  const ctaUrl = ensureString(value.ctaUrl ?? value.pr_ctaUrl, fallback.ctaUrl);
+
+  const useBackgroundImage = ensureBoolean(
+    value.useBackgroundImage ?? value.pr_useBackgroundImage,
+    fallback.useBackgroundImage,
+  );
+  const backgroundImage = ensureString(
+    value.backgroundImage ?? value.pr_backgroundImage,
+    fallback.backgroundImage,
+  );
+
+  const useDefaultBackground = ensureBoolean(
+    value.useDefaultBackground ?? value.pr_useDefaultBackground,
+    fallback.useDefaultBackground,
+  );
+
+  const rawMode = ensureString(
+    value.backgroundMode ?? value.pr_backgroundMode,
+    fallback.backgroundMode,
+  ).toLowerCase();
+
+  let backgroundMode =
+    rawMode === 'solid' || rawMode === 'gradient'
+      ? rawMode
+      : fallback.backgroundMode;
+
+  const inferredColor = rawMode.startsWith('#') ? rawMode : '';
+  const inferredGradient = rawMode.includes('gradient') ? rawMode : '';
+
+  let legacyColor = ensureString(
+    value.backgroundColor ?? value.pr_backgroundColor,
+    '',
+  ).trim();
+  if (!legacyColor && inferredColor) {
+    legacyColor = inferredColor;
+  }
+
+  let legacyGradient = ensureString(
+    value.gradient ?? value.pr_gradient,
+    '',
+  ).trim();
+  if (!legacyGradient && inferredGradient) {
+    legacyGradient = inferredGradient;
+  }
+
+  let solidColor =
+    ensureString(value.solidColor ?? value.pr_solidColor, '').trim() ||
+    legacyColor ||
+    fallback.solidColor;
+
+  let gradient =
+    ensureString(value.gradient ?? value.pr_gradient, '').trim() ||
+    legacyGradient ||
+    fallback.gradient;
+
+  if (!(value.backgroundMode ?? value.pr_backgroundMode)) {
+    if (legacyGradient) {
+      backgroundMode = 'gradient';
+    } else if (legacyColor) {
+      backgroundMode = 'solid';
+    }
+  }
+
+  const backgroundOpacity = clamp(
+    ensureNumber(
+      value.backgroundOpacity ?? value.pr_backgroundOpacity,
+      fallback.backgroundOpacity,
     ),
-    items: buildPromiseItems(
-      value.items ?? value.pr_items,
-      fallback.items,
-    ),
-    showCta: ensureBoolean(
-      value.showCta ?? value.pr_showCta,
-      fallback.showCta,
-    ),
-    ctaText: ensureString(value.ctaText ?? value.pr_ctaText, fallback.ctaText),
-    ctaUrl: ensureString(value.ctaUrl ?? value.pr_ctaUrl, fallback.ctaUrl),
-    useBackgroundImage: ensureBoolean(
-      value.useBackgroundImage ?? value.pr_useBackgroundImage,
-      fallback.useBackgroundImage,
-    ),
-    backgroundImage: ensureString(
-      value.backgroundImage ?? value.pr_backgroundImage,
-      fallback.backgroundImage,
-    ),
-    useDefaultBackground: ensureBoolean(
-      value.useDefaultBackground ?? value.pr_useDefaultBackground,
-      fallback.useDefaultBackground,
-    ),
-    backgroundColor: ensureString(
-      value.backgroundColor ?? value.pr_backgroundColor,
-      fallback.backgroundColor,
-    ),
-    backgroundOpacity: clamp(
-      ensureNumber(
-        value.backgroundOpacity ?? value.pr_backgroundOpacity,
-        fallback.backgroundOpacity,
-      ),
-      0,
-      1,
-    ),
-  });
+    0,
+    1,
+  );
+
+  return {
+    title,
+    titleSuffix,
+    items,
+    showCta,
+    ctaText,
+    ctaUrl,
+    useBackgroundImage,
+    backgroundImage,
+    useDefaultBackground,
+    backgroundMode,
+    solidColor: solidColor || fallback.solidColor,
+    gradient: gradient || fallback.gradient,
+    backgroundColor: solidColor || fallback.solidColor,
+    backgroundGradient: gradient || fallback.gradient,
+    backgroundOpacity,
+  };
+};
 
 const serializePromise = (value = {}, fallback = PROMISE_DEFAULTS) => {
   const base = buildPromiseState(value, fallback);
@@ -277,7 +392,11 @@ const serializePromise = (value = {}, fallback = PROMISE_DEFAULTS) => {
     pr_useBackgroundImage: base.useBackgroundImage,
     pr_backgroundImage: base.backgroundImage,
     pr_useDefaultBackground: base.useDefaultBackground,
+    pr_backgroundMode: base.backgroundMode,
     pr_backgroundColor: base.backgroundColor,
+    pr_solidColor: base.solidColor,
+    pr_gradient: base.gradient,
+    pr_backgroundGradient: base.backgroundGradient,
     pr_backgroundOpacity: base.backgroundOpacity,
   };
 };
@@ -289,7 +408,7 @@ const PERSONAL_QUOTE_DEFAULTS = Object.freeze({
   ctaText: 'En savoir plus',
   ctaUrl: '#',
   useDefaultBackground: true,
-  backgroundColor: '#000000',
+  backgroundMode: '#000000',
 });
 
 const normalizePersonalQuote = (
@@ -308,7 +427,7 @@ const normalizePersonalQuote = (
     value.useDefaultBackground,
     fallback.useDefaultBackground,
   ),
-  backgroundColor: ensureString(value.backgroundColor, fallback.backgroundColor),
+  backgroundMode: ensureString(value.backgroundColor, fallback.backgroundColor),
 });
 
 const FINAL_CTA_DEFAULTS = Object.freeze({
@@ -329,41 +448,72 @@ const normalizeFinalCta = (value = {}, fallback = FINAL_CTA_DEFAULTS) => ({
 const LAUNCH_CTA_DEFAULTS = Object.freeze({
   displayDate: '',
   heading:
-    "Je démarre mon activité et j'ai faim de vous présenter mon outil !",
+    "Je demarre mon activite et j'ai envie de vous presenter mon outil !",
   subText:
-    "Alors s'il vous plaît, n'hésitez pas, faites quelques heures de formation, contactez-moi !",
+    "Alors s'il vous plait, n'hesitez pas, faites quelques heures de formation, contactez-moi !",
   buttonText: 'Contactez-moi !',
   buttonLink: '/contact',
   showCta: true,
   iconName: 'Heart',
   useDefaultBackground: true,
-  backgroundColor: '#f97316',
-  useDefaultGradient: true,
-  backgroundGradient: '',
+  backgroundMode: 'gradient',
+  solidColor: '#f97316',
+  gradient: 'linear-gradient(135deg, #fb923c 0%, #f97316 50%, #ea580c 100%)',
 });
 
-const normalizeLaunchCta = (value = {}, fallback = LAUNCH_CTA_DEFAULTS) => ({
-  displayDate: ensureString(value.displayDate, fallback.displayDate),
-  heading: ensureString(value.heading, fallback.heading),
-  subText: ensureString(value.subText, fallback.subText),
-  buttonText: ensureString(value.buttonText, fallback.buttonText),
-  buttonLink: ensureString(value.buttonLink, fallback.buttonLink),
-  showCta: ensureBoolean(value.showCta, fallback.showCta),
-  iconName: ensureString(value.iconName, fallback.iconName),
-  useDefaultBackground: ensureBoolean(
-    value.useDefaultBackground,
-    fallback.useDefaultBackground,
-  ),
-  backgroundColor: ensureString(value.backgroundColor, fallback.backgroundColor),
-  useDefaultGradient: ensureBoolean(
-    value.useDefaultGradient,
-    fallback.useDefaultGradient,
-  ),
-  backgroundGradient: ensureString(
-    value.backgroundGradient,
-    fallback.backgroundGradient,
-  ),
-});
+const normalizeLaunchCta = (value = {}, fallback = LAUNCH_CTA_DEFAULTS) => {
+  const rawMode = ensureString(value.backgroundMode, fallback.backgroundMode).toLowerCase();
+  let backgroundMode = rawMode === 'solid' || rawMode === 'gradient' ? rawMode : fallback.backgroundMode;
+
+  const legacyColor = ensureString(value.backgroundColor, '');
+  const legacyGradient = ensureString(value.backgroundGradient, '');
+  const legacyUseDefaultGradient = ensureBoolean(value.useDefaultGradient, true);
+
+  let solidColor = ensureString(value.solidColor, '') || legacyColor || fallback.solidColor;
+  let gradient = ensureString(value.gradient, '') || legacyGradient || fallback.gradient;
+
+  if (!value.backgroundMode) {
+    if (legacyGradient) {
+      backgroundMode = 'gradient';
+    } else if (legacyColor) {
+      backgroundMode = 'solid';
+    }
+  }
+
+  if (backgroundMode === 'gradient') {
+    if (!gradient || !gradient.trim()) {
+      gradient = fallback.gradient;
+    }
+    if (!legacyUseDefaultGradient && legacyGradient) {
+      gradient = legacyGradient;
+    }
+  }
+
+  if (backgroundMode === 'solid' && (!solidColor || !solidColor.trim())) {
+    solidColor = fallback.solidColor;
+  }
+
+  return {
+    displayDate: ensureString(value.displayDate, fallback.displayDate),
+    heading: ensureString(value.heading, fallback.heading),
+    subText: ensureString(value.subText, fallback.subText),
+    buttonText: ensureString(value.buttonText, fallback.buttonText),
+    buttonLink: ensureString(value.buttonLink, fallback.buttonLink),
+    showCta: ensureBoolean(value.showCta, fallback.showCta),
+    iconName: ensureString(value.iconName, fallback.iconName),
+    useDefaultBackground: ensureBoolean(
+      value.useDefaultBackground,
+      fallback.useDefaultBackground,
+    ),
+    backgroundMode,
+    solidColor,
+    gradient,
+};
+};
+
+const SUPPORT_DEFAULT_SOLID = '#111827';
+const SUPPORT_DEFAULT_GRADIENT =
+  'linear-gradient(135deg, #1f2937 0%, #111827 50%, #0f172a 100%)';
 
 const SUPPORT_DEFAULTS = Object.freeze({
   badgeLabel: 'Votre Bouée de Sauvetage Notion',
@@ -373,15 +523,60 @@ const SUPPORT_DEFAULTS = Object.freeze({
   imageUrl:
     'https://horizons-cdn.hostinger.com/33d72ce2-b6b0-4274-b8ce-63300e44633e/capture-daa-c-cran-2025-08-24-235707-02xTj.png',
   imageAlt: 'Un expert Notion souriant, prêt à vous accompagner',
+  useDefaultBackground: true,
+  backgroundMode: 'gradient',
+  solidColor: SUPPORT_DEFAULT_SOLID,
+  gradient: SUPPORT_DEFAULT_GRADIENT,
 });
 
-const normalizeSupport = (value = {}, fallback = SUPPORT_DEFAULTS) => ({
-  badgeLabel: ensureString(value.badgeLabel, fallback.badgeLabel),
-  title: ensureString(value.title, fallback.title),
-  subtitle: ensureString(value.subtitle, fallback.subtitle),
-  imageUrl: ensureString(value.imageUrl, fallback.imageUrl),
-  imageAlt: ensureString(value.imageAlt, fallback.imageAlt),
-});
+const normalizeSupport = (value = {}, fallback = SUPPORT_DEFAULTS) => {
+  const useDefaultBackground = ensureBoolean(
+    value.useDefaultBackground,
+    fallback.useDefaultBackground,
+  );
+
+  const rawMode = ensureString(
+    value.backgroundMode,
+    fallback.backgroundMode,
+  ).toLowerCase();
+  let backgroundMode =
+    rawMode === 'solid' || rawMode === 'gradient'
+      ? rawMode
+      : fallback.backgroundMode;
+
+  const legacyColor = ensureString(value.backgroundColor, '').trim();
+  const legacyGradient = ensureString(value.backgroundGradient, '').trim();
+
+  let solidColor =
+    ensureString(value.solidColor, '').trim() ||
+    legacyColor ||
+    fallback.solidColor;
+
+  let gradient =
+    ensureString(value.gradient, '').trim() ||
+    legacyGradient ||
+    fallback.gradient;
+
+  if (!value.backgroundMode) {
+    if (legacyGradient) {
+      backgroundMode = 'gradient';
+    } else if (legacyColor) {
+      backgroundMode = 'solid';
+    }
+  }
+
+  return {
+    badgeLabel: ensureString(value.badgeLabel, fallback.badgeLabel),
+    title: ensureString(value.title, fallback.title),
+    subtitle: ensureString(value.subtitle, fallback.subtitle),
+    imageUrl: ensureString(value.imageUrl, fallback.imageUrl),
+    imageAlt: ensureString(value.imageAlt, fallback.imageAlt),
+    useDefaultBackground,
+    backgroundMode,
+    solidColor: solidColor || fallback.solidColor,
+    gradient: gradient || fallback.gradient,
+  };
+};
 
 const STATS_DEFAULTS = Object.freeze({
   title: "La force d'une communauté",
@@ -400,7 +595,9 @@ const FORMATIONS_CTA_DEFAULT = Object.freeze({
     'Connectez-vous pour acceder au builder de formation et selectionnez vos modules',
   buttonLabel: 'Connectez-vous pour acceder au Builder',
   buttonLink: '/inscription',
-  backgroundColor: 'linear-gradient(90deg, #7c3aed 0%, #4f46e5 100%)',
+  backgroundMode: 'gradient',
+  solidColor: '#4f46e5',
+  gradient: 'linear-gradient(90deg, #7c3aed 0%, #4f46e5 100%)',
 });
 
 const FORMATIONS_DEFAULTS = Object.freeze({
@@ -417,15 +614,23 @@ const normalizeFormations = (value = {}, fallback = FORMATIONS_DEFAULTS) => {
   const fallbackCta = fallback.cta ?? FORMATIONS_CTA_DEFAULT;
   const rawCta = value.cta ?? {};
 
+  const resolvedModeRaw = ensureString(
+    rawCta.backgroundMode,
+    fallbackCta.backgroundMode,
+  ).toLowerCase();
+  const resolvedMode =
+    resolvedModeRaw === 'solid' || resolvedModeRaw === 'gradient'
+      ? resolvedModeRaw
+      : 'gradient';
+
   const normalizedCta = {
     enabled: ensureBoolean(rawCta.enabled, fallbackCta.enabled ?? true),
     headline: ensureString(rawCta.headline, fallbackCta.headline),
     buttonLabel: ensureString(rawCta.buttonLabel, fallbackCta.buttonLabel),
     buttonLink: ensureString(rawCta.buttonLink, fallbackCta.buttonLink),
-    backgroundColor: ensureString(
-      rawCta.backgroundColor,
-      fallbackCta.backgroundColor,
-    ),
+    backgroundMode: resolvedMode,
+    solidColor: ensureString(rawCta.solidColor, fallbackCta.solidColor),
+    gradient: ensureString(rawCta.gradient, fallbackCta.gradient),
   };
 
   return {
@@ -454,7 +659,7 @@ const normalizeMaskReveal = (
       base.baseBackgroundColor,
       fallback.baseBackgroundColor,
     ),
-    backgroundColor: ensureString(
+    backgroundMode: ensureString(
       base.backgroundColor,
       fallback.backgroundColor,
     ),
@@ -658,3 +863,9 @@ export const getLayoutPreviewProps = (layout, state, context = {}) => {
     props,
   };
 };
+
+
+
+
+
+

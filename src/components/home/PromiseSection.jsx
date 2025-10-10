@@ -27,11 +27,46 @@ const PromiseSection = ({ content = {} }) => {
   const showCta = content.pr_showCta || content.showCta || false;
   const ctaText = content.pr_ctaText || content.ctaText || "Découvrir maintenant";
   const ctaUrl = content.pr_ctaUrl || content.ctaUrl || "#";
-  const backgroundColor = content.pr_backgroundColor || content.backgroundColor || "";
-  const useDefaultBackground = content.pr_useDefaultBackground !== false && content.useDefaultBackground !== false;
+  const useBackgroundImage = (content.pr_useBackgroundImage ?? content.useBackgroundImage) || false;
   const backgroundImage = content.pr_backgroundImage || content.backgroundImage || "";
-  const useBackgroundImage = content.pr_useBackgroundImage || content.useBackgroundImage || false;
   const backgroundOpacity = content.pr_backgroundOpacity || content.backgroundOpacity || 0.5;
+
+  const useDefaultBackground =
+    (content.pr_useDefaultBackground ?? content.useDefaultBackground ?? true) !== false;
+
+  const rawMode = (content.pr_backgroundMode || content.backgroundMode || '').toLowerCase();
+  let legacyColor = content.pr_backgroundColor || content.backgroundColor || '';
+  let legacyGradient = content.pr_gradient || content.gradient || '';
+
+  if (!legacyColor && rawMode.startsWith('#')) {
+    legacyColor = rawMode;
+  }
+  if (!legacyGradient && rawMode.includes('gradient')) {
+    legacyGradient = rawMode;
+  }
+  let backgroundMode;
+
+  if (rawMode === 'solid' || rawMode === 'gradient') {
+    backgroundMode = rawMode;
+  } else if (legacyGradient) {
+    backgroundMode = 'gradient';
+  } else if (legacyColor) {
+    backgroundMode = 'solid';
+  } else {
+    backgroundMode = 'gradient';
+  }
+
+  const solidColor =
+    content.pr_solidColor ||
+    content.solidColor ||
+    legacyColor ||
+    '#1f2937';
+
+  const gradient =
+    content.pr_gradient ||
+    content.gradient ||
+    legacyGradient ||
+    'linear-gradient(135deg, #4338ca 0%, #1d4ed8 50%, #0f172a 100%)';
 
   const getGridCols = () => {
     const count = items.length;
@@ -43,19 +78,31 @@ const PromiseSection = ({ content = {} }) => {
   };
 
   const sectionStyle = {};
-  
+
   if (useBackgroundImage && backgroundImage) {
     sectionStyle.backgroundImage = `url(${backgroundImage})`;
     sectionStyle.backgroundSize = 'cover';
     sectionStyle.backgroundPosition = 'center';
     sectionStyle.backgroundRepeat = 'no-repeat';
-  } else if (!useDefaultBackground && backgroundColor) {
-    sectionStyle.backgroundColor = backgroundColor;
+  } else if (!useDefaultBackground) {
+    if (backgroundMode === 'solid') {
+      sectionStyle.backgroundColor = solidColor;
+    } else {
+      sectionStyle.background = gradient;
+    }
   }
+
+  const sectionClassName = [
+    'py-20',
+    'relative',
+    useDefaultBackground && !useBackgroundImage ? 'bg-background/70' : null,
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
     <section 
-      className={`py-20 relative ${useDefaultBackground && !useBackgroundImage ? 'bg-background/70' : ''}`}
+      className={sectionClassName}
       style={sectionStyle}
     >
       {useBackgroundImage && backgroundImage && (

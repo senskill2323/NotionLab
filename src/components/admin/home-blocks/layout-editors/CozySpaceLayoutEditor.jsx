@@ -16,8 +16,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { SketchPicker } from 'react-color';
+import { cn } from '@/lib/utils';
 import ImageUpload from '@/components/ui/image-upload';
-import { createInputChangeHandler, createBooleanToggleHandler } from './shared';
+import {
+  createInputChangeHandler,
+  createBooleanToggleHandler,
+} from './shared';
 
 const badgeIcons = [
   { name: 'Sparkles', icon: Sparkles, label: 'Étincelles' },
@@ -32,17 +39,74 @@ const badgeIcons = [
   { name: 'Rocket', icon: Rocket, label: 'Fusée' },
 ];
 
-const CozySpaceLayoutEditor = ({ value, onChange }) => {
+const gradientPresets = [
+  'linear-gradient(135deg, #1f2937 0%, #111827 50%, #0f172a 100%)',
+  'linear-gradient(135deg, #4c1d95 0%, #1e1b4b 100%)',
+  'linear-gradient(135deg, #0f766e 0%, #064e3b 100%)',
+  'linear-gradient(135deg, #7c3aed 0%, #312e81 100%)',
+  'linear-gradient(135deg, #f97316 0%, #ea580c 90%)',
+  'linear-gradient(135deg, #155e75 0%, #0f172a 100%)',
+];
+
+const DEFAULT_SOLID = '#1f2937';
+const DEFAULT_GRADIENT = gradientPresets[0];
+
+const CozySpaceLayoutEditor = ({ value = {}, onChange }) => {
   const handleInputChange = createInputChangeHandler(value, onChange);
   const handleBooleanChange = createBooleanToggleHandler(value, onChange);
   const [showIconPicker, setShowIconPicker] = useState(false);
 
   const onIconSelect = (iconName) => {
-    onChange({
-      ...value,
+    onChange((current) => ({
+      ...(current ?? {}),
       badgeIcon: iconName,
-    });
+    }));
     setShowIconPicker(false);
+  };
+
+  const useDefaultBackground = value.useDefaultBackground !== false;
+
+  const backgroundMode =
+    value.backgroundMode === 'solid' || value.backgroundMode === 'gradient'
+      ? value.backgroundMode
+      : 'gradient';
+
+  const setField =
+    (field, extra = () => ({})) =>
+    (nextValue) =>
+      onChange((current) => ({
+        ...(current ?? {}),
+        [field]: nextValue,
+        ...extra(nextValue, current ?? {}),
+      }));
+
+  const handleModeChange = (mode) => {
+    if (!mode) return;
+    const patch = { backgroundMode: mode };
+    if (mode === 'solid' && !value.solidColor) {
+      patch.solidColor = DEFAULT_SOLID;
+      patch.backgroundColor = DEFAULT_SOLID;
+    }
+    if (mode === 'gradient' && !value.gradient) {
+      patch.gradient = DEFAULT_GRADIENT;
+      patch.backgroundGradient = DEFAULT_GRADIENT;
+    }
+    onChange((current) => ({
+      ...(current ?? {}),
+      ...patch,
+    }));
+  };
+
+  const setSolidColor = setField('solidColor', (next) => ({
+    backgroundColor: next,
+  }));
+
+  const setGradient = setField('gradient', (next) => ({
+    backgroundGradient: next,
+  }));
+
+  const handleSolidColorChange = (color) => {
+    setSolidColor(color.hex);
   };
 
   return (
@@ -52,7 +116,7 @@ const CozySpaceLayoutEditor = ({ value, onChange }) => {
         <div className="space-y-2">
           <div className="flex gap-2">
             <Input
-              value={value.badgeText}
+              value={value.badgeText ?? ''}
               onChange={handleInputChange('badgeText')}
               placeholder="Badge"
               className="flex-1"
@@ -61,14 +125,14 @@ const CozySpaceLayoutEditor = ({ value, onChange }) => {
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => setShowIconPicker(!showIconPicker)}
+              onClick={() => setShowIconPicker((prev) => !prev)}
             >
-              {value.badgeIcon}
+              {value.badgeIcon ?? 'Sparkles'}
             </Button>
           </div>
           {showIconPicker && (
-            <div className="border rounded-md p-3 bg-muted/30">
-              <Label className="text-xs text-muted-foreground mb-2 block">
+            <div className="rounded-md border bg-muted/30 p-3">
+              <Label className="mb-2 block text-xs text-muted-foreground">
                 Icône du badge
               </Label>
               <div className="grid grid-cols-5 gap-2">
@@ -77,14 +141,15 @@ const CozySpaceLayoutEditor = ({ value, onChange }) => {
                     key={name}
                     type="button"
                     onClick={() => onIconSelect(name)}
-                    className={`p-2 rounded border-2 transition-colors flex items-center justify-center ${
+                    className={cn(
+                      'flex items-center justify-center rounded border-2 p-2 transition-colors',
                       value.badgeIcon === name
                         ? 'border-primary bg-primary/10'
-                        : 'border-muted hover:border-primary/50'
-                    }`}
+                        : 'border-muted hover:border-primary/50',
+                    )}
                     title={label}
                   >
-                    <Icon className="w-4 h-4" />
+                    <Icon className="h-4 w-4" />
                   </button>
                 ))}
               </div>
@@ -96,21 +161,21 @@ const CozySpaceLayoutEditor = ({ value, onChange }) => {
       <div className="flex items-center justify-between">
         <Label>Afficher le badge</Label>
         <Switch
-          checked={Boolean(value.showBadge)}
+          checked={Boolean(value.showBadge ?? true)}
           onCheckedChange={handleBooleanChange('showBadge')}
         />
       </div>
 
       <div>
         <Label>Titre</Label>
-        <Input value={value.title} onChange={handleInputChange('title')} />
+        <Input value={value.title ?? ''} onChange={handleInputChange('title')} />
       </div>
 
       <div>
         <Label>Description</Label>
         <Textarea
           rows={6}
-          value={value.description}
+          value={value.description ?? ''}
           onChange={handleInputChange('description')}
         />
       </div>
@@ -118,7 +183,7 @@ const CozySpaceLayoutEditor = ({ value, onChange }) => {
       <div>
         <Label>Visuel principal</Label>
         <ImageUpload
-          currentImageUrl={value.imageUrl}
+          currentImageUrl={value.imageUrl ?? ''}
           onImageSelected={(url) =>
             onChange((current) => ({
               ...(current ?? {}),
@@ -131,13 +196,13 @@ const CozySpaceLayoutEditor = ({ value, onChange }) => {
         <Input
           className="mt-2"
           placeholder="https://..."
-          value={value.imageUrl}
+          value={value.imageUrl ?? ''}
           onChange={handleInputChange('imageUrl')}
         />
         <Input
           className="mt-2"
           placeholder="Texte alternatif"
-          value={value.imageAlt}
+          value={value.imageAlt ?? ''}
           onChange={handleInputChange('imageAlt')}
         />
       </div>
@@ -154,12 +219,12 @@ const CozySpaceLayoutEditor = ({ value, onChange }) => {
           <div className="space-y-2">
             <Input
               placeholder="Texte du bouton"
-              value={value.ctaText}
+              value={value.ctaText ?? ''}
               onChange={handleInputChange('ctaText')}
             />
             <Input
               placeholder="URL"
-              value={value.ctaUrl}
+              value={value.ctaUrl ?? ''}
               onChange={handleInputChange('ctaUrl')}
             />
           </div>
@@ -168,26 +233,98 @@ const CozySpaceLayoutEditor = ({ value, onChange }) => {
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <Label>Utiliser la couleur par défaut</Label>
+          <Label>Utiliser le fond par défaut</Label>
           <Switch
-            checked={Boolean(value.useDefaultBackground)}
+            checked={useDefaultBackground}
             onCheckedChange={handleBooleanChange('useDefaultBackground')}
           />
         </div>
-        {!value.useDefaultBackground && (
-          <div className="flex gap-2 items-center">
-            <Input
-              type="color"
-              value={value.backgroundColor || '#1f2937'}
-              onChange={handleInputChange('backgroundColor')}
-              className="w-16 h-10 p-1 rounded cursor-pointer"
-            />
-            <Input
-              value={value.backgroundColor || '#1f2937'}
-              onChange={handleInputChange('backgroundColor')}
-              placeholder="#1f2937"
-              className="flex-1 font-mono text-sm"
-            />
+
+        {!useDefaultBackground && (
+          <div className="space-y-4 rounded-md border p-4">
+            <div className="flex flex-col gap-2">
+              <Label>Style de fond</Label>
+              <ToggleGroup
+                type="single"
+                value={backgroundMode}
+                onValueChange={(mode) => mode && handleModeChange(mode)}
+                className="w-full md:w-auto"
+              >
+                <ToggleGroupItem value="solid" className="px-4">
+                  Couleur unique
+                </ToggleGroupItem>
+                <ToggleGroupItem value="gradient" className="px-4">
+                  Dégradé
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </div>
+
+            {backgroundMode === 'solid' ? (
+              <div className="space-y-2">
+                <Label>Couleur</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full justify-start gap-3"
+                    >
+                      <span
+                        className="h-5 w-5 rounded-md border"
+                        style={{ background: value.solidColor ?? DEFAULT_SOLID }}
+                      />
+                      <span className="text-xs text-muted-foreground">
+                        Choisir une couleur
+                      </span>
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <SketchPicker
+                      disableAlpha
+                      color={value.solidColor ?? DEFAULT_SOLID}
+                      onChangeComplete={handleSolidColorChange}
+                    />
+                  </PopoverContent>
+                </Popover>
+                <Input
+                  value={value.solidColor ?? DEFAULT_SOLID}
+                  onChange={(event) => setSolidColor(event.target.value)}
+                  placeholder={DEFAULT_SOLID}
+                  className="font-mono text-sm"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Utilisez le sélecteur ou saisissez un code hex.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label>Sélection du dégradé</Label>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {gradientPresets.map((gradient) => (
+                    <Button
+                      key={gradient}
+                      type="button"
+                      variant="outline"
+                      onClick={() => setGradient(gradient)}
+                      className={cn(
+                        'h-16 rounded-lg border-2 border-transparent transition hover:scale-[1.02]',
+                        value.gradient === gradient && 'border-primary shadow-md',
+                      )}
+                      style={{ backgroundImage: gradient }}
+                    />
+                  ))}
+                </div>
+                <Input
+                  value={value.gradient ?? ''}
+                  onChange={(event) => setGradient(event.target.value)}
+                  placeholder="linear-gradient(...)"
+                  className="font-mono text-sm"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Sélectionnez un dégradé ou collez votre propre valeur CSS.
+                </p>
+              </div>
+            )}
           </div>
         )}
       </div>

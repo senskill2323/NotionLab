@@ -31,35 +31,85 @@ const SupportSection = ({ content = {} }) => {
   };
   const badgeLabel = content.badgeLabel || 'Votre Bouée de Sauvetage Notion';
   const title = content.title || 'Ne restez jamais bloqué.';
-  const subtitle = content.subtitle || "Le vrai \"plus\" de mon projet, c'est un système qui vous aide! Vous avez une ligne directe avec un expert Notion, et j'espère à la longue, plusieurs passionnés qui me rejoindront. Rejoignez des milliers d'utilisateurs qui ont déjà révolutionné leur organisation avec Notion. Economisez du temps et de l'énergie en recevant au minimum des astuces pour commencer proprement sur Notion.";
-  const imageUrl = content.imageUrl || 'https://horizons-cdn.hostinger.com/33d72ce2-b6b0-4274-b8ce-63300e44633e/capture-daa-c-cran-2025-08-24-235707-02xTj.png';
-  const imageAlt = content.imageAlt || 'Un expert Notion souriant, pret a vous accompagner';
-  return <section className="py-20 md:py-32 bg-gray-900 text-white overflow-hidden relative">
-      <div className="absolute inset-0 bg-grid-pattern opacity-10"></div>
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-transparent to-transparent"></div>
-      <div className="container mx-auto px-4 relative z-10">
-        <motion.div variants={containerVariants} initial="hidden" whileInView="visible" viewport={{
-        once: true,
-        amount: 0.5
-      }} className="grid md:grid-cols-2 gap-12 items-center">
+  const subtitle =
+    content.subtitle ||
+    "Le vrai \"plus\" de mon projet, c'est un système qui vous aide! Vous avez une ligne directe avec un expert Notion, et j'espère à la longue, plusieurs passionnés qui me rejoindront. Rejoignez des milliers d'utilisateurs qui ont déjà révolutionné leur organisation avec Notion. Economisez du temps et de l'énergie en recevant au minimum des astuces pour commencer proprement sur Notion.";
+  const imageUrl =
+    content.imageUrl ||
+    'https://horizons-cdn.hostinger.com/33d72ce2-b6b0-4274-b8ce-63300e44633e/capture-daa-c-cran-2025-08-24-235707-02xTj.png';
+  const imageAlt =
+    content.imageAlt || 'Un expert Notion souriant, pret a vous accompagner';
+
+  const useDefaultBackground = content.useDefaultBackground !== false;
+  const backgroundMode =
+    content.backgroundMode === 'solid' || content.backgroundMode === 'gradient'
+      ? content.backgroundMode
+      : 'gradient';
+  const solidColor = content.solidColor || '#111827';
+  const gradient =
+    content.gradient ||
+    'linear-gradient(135deg, #1f2937 0%, #111827 50%, #0f172a 100%)';
+
+  const backgroundStyle = useDefaultBackground
+    ? undefined
+    : backgroundMode === 'solid'
+      ? { backgroundColor: solidColor }
+      : { background: gradient };
+
+  const sectionClassName = [
+    'py-20',
+    'md:py-32',
+    'text-white',
+    'overflow-hidden',
+    'relative',
+    useDefaultBackground ? 'bg-gray-900' : null,
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  return (
+    <section className={sectionClassName} style={backgroundStyle}>
+      <div className="pointer-events-none absolute inset-0 bg-grid-pattern opacity-10" />
+      {useDefaultBackground && (
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/20 via-transparent to-transparent" />
+      )}
+      <div className="container relative z-10 mx-auto px-4">
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{
+            once: true,
+            amount: 0.5,
+          }}
+          className="grid items-center gap-12 md:grid-cols-2"
+        >
           <motion.div variants={itemVariants}>
             <div className="mb-4">
-              <span className="inline-flex items-center px-4 py-1.5 rounded-full text-sm font-medium bg-primary/10 text-primary border border-primary/30">
-                <LifeBuoy className="w-5 h-5 mr-2" />
+              <span className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-sm font-medium text-primary">
+                <LifeBuoy className="mr-2 h-5 w-5" />
                 {badgeLabel}
               </span>
             </div>
-            <h2 className="text-4xl md:text-5xl font-extrabold mb-6 leading-tight">
+            <h2 className="mb-6 text-4xl font-extrabold leading-tight md:text-5xl">
               {title}
             </h2>
-            <p className="text-xl text-gray-300 mb-8">{subtitle}</p>
+            <p className="mb-8 text-xl text-gray-300">{subtitle}</p>
           </motion.div>
 
-          <motion.div variants={itemVariants} className="relative h-full min-h-[400px]">
-            <img alt={imageAlt} className="w-full h-full object-cover rounded-3xl shadow-2xl shadow-primary/20" src={imageUrl} />
+          <motion.div
+            variants={itemVariants}
+            className="relative h-full min-h-[400px]"
+          >
+            <img
+              alt={imageAlt}
+              className="h-full w-full rounded-3xl object-cover shadow-2xl shadow-primary/20"
+              src={imageUrl}
+            />
           </motion.div>
         </motion.div>
       </div>
-    </section>;
+    </section>
+  );
 };
 export default SupportSection;

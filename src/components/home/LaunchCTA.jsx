@@ -90,9 +90,41 @@ const LaunchCTA = ({ content = {} }) => {
   const showCta = content.showCta !== false; // Default to true
   const iconName = content.iconName || 'Heart';
   const useDefaultBackground = content.useDefaultBackground !== false; // Default to true
-  const backgroundColor = content.backgroundColor;
-  const useDefaultGradient = content.useDefaultGradient !== false; // Default to true
-  const backgroundGradient = content.backgroundGradient;
+
+  const resolvedMode =
+    content.backgroundMode === 'solid' || content.backgroundMode === 'gradient'
+      ? content.backgroundMode
+      : undefined;
+
+  const legacyColor = content.backgroundColor;
+  const legacyGradient = content.backgroundGradient;
+  const fallbackGradient = 'linear-gradient(135deg, #fb923c 0%, #f97316 50%, #ea580c 100%)';
+
+  const solidColor =
+    content.solidColor ||
+    legacyColor ||
+    '#f97316';
+
+  let gradient =
+    content.gradient ||
+    legacyGradient ||
+    generateGradient(solidColor) ||
+    fallbackGradient;
+
+  let backgroundMode = resolvedMode;
+  if (!backgroundMode) {
+    if (legacyGradient && legacyGradient.trim().length > 0) {
+      backgroundMode = 'gradient';
+    } else if (legacyColor && legacyColor.trim().length > 0) {
+      backgroundMode = 'solid';
+    } else {
+      backgroundMode = 'gradient';
+    }
+  }
+
+  if (backgroundMode === 'gradient' && (!gradient || gradient.trim().length === 0)) {
+    gradient = fallbackGradient;
+  }
 
   // Resolve icon component
   const IconComponent = iconMap[iconName] || Heart;
@@ -100,11 +132,9 @@ const LaunchCTA = ({ content = {} }) => {
   // Generate background style (priority: custom gradient > color)
   const backgroundStyle = useDefaultBackground
     ? {}
-    : (!useDefaultGradient && backgroundGradient)
-      ? { background: backgroundGradient }
-      : (backgroundColor
-          ? { background: generateGradient(backgroundColor) || `linear-gradient(135deg, ${backgroundColor} 0%, ${backgroundColor} 100%)` }
-          : {});
+    : backgroundMode === 'solid'
+      ? { background: solidColor }
+      : { background: gradient };
 
   return (
     <section className="relative overflow-hidden py-20 md:py-28">
@@ -163,3 +193,4 @@ const LaunchCTA = ({ content = {} }) => {
 };
 
 export default LaunchCTA;
+

@@ -22,6 +22,10 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { SketchPicker } from 'react-color';
+import { cn } from '@/lib/utils';
 import {
   createInputChangeHandler,
   createBooleanToggleHandler,
@@ -47,10 +51,68 @@ const promiseIcons = [
   { name: 'Settings', icon: Settings },
 ];
 
-const PromiseLayoutEditor = ({ value, onChange }) => {
+const gradientPresets = [
+  'linear-gradient(135deg, #4338ca 0%, #1d4ed8 50%, #0f172a 100%)',
+  'linear-gradient(135deg, #7c3aed 0%, #312e81 100%)',
+  'linear-gradient(135deg, #0ea5e9 0%, #1d4ed8 100%)',
+  'linear-gradient(135deg, #14b8a6 0%, #0f766e 100%)',
+  'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
+  'linear-gradient(135deg, #f59e0b 0%, #facc15 100%)',
+];
+
+const DEFAULT_SOLID = '#1f2937';
+const DEFAULT_GRADIENT = gradientPresets[0];
+
+const PromiseLayoutEditor = ({ value = {}, onChange }) => {
   const handleChange = createInputChangeHandler(value, onChange);
   const handleBoolean = createBooleanToggleHandler(value, onChange);
   const items = ensureArray(value.items);
+  const useBackgroundImage = Boolean(value.useBackgroundImage);
+  const useDefaultBackground = value.useDefaultBackground !== false;
+  const backgroundMode =
+    value.backgroundMode === 'solid' || value.backgroundMode === 'gradient'
+      ? value.backgroundMode
+      : 'gradient';
+  const solidColor =
+    value.solidColor ?? value.backgroundColor ?? DEFAULT_SOLID;
+  const gradient =
+    value.gradient ?? value.backgroundGradient ?? DEFAULT_GRADIENT;
+
+  const applyPatch = (patch) =>
+    onChange({
+      ...(value ?? {}),
+      ...patch,
+    });
+
+  const handleModeChange = (mode) => {
+    if (!mode) return;
+    const patch = { backgroundMode: mode };
+    if (mode === 'solid' && !(value.solidColor ?? value.backgroundColor)) {
+      patch.solidColor = DEFAULT_SOLID;
+      patch.backgroundColor = DEFAULT_SOLID;
+    }
+    if (mode === 'gradient' && !(value.gradient ?? value.backgroundGradient)) {
+      patch.gradient = DEFAULT_GRADIENT;
+      patch.backgroundGradient = DEFAULT_GRADIENT;
+    }
+    applyPatch(patch);
+  };
+
+  const setSolidColor = (next) =>
+    applyPatch({
+      solidColor: next,
+      backgroundColor: next,
+    });
+
+  const setGradient = (next) =>
+    applyPatch({
+      gradient: next,
+      backgroundGradient: next,
+    });
+
+  const handleSolidColorChange = (color) => {
+    setSolidColor(color?.hex ?? DEFAULT_SOLID);
+  };
 
   const updateItem = (index, patch) => {
     const nextItems = items.map((item, idx) =>
@@ -196,9 +258,9 @@ const PromiseLayoutEditor = ({ value, onChange }) => {
             onCheckedChange={handleBoolean('useBackgroundImage')}
           />
         </div>
-        {value.useBackgroundImage ? (
+        {useBackgroundImage ? (
           <Input
-            placeholder="URL de l’image"
+            placeholder="URL de l'image"
             value={value.backgroundImage}
             onChange={handleChange('backgroundImage')}
           />
@@ -207,16 +269,96 @@ const PromiseLayoutEditor = ({ value, onChange }) => {
             <div className="flex items-center justify-between">
               <Label>Fond par défaut</Label>
               <Switch
-                checked={Boolean(value.useDefaultBackground)}
+                checked={useDefaultBackground}
                 onCheckedChange={handleBoolean('useDefaultBackground')}
               />
             </div>
-            {!value.useDefaultBackground && (
-              <Input
-                placeholder="Couleur hex (#...)"
-                value={value.backgroundColor}
-                onChange={handleChange('backgroundColor')}
-              />
+            {!useDefaultBackground && (
+              <div className="space-y-4 rounded-md border p-4">
+                <div className="flex flex-col gap-2">
+                  <Label>Style de fond</Label>
+                  <ToggleGroup
+                    type="single"
+                    value={backgroundMode}
+                    onValueChange={(mode) => mode && handleModeChange(mode)}
+                    className="w-full md:w-auto"
+                  >
+                    <ToggleGroupItem value="solid" className="px-4">
+                      Couleur unique
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="gradient" className="px-4">
+                      Dégradé
+                    </ToggleGroupItem>
+                  </ToggleGroup>
+                </div>
+
+                {backgroundMode === 'solid' ? (
+                  <div className="space-y-2">
+                    <Label>Couleur</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="w-full justify-start gap-3"
+                        >
+                          <span
+                            className="h-5 w-5 rounded-md border"
+                            style={{ background: solidColor }}
+                          />
+                          <span className="text-xs text-muted-foreground">
+                            Choisir une couleur
+                          </span>
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <SketchPicker
+                          disableAlpha
+                          color={solidColor}
+                          onChangeComplete={handleSolidColorChange}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <Input
+                      value={solidColor}
+                      onChange={(event) => setSolidColor(event.target.value)}
+                      placeholder={DEFAULT_SOLID}
+                      className="font-mono text-sm"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Utilisez le sélecteur ou saisissez un code hex.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Label>Sélection du dégradé</Label>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                      {gradientPresets.map((preset) => (
+                        <Button
+                          key={preset}
+                          type="button"
+                          variant="outline"
+                          onClick={() => setGradient(preset)}
+                          className={cn(
+                            'h-16 rounded-lg border-2 border-transparent transition hover:scale-[1.02]',
+                            gradient === preset && 'border-primary shadow-md',
+                          )}
+                          style={{ backgroundImage: preset }}
+                        />
+                      ))}
+                    </div>
+                    <Input
+                      value={gradient}
+                      onChange={(event) => setGradient(event.target.value)}
+                      placeholder="linear-gradient(...)"
+                      className="font-mono text-sm"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Sélectionnez un dégradé ou collez votre propre valeur CSS.
+                    </p>
+                  </div>
+                )}
+              </div>
             )}
           </>
         )}
