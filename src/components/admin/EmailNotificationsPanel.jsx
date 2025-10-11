@@ -32,6 +32,7 @@ import {
   MoreHorizontal,
   Plus,
   Search,
+  Send,
   Trash2,
   Zap,
 } from 'lucide-react';
@@ -49,6 +50,8 @@ const DEFAULT_FORM_VALUES = {
   is_active: true,
   default_enabled: true,
 };
+
+const TEST_EMAIL_RECIPIENT = 'yann@notionlab.ch';
 
 const slugify = (value) =>
   value
@@ -122,6 +125,7 @@ const EmailNotificationsPanel = () => {
   const [previewingNotification, setPreviewingNotification] = useState(null);
   const [pendingById, setPendingById] = useState({});
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [testingById, setTestingById] = useState({});
 
   const {
     register,
@@ -343,6 +347,45 @@ const EmailNotificationsPanel = () => {
       className: 'bg-green-500 text-white',
     });
     setNotifications((prev) => [data, ...prev]);
+  };
+
+  const handleSendTest = async (notification) => {
+    if (!notification?.notification_key) {
+      toast({
+        title: 'Clé manquante',
+        description: 'Impossible de tester cette notification sans clé unique.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setTestingById((prev) => ({ ...prev, [notification.id]: true }));
+    try {
+      const { data, error } = await supabase.functions.invoke('send-email', {
+        headers: { 'x-send-email-test': '1' },
+        body: {
+          notification_key: notification.notification_key,
+          preview_email: TEST_EMAIL_RECIPIENT,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Test envoyé',
+        description: `Notification envoyée à ${TEST_EMAIL_RECIPIENT}.`,
+        className: 'bg-green-500 text-white',
+      });
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: 'Échec de l’envoi',
+        description: error.message ?? 'Impossible d’envoyer le test.',
+        variant: 'destructive',
+      });
+    } finally {
+      setTestingById((prev) => ({ ...prev, [notification.id]: false }));
+    }
   };
 
   const confirmDelete = async () => {
@@ -648,20 +691,27 @@ const EmailNotificationsPanel = () => {
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
                           <Button variant="ghost" className="h-8 w-8 p-0">
                             <span className="sr-only">Ouvrir le menu</span>
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => setPreviewingNotification(notification)}>
-                            <Eye className="mr-2 h-4 w-4" />
-                            Prévisualiser
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleOpenEdit(notification)}>
-                            <Edit className="mr-2 h-4 w-4" />
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => setPreviewingNotification(notification)}>
+                          <Eye className="mr-2 h-4 w-4" />
+                          Prévisualiser
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleSendTest(notification)}
+                          disabled={!!testingById[notification.id]}
+                        >
+                          <Send className="mr-2 h-4 w-4" />
+                          {testingById[notification.id] ? 'Envoi en cours...' : 'Envoyer un test'}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleOpenEdit(notification)}>
+                          <Edit className="mr-2 h-4 w-4" />
                             Modifier
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleDuplicate(notification)}>

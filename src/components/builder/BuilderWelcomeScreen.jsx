@@ -78,7 +78,7 @@ export const BuilderWelcomeScreen = ({ userParcours, onCreateNew }) => {
           <CardFooter>
             <Button variant="outline" onClick={handleReturnToDashboard}>
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Retour au dashboard
+              Retour au tableau de bord
             </Button>
           </CardFooter>
         </Card>

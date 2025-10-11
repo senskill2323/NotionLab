@@ -47,7 +47,7 @@ const ClientAccountPage = () => {
           transition={{ duration: 0.5 }}
           className="mb-8"
         >
-          {/* Bouton Retour au dashboard */}
+          {/* Bouton Retour au tableau de bord */}
           <div className="mb-6">
             <Button
               variant="outline"
@@ -55,7 +55,7 @@ const ClientAccountPage = () => {
               className="flex items-center gap-2 hover:bg-accent transition-colors"
             >
               <ArrowLeft className="h-4 w-4" />
-              Retour au dashboard
+              Retour au tableau de bord
             </Button>
           </div>
           

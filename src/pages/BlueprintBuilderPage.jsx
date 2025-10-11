@@ -213,7 +213,7 @@ const BlueprintBuilderShell = () => {
               onClick={() => navigate('/dashboard')}
             >
               <ArrowLeft className="h-4 w-4" />
-              Retour au dashboard
+              Retour au tableau de bord
             </Button>
             <div className="flex items-center gap-3">
               <Select value={selectValue} onValueChange={handleSelectBlueprint}>

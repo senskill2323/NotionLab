@@ -1,18 +1,17 @@
 Objectif
 - SI c'est une analyse que je te demande, produit des analyses/diagnostics fiables avec lecture minimale et ciblée de /rules. N’ouvre PAS tout: Lis l'index (présent ci-dessous), et sélectionne uniquement les entrées pertinentes à la question/analyse/diagnostique/requête, puis lis seulement ces fichiers qui peuvent t'aider à comprendre. Pour plus d'informations, lance une requête pour chercher plus d'informations.
 
-Lis toujours /rules/01-standards/readme.mdc avant de faire une action. lis toujours les autres parties de /rules avant chaque action, mais seulement ce qui est relatif à l'action que tu vas réalisé, en te servant de l'index ci-dessous: 
+Lis toujours /rules/01-standards/readme.mdc avant de faire une action. lis toujours les autres parties de /rules avant chaque action, mais seulement ce qui est relatif à l'action que tu vas réalisé. Pour savoir si c'est relatif, sers toi de l'index de /rules, ci-dessous: 
 
 
 Index du dossier /rules: 
-
 
 ## Vue d'ensemble
 - `00-architecture/` : Cartographie du shell React/Vite, des providers globaux et des parcours admin/client.
 - `01-standards/` : Stack de référence, pratiques CI/CD, scripts SQL et règles de modification.
 - `03-frameworks-and-libraries/` : Inventaire des dépendances de production et de développement synchronisé avec `package.json`.
-- `04-database/` : Placeholder pour la nomenclature SQL et les politiques RLS (à compléter).
-- `06-deployment/` : Checklists opérationnelles pour publier de nouveaux modules client et admin.
+- `04-database/` : Référentiel SQL et inventaires des colonnes (générés automatiquement) à compléter si nécessaire.
+- `06-deployment/` : Checklists opérationnelles pour publier de nouveaux modules côté client et admin.
 - `07-Fonctionnalités/` : Guides fonctionnels détaillant chaque module clé du produit.
 
 ## Dossiers et fichiers
@@ -28,7 +27,8 @@ Index du dossier /rules:
 - `03-frameworks-and-libraries/readme.mdc` : Inventaire exhaustif des dépendances production et développement alignées sur `package.json`.
 
 ### 04-database
-- `04-database/readme.mdc` : Placeholder vide à compléter pour la nomenclature SQL et les politiques RLS.
+- `04-database/readme.mdc` : Placeholder pour la nomenclature SQL et les politiques RLS (à compléter).
+- `04-database/table-columns.mdc` : Export automatisé des colonnes pour chaque table Supabase (auth, public, realtime, storage, etc.).
 
 ### 06-deployment
 - `06-deployment/Déployer un nouveau module client` : Permission `*:view_module`, enregistrement `modules_registry`, layout par défaut et intégration React côté client/builder.
@@ -43,6 +43,7 @@ Index du dossier /rules:
 - `07-Fonctionnalités/Gestion des tickets` : Module tickets client/admin, flux Supabase direct/realtime et risques RLS critiques.
 - `07-Fonctionnalités/Gestion des utilisateurs` : Invitation (`invite-user`), suppression (`admin_delete_user_full`), contextes Auth/Permissions et UI admin/client.
 - `07-Fonctionnalités/Module d'invitation` : Workflow d'invitation via Edge `invite-user`, permissions et activation.
+- `07-Fonctionnalités/Module de notification` : Module admin pour gabarits d'e-mails, Edge `send-email`, seed SQL et préférences utilisateur.
 - `07-Fonctionnalités/Module de thèmes` : ThemeProvider/ThemePanel, CRUD Supabase des tokens, prévisualisation dynamique et garde RLS à renforcer.
 - `07-Fonctionnalités/Preferences de formation` : Module onboarding training preferences, React Query, tables `training_onboarding_*` et Edge `notify-training-onboarding`.
 - `07-Fonctionnalités/Suppression d'un compte` : Usage exclusif de `supabase.rpc('admin_delete_user_full')` pour la purge complète des comptes.
