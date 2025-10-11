@@ -1,7 +1,7 @@
 Objectif
 - SI c'est une analyse que je te demande, produit des analyses/diagnostics fiables avec lecture minimale et ciblée de /rules. N’ouvre PAS tout: Lis l'index (présent ci-dessous), et sélectionne uniquement les entrées pertinentes à la question/analyse/diagnostique/requête, puis lis seulement ces fichiers qui peuvent t'aider à comprendre. Pour plus d'informations, lance une requête pour chercher plus d'informations.
 
-Lis toujours /rules/01-standards/readme.mdc avant de faire une action. lis toujours les autres parties de /rules avant chaque action, mais seulement ce qui est relatif à l'action que tu vas réalisé. Pour savoir si c'est relatif, sers toi de l'index de /rules, ci-dessous: 
+Lis toujours /rules/01-standards/readme.mdc avant de faire une action. lis toujours les autres fichiers de /rules avant chaque action, mais seulement les fichiers qui sont potentiellements relatifs à l'action que tu dois réaliser. Pour savoir si c'est relatif, sers toi de l'index de /rules, ci-dessous, et sélectionne ce qui est relatif. 
 
 
 Index du dossier /rules: 

@@ -16,7 +16,8 @@ import {
   LayoutDashboard,
   Wrench,
   BookOpen,
-  ChevronRight
+  ChevronRight,
+  BellRing,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -134,6 +135,12 @@ const menuSections = [
           title: 'Préférences de formation',
           icon: GraduationCap,
           action: () => handleNavigation('/mes-preferences-formation')
+        },
+        {
+          id: 'communication_preferences',
+          title: 'Préférences de communication',
+          icon: BellRing,
+          action: () => handleNavigation('/preferences-communication')
         },
         {
           id: 'tickets',

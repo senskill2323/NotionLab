@@ -46,6 +46,7 @@ import React from 'react';
     import ForumPage from '@/pages/ForumPage';
     import TrainingPreferencesPage from '@/pages/TrainingPreferencesPage';
     import TrainingPreferencesWizardPage from '@/pages/TrainingPreferencesWizardPage';
+    import CommunicationPreferencesPage from '@/pages/CommunicationPreferencesPage';
     import ForumTopicPage from '@/pages/ForumTopicPage';
     import CreateForumTopicPage from '@/pages/CreateForumTopicPage';
     import { TooltipProvider } from '@/components/ui/tooltip';
@@ -105,6 +106,7 @@ import React from 'react';
         <Route path="/activation-invitation" element={<InvitationActivationPage />} />
         
         <Route path="/mes-preferences-formation" element={<ClientOnlyRoute><TrainingPreferencesPage /></ClientOnlyRoute>} />
+        <Route path="/preferences-communication" element={<ClientOnlyRoute><CommunicationPreferencesPage /></ClientOnlyRoute>} />
         <Route path="/mes-preferences-formation/editer" element={<ClientOnlyRoute><TrainingPreferencesWizardPage /></ClientOnlyRoute>} />
         <Route path="/dashboard" element={<ClientOnlyRoute><DashboardPage /></ClientOnlyRoute>} />
         <Route path="/compte-client" element={<ClientOnlyRoute><ClientAccountPage /></ClientOnlyRoute>} />

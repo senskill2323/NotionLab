@@ -24,6 +24,7 @@ import { useToast } from '@/components/ui/use-toast';
 import TiptapEditor from '@/components/admin/TiptapEditor';
 import { supabase } from '@/lib/customSupabaseClient';
 import {
+  Bell,
   Copy,
   Edit,
   Eye,
@@ -37,6 +38,8 @@ import {
   Zap,
 } from 'lucide-react';
 
+const USER_AVAILABLE_FIELD = 'user-available';
+
 const DEFAULT_FORM_VALUES = {
   title: '',
   notification_key: '',
@@ -49,6 +52,7 @@ const DEFAULT_FORM_VALUES = {
   force_send: false,
   is_active: true,
   default_enabled: true,
+  [USER_AVAILABLE_FIELD]: false,
 };
 
 const TEST_EMAIL_RECIPIENT = 'yann@notionlab.ch';
@@ -96,6 +100,9 @@ const EmailPreviewDialog = ({ notification, onClose }) => {
               <Badge variant={notification.force_send ? 'destructive' : 'outline'}>
                 {notification.force_send ? 'Forcée' : 'Préférences clients'}
               </Badge>
+              <Badge variant={notification[USER_AVAILABLE_FIELD] ? 'outline' : 'secondary'}>
+                {notification[USER_AVAILABLE_FIELD] ? 'Préférence disponible' : 'Fixée par l&apos;équipe'}
+              </Badge>
             </div>
           </div>
           <div className="rounded border bg-background px-4 py-6 shadow-inner">
@@ -138,6 +145,13 @@ const EmailNotificationsPanel = () => {
   } = useForm({ defaultValues: DEFAULT_FORM_VALUES });
 
   const forceSendValue = watch('force_send');
+  const userAvailableValue = watch(USER_AVAILABLE_FIELD);
+
+  useEffect(() => {
+    if (forceSendValue && userAvailableValue) {
+      setValue(USER_AVAILABLE_FIELD, false, { shouldDirty: true });
+    }
+  }, [forceSendValue, userAvailableValue, setValue]);
 
   const fetchNotifications = useCallback(async () => {
     setLoading(true);
@@ -182,6 +196,7 @@ const EmailNotificationsPanel = () => {
       force_send: notification.force_send ?? false,
       is_active: notification.is_active ?? true,
       default_enabled: notification.default_enabled ?? true,
+      [USER_AVAILABLE_FIELD]: notification?.[USER_AVAILABLE_FIELD] ?? false,
     });
     setFormOpen(true);
   };
@@ -193,11 +208,15 @@ const EmailNotificationsPanel = () => {
   };
 
   const upsertNotification = async (values) => {
+    const normalizedValues = {
+      ...values,
+      ...(values.force_send ? { [USER_AVAILABLE_FIELD]: false } : {}),
+    };
     if (editingNotification) {
       const { error } = await supabase
         .from('email_notifications')
         .update({
-          ...values,
+          ...normalizedValues,
           updated_at: new Date().toISOString(),
         })
         .eq('id', editingNotification.id);
@@ -208,12 +227,12 @@ const EmailNotificationsPanel = () => {
         description: 'Les modifications ont été enregistrées.',
       });
       setNotifications((prev) =>
-        prev.map((item) => (item.id === editingNotification.id ? { ...item, ...values } : item)),
+        prev.map((item) => (item.id === editingNotification.id ? { ...item, ...normalizedValues } : item)),
       );
     } else {
       const payload = {
-        ...values,
-        notification_key: values.notification_key || slugify(values.title || uuidv4()),
+        ...normalizedValues,
+        notification_key: normalizedValues.notification_key || slugify(normalizedValues.title || uuidv4()),
       };
       const { error, data } = await supabase
         .from('email_notifications')
@@ -269,10 +288,14 @@ const EmailNotificationsPanel = () => {
 
   const toggleField = async (notification, field) => {
     const nextValue = !notification[field];
+    const updates = { [field]: nextValue };
+    if (field === 'force_send' && nextValue) {
+      updates[USER_AVAILABLE_FIELD] = false;
+    }
     setPendingById((prev) => ({ ...prev, [notification.id]: true }));
     const { error } = await supabase
       .from('email_notifications')
-      .update({ [field]: nextValue })
+      .update(updates)
       .eq('id', notification.id);
 
     setPendingById((prev) => ({ ...prev, [notification.id]: false }));
@@ -287,7 +310,7 @@ const EmailNotificationsPanel = () => {
     }
 
     setNotifications((prev) =>
-      prev.map((item) => (item.id === notification.id ? { ...item, [field]: nextValue } : item)),
+      prev.map((item) => (item.id === notification.id ? { ...item, ...updates } : item)),
     );
 
     let description = '';
@@ -295,12 +318,16 @@ const EmailNotificationsPanel = () => {
       description = nextValue ? 'La notification est active.' : 'La notification est désactivée.';
     } else if (field === 'force_send') {
       description = nextValue
-        ? 'La notification sera envoyée à tous les utilisateurs.'
+        ? 'La notification sera envoyée à tous les utilisateurs. Les préférences clients sont désactivées.'
         : 'Les utilisateurs pourront gérer cette notification dans leurs préférences.';
     } else if (field === 'default_enabled') {
       description = nextValue
         ? 'Les nouveaux utilisateurs recevront cette notification par défaut.'
         : 'Les nouveaux utilisateurs devront activer cette notification manuellement.';
+    } else if (field === USER_AVAILABLE_FIELD) {
+      description = nextValue
+        ? 'Les utilisateurs pourront g�rer cette notification dans leurs pr�f�rences.'
+        : 'Cette notification n\'est plus modifiable par les utilisateurs.';
     }
 
     if (!description) {
@@ -514,7 +541,7 @@ const EmailNotificationsPanel = () => {
             {errors.body_html && <p className="text-xs text-destructive">{errors.body_html.message}</p>}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="flex items-center justify-between rounded border p-3">
               <div>
                 <p className="font-medium">Notification active</p>
@@ -561,6 +588,26 @@ const EmailNotificationsPanel = () => {
                     checked={value}
                     onCheckedChange={onChange}
                     aria-label="Activer par défaut"
+                    disabled={forceSendValue}
+                  />
+                )}
+              />
+            </div>
+            <div className="flex items-center justify-between rounded border p-3">
+              <div>
+                <p className="font-medium">Préférence utilisateur</p>
+                <p className="text-xs text-muted-foreground">
+                  Permettre aux clients de désactiver cette notification.
+                </p>
+              </div>
+              <Controller
+                name={USER_AVAILABLE_FIELD}
+                control={control}
+                render={({ field: { value, onChange } }) => (
+                  <Switch
+                    checked={value}
+                    onCheckedChange={onChange}
+                    aria-label="Permettre la gestion côté client"
                     disabled={forceSendValue}
                   />
                 )}
@@ -688,30 +735,48 @@ const EmailNotificationsPanel = () => {
                             aria-label="Activer par défaut"
                           />
                         </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground">Préférence client</span>
+                          <Switch
+                            checked={!!notification[USER_AVAILABLE_FIELD]}
+                            onCheckedChange={() => toggleField(notification, USER_AVAILABLE_FIELD)}
+                            disabled={pending || notification.force_send}
+                            aria-label="Permettre la gestion côté client"
+                          />
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
                           <Button variant="ghost" className="h-8 w-8 p-0">
                             <span className="sr-only">Ouvrir le menu</span>
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => setPreviewingNotification(notification)}>
-                          <Eye className="mr-2 h-4 w-4" />
-                          Prévisualiser
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleSendTest(notification)}
-                          disabled={!!testingById[notification.id]}
-                        >
-                          <Send className="mr-2 h-4 w-4" />
-                          {testingById[notification.id] ? 'Envoi en cours...' : 'Envoyer un test'}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleOpenEdit(notification)}>
-                          <Edit className="mr-2 h-4 w-4" />
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => setPreviewingNotification(notification)}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            Prévisualiser
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleSendTest(notification)}
+                            disabled={!!testingById[notification.id]}
+                          >
+                            <Send className="mr-2 h-4 w-4" />
+                            {testingById[notification.id] ? 'Envoi en cours...' : 'Envoyer un test'}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => toggleField(notification, USER_AVAILABLE_FIELD)}
+                            disabled={pending || notification.force_send}
+                          >
+                            <Bell className="mr-2 h-4 w-4" />
+                            {notification[USER_AVAILABLE_FIELD]
+                              ? 'Retirer des préférences client'
+                              : 'Autoriser les préférences client'}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleOpenEdit(notification)}>
+                            <Edit className="mr-2 h-4 w-4" />
                             Modifier
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleDuplicate(notification)}>

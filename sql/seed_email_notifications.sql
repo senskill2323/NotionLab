@@ -331,7 +331,8 @@ INSERT INTO public.email_notifications (
   sender_email,
   force_send,
   is_active,
-  default_enabled
+  default_enabled,
+  "user-available"
 )
 SELECT
   notification_key,
@@ -344,7 +345,8 @@ SELECT
   'notifications@notionlab.co',
   false,
   true,
-  true
+  true,
+  false
 FROM presets
 ON CONFLICT (notification_key) DO UPDATE
 SET
@@ -358,4 +360,5 @@ SET
   force_send = EXCLUDED.force_send,
   is_active = EXCLUDED.is_active,
   default_enabled = EXCLUDED.default_enabled,
+  "user-available" = EXCLUDED."user-available",
   updated_at = now();
