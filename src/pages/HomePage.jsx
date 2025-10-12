@@ -80,9 +80,9 @@ const HomePage = () => {
     <>
       <Helmet>
         <title>NotionLab - Formations Notion pour Entrepreneurs et Équipes</title>
-        <meta name="description" content="Formations Notion professionnelles pour entrepreneurs, chefs d'entreprise et équipes. Maîtrisez Notion du niveau débutant à expert avec nos formations pratiques." />
-        <meta property="og:title" content="NotionLab - Formations Notion pour Entrepreneurs et Équipes" />
-        <meta property="og:description" content="Formations Notion professionnelles pour entrepreneurs, chefs d'entreprise et équipes. Maîtrisez Notion du niveau débutant à expert avec nos formations pratiques." />
+        <meta name="description" content="Ateliers Todo Notion en Suisse-romande. Créez un système simple pour organiser travail et maison." />
+        <meta property="og:title" content="NotionLab - Formations Notion pour particuliers, entrepreneurs et Équipes" />
+        <meta property="og:description" content="Formations Notion pour particuliers, entrepreneurs, chefs d'entreprise et équipes. Maîtrisez Notion du niveau débutant à expert avec nos formations pratiques." />
       </Helmet>
 
       <div className="min-h-screen">

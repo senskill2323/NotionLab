@@ -77,7 +77,7 @@ const AboutPage = () => {
               delay: 0.2
             }} className="flex justify-center">
                 <div className="w-80 h-80 md:w-96 md:h-96 rounded-full notion-gradient p-2 floating-animation">
-                  <img className="w-full h-full rounded-full object-cover" alt="Portrait de l'expert Notion" src="https://horizons-cdn.hostinger.com/33d72ce2-b6b0-4274-b8ce-63300e44633e/20220223_203437-kuCYp.jpg" />
+                  <img className="w-full h-full rounded-full object-cover" alt="Portrait de l'expert Notion" src="https://kiudpvvqpbkzeybogrnq.supabase.co/storage/v1/object/public/site-assets/home/20220223_203437.jpg" />
                 </div>
               </motion.div>
             </section>

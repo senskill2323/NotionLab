@@ -153,21 +153,31 @@ SET
   display_order = EXCLUDED.display_order;
 
 DO $$
-DECLARE target_row integer;
+DECLARE target_row integer := 1;
+DECLARE target_col integer;
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM public.admin_dashboard_tabs WHERE tab_id = 'email_notifications'
   ) THEN
-    SELECT COALESCE(MAX(row_order), -1) + 1 INTO target_row FROM public.admin_dashboard_tabs;
+    SELECT COALESCE(MAX(col_order), -1) + 1
+    INTO target_col
+    FROM public.admin_dashboard_tabs
+    WHERE row_order = target_row;
+
+    IF target_col IS NULL OR target_col < 0 THEN
+      target_col := 0;
+    END IF;
 
     INSERT INTO public.admin_dashboard_tabs (tab_id, label, icon, row_order, col_order, permission_required)
-    VALUES ('email_notifications', 'Notifications', 'Mail', target_row, 0, 'admin:manage_email_notifications');
+    VALUES ('email_notifications', 'Notifications', 'Mail', target_row, target_col, 'admin:manage_email_notifications');
   ELSE
     UPDATE public.admin_dashboard_tabs
     SET
       label = 'Notifications',
       icon = 'Mail',
-      permission_required = 'admin:manage_email_notifications'
+      permission_required = 'admin:manage_email_notifications',
+      row_order = target_row,
+      col_order = COALESCE(col_order, 0)
     WHERE tab_id = 'email_notifications';
   END IF;
 END
