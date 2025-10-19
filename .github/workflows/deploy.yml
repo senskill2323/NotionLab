@@ -17,7 +17,7 @@ jobs:
       REMOTE_HOST: ${{ secrets.VPS_HOST }}
       REMOTE_USER: ${{ secrets.VPS_USER }}
       REMOTE_PORT: ${{ secrets.VPS_PORT }}
-      REMOTE_PATH: ${{ secrets.VPS_PATH }}   # ex: /var/www/notionlab
+      REMOTE_PATH: ${{ secrets.VPS_PATH }}   # ex: /var/www/notionlab6
 
     steps:
       - name: Checkout
