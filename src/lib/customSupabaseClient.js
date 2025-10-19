@@ -70,7 +70,12 @@ const buildSupabaseFetch = ({ clientLabel, ensureHeaders, getAccessToken }) => a
     const token = getAccessToken();
     if (token) {
       headers.set('Authorization', `Bearer ${token}`);
+    } else {
+      console.warn('[supabase:authed] missing access token for request', input);
     }
+  } else {
+    // eslint-disable-next-line no-console
+    console.debug('[supabase:authed] using provided authorization header');
   }
 
   const upstreamSignal = init.signal;
