@@ -3,6 +3,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { arrayMove } from '@dnd-kit/sortable';
 import { v4 as uuidv4 } from 'uuid';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
 
 export const BuilderCatalogContext = createContext();
 
@@ -18,6 +19,7 @@ export const BuilderCatalogProvider = ({ children }) => {
     const [catalog, setCatalog] = useState([]);
     const [loading, setLoading] = useState(true);
     const { toast } = useToast();
+    const { user, authReady } = useAuth();
 
     const fetchData = useCallback(async () => {
         // Ne pas remettre loading à true ici pour éviter les flashs sur les re-fetchs de realtime
@@ -55,7 +57,24 @@ export const BuilderCatalogProvider = ({ children }) => {
     }, [toast]);
 
     useEffect(() => {
-        fetchData();
+        if (!authReady) return;
+
+        if (!user) {
+            setCatalog([]);
+            setLoading(false);
+            return;
+        }
+
+        let isMounted = true;
+        const initialize = async () => {
+            setLoading(true);
+            if (isMounted) {
+                await fetchData();
+            }
+        };
+
+        initialize();
+
         const channel = supabase
           .channel('builder-catalog-changes')
           .on('postgres_changes', { event: '*', schema: 'public', table: 'builder_families' }, fetchData)
@@ -65,9 +84,10 @@ export const BuilderCatalogProvider = ({ children }) => {
           .subscribe();
     
         return () => {
+          isMounted = false;
           supabase.removeChannel(channel);
         };
-    }, [fetchData]);
+    }, [authReady, user, fetchData]);
     
     const optimisticUpdate = (updateFunction) => {
         setCatalog(currentCatalog => {

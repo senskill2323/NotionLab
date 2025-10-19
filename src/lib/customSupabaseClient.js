@@ -10,35 +10,32 @@ if (!supabaseUrl || !supabaseAnonKey) {
 // Ensure singletons across HMR/tab contexts to avoid multiple GoTrueClient instances.
 const globalScope = typeof window !== 'undefined' ? window : globalThis;
 
-const supabaseBaseUrl = (() => {
-  try {
-    return supabaseUrl ? new URL(supabaseUrl) : null;
-  } catch (error) {
-    console.error('Invalid Supabase URL. Check VITE_SUPABASE_URL.', error);
-    return null;
-  }
-})();
-
-const appendApiKeyIfMissing = (input) => {
-  if (!supabaseAnonKey || !supabaseBaseUrl) return input;
-  const urlStr = typeof input === 'string' ? input : (input && input.url) ? input.url : null;
-  if (!urlStr) return input;
-
-  try {
-    const url = new URL(urlStr);
-    if (url.origin === supabaseBaseUrl.origin && url.pathname.startsWith('/rest/v1') && !url.searchParams.has('apikey')) {
-      url.searchParams.set('apikey', supabaseAnonKey);
-      return url.toString();
-    }
-  } catch (_) {
-    // Ignore parse issues; headers still contain apikey.
-  }
-
-  return input;
-};
-
 const NETWORK_ERROR_CODE = 'NETWORK_ERROR';
 const SUPABASE_FETCH_TIMEOUT_MS = 30000; // increase to avoid spurious timeouts during heavy admin loads
+
+const readStoredAccessToken = () => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage?.getItem('nl-auth');
+    if (!raw) return null;
+    const stored = JSON.parse(raw);
+    return stored?.currentSession?.access_token || stored?.session?.access_token || null;
+  } catch (error) {
+    console.warn('[supabase] failed to parse stored session', error);
+    return null;
+  }
+};
+
+let cachedAccessToken = readStoredAccessToken();
+const getActiveAccessToken = () => {
+  if (cachedAccessToken) return cachedAccessToken;
+  const fromStorage = readStoredAccessToken();
+  if (fromStorage) {
+    cachedAccessToken = fromStorage;
+    return cachedAccessToken;
+  }
+  return null;
+}; // Only return a session access token; avoid falling back to anon key for Authorization.
 
 const createNetworkErrorResponse = (error, clientLabel) => {
   const message = error?.message || 'Network request failed';
@@ -65,9 +62,16 @@ const createNetworkErrorResponse = (error, clientLabel) => {
   });
 };
 
-const buildSupabaseFetch = ({ clientLabel, ensureHeaders }) => async (input, init = {}) => {
+const buildSupabaseFetch = ({ clientLabel, ensureHeaders, getAccessToken }) => async (input, init = {}) => {
   const headers = new Headers(init.headers || {});
   ensureHeaders(headers);
+
+  if (!headers.has('Authorization')) {
+    const token = getAccessToken();
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`);
+    }
+  }
 
   const upstreamSignal = init.signal;
   const controller = new AbortController();
@@ -94,10 +98,8 @@ const buildSupabaseFetch = ({ clientLabel, ensureHeaders }) => async (input, ini
   }
 
   const finalInit = { ...init, headers, signal: controller.signal };
-  const finalInput = appendApiKeyIfMissing(input);
-
   try {
-    return await fetch(finalInput, finalInit);
+    return await fetch(input, finalInit);
   } catch (error) {
     if (controller.signal.aborted) {
       const reason = controller.signal.reason;
@@ -115,28 +117,49 @@ const buildSupabaseFetch = ({ clientLabel, ensureHeaders }) => async (input, ini
   }
 };
 
-const createAuthedClient = () => createClient(supabaseUrl, supabaseAnonKey, {
-  global: {
-    headers: {
-      apikey: supabaseAnonKey || '',
-    },
-    fetch: buildSupabaseFetch({
-      clientLabel: 'authed',
-      ensureHeaders: (headers) => {
-        if (!headers.has('apikey')) {
-          headers.set('apikey', supabaseAnonKey || '');
-        }
+const createAuthedClient = () => {
+  const client = createClient(supabaseUrl, supabaseAnonKey, {
+    global: {
+      headers: {
+        apikey: supabaseAnonKey || '',
       },
-    }),
-  },
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-    storageKey: 'nl-auth',
-    multiTab: true,
-  },
-});
+      fetch: buildSupabaseFetch({
+        clientLabel: 'authed',
+        ensureHeaders: (headers) => {
+          if (!headers.has('apikey')) {
+            headers.set('apikey', supabaseAnonKey || '');
+          }
+        },
+        getAccessToken: getActiveAccessToken,
+      }),
+    },
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      storageKey: 'nl-auth',
+      multiTab: true,
+    },
+  });
+
+  const assignAccessTokenFromSession = (session) => {
+    cachedAccessToken = session?.access_token || null;
+  };
+
+  client.auth.getSession().then(({ data, error }) => {
+    if (!error) {
+      assignAccessTokenFromSession(data?.session);
+    }
+  }).catch((err) => {
+    console.warn('[supabase] failed to warm session cache', err);
+  });
+
+  client.auth.onAuthStateChange((_event, session) => {
+    assignAccessTokenFromSession(session);
+  });
+
+  return client;
+};
 
 export const supabase = globalScope.__nl_supabase || createAuthedClient();
 if (!globalScope.__nl_supabase) {
