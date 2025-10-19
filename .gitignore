@@ -6,6 +6,7 @@ build/
 
 # --- Environnements ---
 .env
+.env.local
 .env.*
 !.env.example
 .env.vault
@@ -13,7 +14,6 @@ build/
 .envrc
 
 # --- Codex / MCP ---
-.codex/
 !/rules/**
 config.toml
 mcp_config.json
@@ -32,7 +32,6 @@ Thumbs.db
 desktop.ini
 .vscode/
 .idea/
-.windsurf/
 
 # --- Temporaires ---
 *.local
