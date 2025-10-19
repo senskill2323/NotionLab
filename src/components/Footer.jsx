@@ -109,7 +109,7 @@ const Footer = ({ content = {}, isPreview = false }) => {
         </div>
 
         <div className="mt-12 pt-8 border-t border-border text-center text-sm text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} NotionLab. Tous droits réservés.</p>
+          <p>&copy; {new Date().getFullYear()} NotionLab. Tous les droits sont  réservés.</p>
         </div>
       </div>
     </footer>
