@@ -18,6 +18,7 @@ jobs:
       REMOTE_USER: ${{ secrets.VPS_USER }}
       REMOTE_PORT: ${{ secrets.VPS_PORT }}
       REMOTE_PATH: ${{ secrets.VPS_PATH }}   # ex: /var/www/notionlab6
+      NGINX_RELOAD: ${{ secrets.NGINX_RELOAD }}
 
     steps:
       - name: Checkout
@@ -53,7 +54,7 @@ jobs:
 
       # Optionnel : reload Nginx si necessaire (si tu as sudo sans mot de passe pour ce cmd)
       - name: Reload Nginx (optional)
-        if: ${{ secrets.NGINX_RELOAD == 'true' }}
+        if: ${{ env.NGINX_RELOAD == 'true' }}
         run: |
           ssh -i ~/.ssh/id_ed25519 -p ${REMOTE_PORT:-22} \
             "${REMOTE_USER}@${REMOTE_HOST}" \
