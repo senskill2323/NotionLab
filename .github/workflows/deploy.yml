@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 name: Build & Deploy Vite to VPS
 
 on:
@@ -8,15 +9,37 @@ on:
 concurrency:
   group: deploy
   cancel-in-progress: true
+=======
+name: Build & Deploy to VPS
+
+on:
+  push:
+    branches: [ "main" ]     # adapte si besoin
+  workflow_dispatch: {}       # déclenchement manuel au besoin
+  # Si tu veux aussi sur tags:
+  # tags:
+  #   - 'v*'
+>>>>>>> dev
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+<<<<<<< HEAD
+=======
+
+    env:
+      NODE_VERSION: 20
+      REMOTE_HOST: ${{ secrets.VPS_HOST }}
+      REMOTE_USER: ${{ secrets.VPS_USER }}
+      REMOTE_PORT: ${{ secrets.VPS_PORT }}
+      REMOTE_PATH: ${{ secrets.VPS_PATH }}   # ex: /var/www/notionlab
+>>>>>>> dev
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+<<<<<<< HEAD
       - name: Validate required secrets
         run: |
           req=(VPS_HOST VPS_USER VPS_PATH SSH_PRIVATE_KEY VITE_SUPABASE_URL VITE_SUPABASE_ANON_KEY)
@@ -29,20 +52,35 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+=======
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+>>>>>>> dev
           cache: 'npm'
 
-      - name: Install deps (clean)
+      - name: Install deps
         run: npm ci
 
+<<<<<<< HEAD
       - name: Build Vite
+=======
+      - name: Build (inject env)
+>>>>>>> dev
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: npm run build
 
-      - name: Smoke check (index exists)
-        run: test -f dist/index.html
+      - name: Prepare SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -p "${REMOTE_PORT:-22}" "${REMOTE_HOST}" >> ~/.ssh/known_hosts
 
+<<<<<<< HEAD
       # ==== Déploiement SSH/rsync ====
       - name: Add SSH key
         uses: webfactory/ssh-agent@v0.9.0
@@ -66,3 +104,18 @@ jobs:
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "test -f '${{ secrets.VPS_PATH }}/index.html'"
           echo "✅ Deployed $GITHUB_SHA"
 
+=======
+      - name: Deploy via rsync
+        run: |
+          RSYNC_FLAGS="-az --delete --chmod=D755,F644"
+          rsync $RSYNC_FLAGS -e "ssh -i ~/.ssh/id_ed25519 -p ${REMOTE_PORT:-22}" \
+            dist/ "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/"
+
+      # Optionnel : reload Nginx si nécessaire (si tu as sudo sans mot de passe pour ce cmd)
+      - name: Reload Nginx (optional)
+        if: ${{ secrets.NGINX_RELOAD == 'true' }}
+        run: |
+          ssh -i ~/.ssh/id_ed25519 -p ${REMOTE_PORT:-22} \
+            "${REMOTE_USER}@${REMOTE_HOST}" \
+            'sudo nginx -t && sudo systemctl reload nginx || true'
+>>>>>>> dev
