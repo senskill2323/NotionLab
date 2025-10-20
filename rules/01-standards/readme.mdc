@@ -35,7 +35,6 @@ Lire des fichiers existants assure:
 
 * AUTRES INSTRUCTIONS * 
 
+- Utilise le MCP ref (mcp_servers.ref) avant d’écrire du code, en cas d’API/librarie nouvelle, ou si nous doutons d’un pattern, interroge ref! si Ref ne renvoie rien de probant, le dire, proposer la meilleure approche connue + TODO “à valider via Ref/Docs”.
 - Utilise powershell v7.xx installé ("C:\Program Files\PowerShell\7\pwsh.exe")
 - Utilise le script Node scripts/run-sql.js (lancé comme node scripts/run-sql.js "<ta requête SQL>") pour exécuter des requêtes SQL contre Supabase. ID du projet Supabase: kiudpvvqpbkzeybogrnq (Projet NotionLab)
-- Ne jamais exposer SUPABASE_SERVICE_ROLE dans le code client et limiter la diffusion du fichier .env.local.
-- Env via /.env & /.env.local (ex. VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY) ; alerter si manquants ; ne jamais exposer de clés service-role côté client.

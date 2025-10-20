@@ -6,44 +6,45 @@ Lis toujours /rules/01-standards/readme.mdc avant de faire une action. lis toujo
 
 Index du dossier /rules: 
 
-## Vue d'ensemble
-- `00-architecture/` : Cartographie du shell React/Vite, des providers globaux et des parcours admin/client.
-- `01-standards/` : Stack de référence, pratiques CI/CD, scripts SQL et règles de modification.
-- `03-frameworks-and-libraries/` : Inventaire des dépendances de production et de développement synchronisé avec `package.json`.
-- `04-database/` : Référentiel SQL et inventaires des colonnes (générés automatiquement) à compléter si nécessaire.
-- `06-deployment/` : Checklists opérationnelles pour publier de nouveaux modules côté client et admin.
-- `07-Fonctionnalités/` : Guides fonctionnels détaillant chaque module clé du produit.
+# Index des regles
 
-## Dossiers et fichiers
+## Vue d'ensemble
+- `00-architecture/` : cartographie du shell React/Vite, providers globaux et flux client/admin.
+- `01-standards/` : socle de reference (stack, CI/CD, scripts npm/SQL, regles d'intervention).
+- `03-frameworks-and-libraries/` : inventaire complet des dependances prod/dev synchronise avec `package.json`.
+- `04-database/` : documentation Supabase (gouvernance, RLS, edge functions, inventaire des tables).
+- `06-deployment/` : checklists pour livrer ou mettre a jour un module client ou admin.
+- `07-Fonctionnalites/` : guides fonctionnels pour chaque module cle (assistant, formations, tickets, etc.).
+
+## Navigation detaillee
 
 ### 00-architecture
-- `00-architecture/readme.mdc` : Cartographie complète du shell SPA (providers, routing, flux Supabase, builders).
-- `00-architecture/Espace administrateur` : Synthèse de l'espace admin (onglets dynamiques, permissions, dépendances Supabase).
+- `00-architecture/readme.mdc` : vue systeme du SPA (routing, providers Auth/Permissions/Assistant, React Query).
+- `00-architecture/Espace administrateur` : reference de la zone admin (onglets dynamiques, permissions, dependances Supabase).
 
 ### 01-standards
-- `01-standards/readme.mdc` : Stack de référence, scripts npm/SQL, règles de lecture préalable et bonnes pratiques CI/CD.
+- `01-standards/readme.mdc` : regles critiques (lecture prealable, workflow modification), scripts `npm run db:*`, conventions CI/CD et environnement.
 
 ### 03-frameworks-and-libraries
-- `03-frameworks-and-libraries/readme.mdc` : Inventaire exhaustif des dépendances production et développement alignées sur `package.json`.
+- `03-frameworks-and-libraries/readme.mdc` : listes exhaustives des libs front/back, classes par usage (UI, state, flow, CLI).
 
 ### 04-database
-- `04-database/readme.mdc` : Placeholder pour la nomenclature SQL et les politiques RLS (à compléter).
-- `04-database/table-columns.mdc` : Export automatisé des colonnes pour chaque table Supabase (auth, public, realtime, storage, etc.).
+- `04-database/readme.mdc` : vision d'ensemble Supabase, gouvernance/RLS, edge functions et inventaire automatise des tables/colonnes.
 
 ### 06-deployment
-- `06-deployment/Déployer un nouveau module client` : Permission `*:view_module`, enregistrement `modules_registry`, layout par défaut et intégration React côté client/builder.
-- `06-deployment/Déployer un nouveau module admin` : Liaison permissions `admin:*`, onglets `admin_dashboard_tabs`, `admin_modules_registry` et composant React du dashboard admin.
+- `06-deployment/Deployer un nouveau module client` : permissions `*:view_module`, enregistrement `modules_registry`, layout par defaut et integration React.
+- `06-deployment/Deployer un nouveau module admin` : liaison permissions `admin:*`, `admin_dashboard_tabs`, `admin_modules_registry` et composant dashboard.
 
-### 07-Fonctionnalités
-- `07-Fonctionnalités/Assistant IA` : Assistant WebRTC (`useAssistant`, quotas, métriques Supabase, Edge `assistant-mint-key`).
-- `07-Fonctionnalités/Blueprint Notion` : Blueprint builder React Flow (autosave, RPC Supabase, partage public, palette admin).
-- `07-Fonctionnalités/Builder de formation` : Formation builder React Flow, catalogue `BuilderCatalogContext`, autosave et workflows admin/client.
-- `07-Fonctionnalités/Formation` : Panorama catalogue formations, builder, dashboards client/admin et lacunes RLS/RPC.
-- `07-Fonctionnalités/Gestion des bloques` : Cycle de vie `content_blocks`, Edge `manage-content-block`, bibliothèque de layouts et anomalies connues.
-- `07-Fonctionnalités/Gestion des tickets` : Module tickets client/admin, flux Supabase direct/realtime et risques RLS critiques.
-- `07-Fonctionnalités/Gestion des utilisateurs` : Invitation (`invite-user`), suppression (`admin_delete_user_full`), contextes Auth/Permissions et UI admin/client.
-- `07-Fonctionnalités/Module d'invitation` : Workflow d'invitation via Edge `invite-user`, permissions et activation.
-- `07-Fonctionnalités/Module de notification` : Module admin pour gabarits d'e-mails, Edge `send-email`, seed SQL et préférences utilisateur.
-- `07-Fonctionnalités/Module de thèmes` : ThemeProvider/ThemePanel, CRUD Supabase des tokens, prévisualisation dynamique et garde RLS à renforcer.
-- `07-Fonctionnalités/Preferences de formation` : Module onboarding training preferences, React Query, tables `training_onboarding_*` et Edge `notify-training-onboarding`.
-- `07-Fonctionnalités/Suppression d'un compte` : Usage exclusif de `supabase.rpc('admin_delete_user_full')` pour la purge complète des comptes.
+### 07-Fonctionnalites
+- `07-Fonctionnalites/Assistant IA` : assistant WebRTC (`useAssistant`, quotas, metrics Supabase, edge `assistant-mint-key`).
+- `07-Fonctionnalites/Blueprint Notion` : builder React Flow (autosave, RPC partage public, palette admin).
+- `07-Fonctionnalites/Builder de formation` : builder formation, `BuilderCatalogContext`, autosave et workflows admin/client.
+- `07-Fonctionnalites/Formation` : panorama catalogue, dashboards client/admin, contraintes RLS/RPC.
+- `07-Fonctionnalites/Gestion des bloques` : lifecycle `content_blocks`, edge `manage-content-block`, bibliotheque de layouts.
+- `07-Fonctionnalites/Gestion des tickets` : module tickets realtime, flux Supabase et risques RLS.
+- `07-Fonctionnalites/Gestion des utilisateurs` : invitation (`invite-user`), suppression (`admin_delete_user_full`), contexts Auth/Permissions.
+- `07-Fonctionnalites/Module d'invitation` : workflow d'invitation edge `invite-user`, activation comptes.
+- `07-Fonctionnalites/Module de notification` : gabarits email, edge `send-email`, seed SQL et preferences.
+- `07-Fonctionnalites/Module de themes` : ThemeProvider/ThemePanel, CRUD tokens et preview dynamique.
+- `07-Fonctionnalites/Preferences de formation` : onboarding formations, React Query, tables `training_onboarding_*`, edge `notify-training-onboarding`.
+- `07-Fonctionnalites/Suppression d'un compte` : usage exclusif de `supabase.rpc('admin_delete_user_full')` pour purge complete.

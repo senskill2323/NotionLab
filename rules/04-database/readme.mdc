@@ -8,6 +8,67 @@ description: Inventaire exhaustif des colonnes par table (hors schémas système
 
 > Généré automatiquement via export-table-columns.js le 2025-09-24T12:11:08.487Z
 
+## Vue d'ensemble
+
+- Supabase centralise auth, Postgres, realtime et storage pour NotionLab (project id `kiudpvvqpbkzeybogrnq`).
+- Le client unique vit dans `src/lib/customSupabaseClient.js` et est expose via `SupabaseAuthContext` et `PermissionsContext`.
+- Les variables `VITE_SUPABASE_URL` et `VITE_SUPABASE_ANON_KEY` restent dans `.env` / `.env.local`; la cle service role est reservee aux edge functions et scripts serveur.
+- Migrations SQL dans `Supabase/migrations`; utiliser `npm run db:file` pour appliquer un fichier, `node scripts/run-sql.js "<SQL>"` pour un test ad hoc, et `node scripts/export-table-columns.js` pour regenerer l'inventaire ci-dessous.
+
+## Gouvernance et securite
+
+- RLS active sur public.formation_module_statuses, public.training_onboarding_sections, public.training_onboarding_questions, public.training_onboarding_question_options, public.training_onboarding_responses, public.training_onboarding_nps, public.assistant_settings, public.assistant_limits, public.assistant_metrics et public.static_pages; activer aussi public.chat_conversations quand le module chat sera finalise.
+- Les operations privilegiees passent par RPC Postgres et edge functions (`supabase/functions/*`) pour eviter de diffuser la cle service role.
+- `public.action_logs` tient l'audit metier, `auth.audit_log_entries` prolonge l'audit Supabase; verifier ces journaux lors des investigations.
+- Chaque evolution de schema doit inclure les policies et tests associes (rejouer `node scripts/run-sql.js` avec les policies correspondantes avant merge).
+
+## Edge functions et RPC
+
+- Edge functions deployees: assistant-mint-key, assistant-voice-preview, content-blocks-search, create-admin-user, create-user-with-role, delete-user-full, get-dashboard-layout, invite-user, manage-content-block, notify-training-onboarding, set-user-password, update-dashboard-layout, users-search.
+- Principales RPC Postgres: get_admin_dashboard_kpis, search_user_formation_submissions, helpers training onboarding, helpers dashboard layout; utiliser ces RPC plutot que des acces directs depuis le client.
+- Les helpers front `assistantApi`, `trainingOnboardingApi` et `chatApi` encapsulent les appels Supabase et garantissent le respect des policies.
+
+## Schema et domaines principaux
+
+### Schema auth
+
+- Tables gerees par Supabase pour comptes, sessions, MFA et tokens OAuth; ne pas modifier la structure sans passer par le dashboard Supabase.
+- Utiliser `auth.users`, `auth.identities` et la vue `auth.sessions` comme source de verite pour synchroniser les profils publics.
+
+### Schema public (metier)
+
+- **Gouvernance et navigation**: `public.action_logs` journalise les actions; `public.admin_dashboard_tabs` decrit la navigation admin; `public.admin_modules_registry` attache les modules React aux onglets; `public.modules_registry` mappe les modules client; `public.dashboard_layouts` stocke les layouts; `public.component_rules` gere l'affichage conditionnel; `public.role_permissions` aligne permissions et modules.
+- **Profils et typologies**: `public.profiles` enrichit les utilisateurs (nom, type, parametres); `public.user_types` regroupe les typologies et leurs droits.
+- **Assistant et chat**: `public.assistant_settings` regle le temps reel (modele, voix, ICE); `public.assistant_limits` compte les quotas; `public.assistant_metrics` trace les sessions; `public.chat_conversations` suit les fils realtime; `public.chat_messages` stocke le contenu message.
+- **Builder et contenu**: `public.builder_families`, `public.builder_subfamilies` et `public.builder_modules` definissent le catalogue pedagogique; `public.block_samples` et `public.content_blocks` fournissent les blocs UI; `public.resources`, `public.resource_assignments` et `public.resource_ratings` pilotent la bibliotheque; `public.static_pages` gere le CMS; `public.themes` stocke les tokens de theming.
+- **Formation et parcours**: `public.courses` conserve le graphe de formation; `public.formation_submissions` suit les demandes; `public.formation_module_statuses` represente le kanban; `public.kanban_user_modules_v1` expose la vue agregee; `public.user_formations` et `public.user_formation_snapshots` retracent l'attribution des parcours.
+- **Onboarding formation**: `public.training_onboarding_sections`, `public.training_onboarding_questions`, `public.training_onboarding_question_options`, `public.training_onboarding_responses` et `public.training_onboarding_nps` pilotent le brief d'arrivee et les retours.
+- **Support et forum**: `public.tickets` et `public.ticket_replies` couvrent le support client; `public.forum_topics` et `public.forum_posts` alimentent la communaute.
+
+### Schema extensions
+
+- Metadonnees d'extensions Postgres (pgsodium, pg_graphql, supabase_triggers, etc.) gerees automatiquement par Supabase.
+
+### Schema realtime
+
+- Tables systeme pour la diffusion realtime (`broadcasts`, `subscriptions`, `schema_migrations`) ; ne pas intervenir cote application.
+
+### Schema storage
+
+- `storage.buckets`, `storage.objects`, `storage.prefixes` et les tables multipart pilotent les medias; `storage.migrations` journalise les operations CLI.
+
+### Schema supabase_migrations
+
+- Table `schema_migrations` alimentee par la CLI Supabase; verifier la synchro apres chaque `supabase db push`.
+
+### Schema vault
+
+- `vault.secrets` et `vault.decrypted_secrets` stockent les secrets chiffres pour les edge functions; manipuler uniquement via les outils Supabase.
+
+## Inventaire detaille des colonnes (export auto)
+
+Ce chapitre est genere par `scripts/export-table-columns.js` et liste chaque table et colonne par schema. Reexecuter l'export avant une livraison majeure.
+
 ## Schéma auth
 
 ### Table `auth.audit_log_entries`
