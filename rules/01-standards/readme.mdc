@@ -14,10 +14,10 @@ Edge Functions actives : assistant-mint-key / voice-preview, notify-training-onb
 ## Workflow Modification 
 
 **** REGLES CRITIQUES - TOUJOURS SUIVRE CES REGLES ****
-
+- La base avant de coder, c'est de comparer avec la bilbiothèque REF (le seul outil MCP que tu possèdes) 
 - Avant de modifier un fichier, tu dois lire minimum 3 fichiers qui vont t'aider à faire quelque chose de cohérent et consistant. c'est non négociable. Tu ne dois pas skip cette étape sous aucune circonstance. 
 Lire des fichiers existants assure: 
-- persistance du code avec les pattern du projet
+persistance du code avec les pattern du projet
 - compréhension solide des conventions
 - suivre l'architecutre etablie
 - eviter les changements qui cassent le code. 
@@ -37,5 +37,3 @@ Lire des fichiers existants assure:
 
 - Utilise powershell v7.xx installé ("C:\Program Files\PowerShell\7\pwsh.exe")
 - Utilise le script Node scripts/run-sql.js (lancé comme node scripts/run-sql.js "<ta requête SQL>") pour exécuter des requêtes SQL contre Supabase. ID du projet Supabase: kiudpvvqpbkzeybogrnq (Projet NotionLab)
-- Ne jamais exposer SUPABASE_SERVICE_ROLE dans le code client et limiter la diffusion du fichier .env.local.
-- Env via /.env & /.env.local (ex. VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY) ; alerter si manquants ; ne jamais exposer de clés service-role côté client.
