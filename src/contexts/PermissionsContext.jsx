@@ -16,7 +16,7 @@ export const usePermissions = () => {
 
 export const PermissionsProvider = ({ children }) => {
   const location = useLocation();
-  const { user, authReady } = useAuth();
+  const { user, authReady, sessionReady } = useAuth();
   const [permissions, setPermissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userType, setUserType] = useState(null);
@@ -75,7 +75,7 @@ export const PermissionsProvider = ({ children }) => {
 
   const fetchPermissions = useCallback(async () => {
     // Avoid racing before auth and profile are settled
-    if (!authReady) return;
+    if (!authReady || !sessionReady) return;
     setUserType(null);
     setError(null);
     setUsingFallback(false);
@@ -188,7 +188,7 @@ export const PermissionsProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, [user, authReady, ready]);
+  }, [user, authReady, sessionReady, ready]);
 
   useSessionRefresh(() => {
     fetchPermissions();
@@ -197,10 +197,10 @@ export const PermissionsProvider = ({ children }) => {
   // Prefetch permissions only on protected routes, once auth is ready
   useEffect(() => {
     const path = location.pathname || '';
-    if (authReady && isProtectedPath(path)) {
+    if (authReady && sessionReady && isProtectedPath(path)) {
       fetchPermissions();
     }
-  }, [authReady, location.pathname, fetchPermissions, isProtectedPath]);
+  }, [authReady, sessionReady, location.pathname, fetchPermissions, isProtectedPath]);
 
   // Background retry if we're using fallback (timeout or temporary failure)
   useEffect(() => {
@@ -240,14 +240,14 @@ export const PermissionsProvider = ({ children }) => {
   useEffect(() => {
     const onOnline = () => {
       const path = window.location?.pathname || '';
-      if (authReady && isProtectedPath(path)) fetchPermissions();
+      if (authReady && sessionReady && isProtectedPath(path)) fetchPermissions();
     };
     const onVisibility = () => {
       if (document.visibilityState === 'visible') {
         const path = window.location?.pathname || '';
         const now = Date.now();
         // Throttle to once every 3 seconds to prevent loops on Windows focus/blur storms
-        if (authReady && isProtectedPath(path) && now - (lastVisibilityFetchRef.current || 0) > 3000) {
+        if (authReady && sessionReady && isProtectedPath(path) && now - (lastVisibilityFetchRef.current || 0) > 3000) {
           lastVisibilityFetchRef.current = now;
           fetchPermissions();
         }
@@ -259,7 +259,7 @@ export const PermissionsProvider = ({ children }) => {
       window.removeEventListener('online', onOnline);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, [fetchPermissions, isProtectedPath, authReady]);
+  }, [fetchPermissions, isProtectedPath, authReady, sessionReady]);
 
   const hasPermission = useCallback((requiredPermission) => {
     // The owner has all permissions, always. This is the ultimate override.

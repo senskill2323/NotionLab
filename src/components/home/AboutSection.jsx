@@ -30,7 +30,7 @@ const AboutSection = () => (
           transition={{ duration: 0.8, delay: 0.2 }} 
           className="aspect-video rounded-xl overflow-hidden shadow-2xl pulse-glow w-full lg:w-[130%]"
         >
-          <img  alt="Exemple d'organisation Notion, montrant un tableau de bord clair et structuré" class="w-full h-full object-cover" src="https://images.unsplash.com/photo-1658383178431-42985646a636" />
+          <img  alt="Exemple d'organisation Notion, montrant un tableau de bord clair et structuré" className="w-full h-full object-cover" src="https://images.unsplash.com/photo-1658383178431-42985646a636" />
         </motion.div>
       </div>
     </div>

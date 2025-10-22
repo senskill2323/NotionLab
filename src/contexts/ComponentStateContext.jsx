@@ -8,7 +8,7 @@ const ComponentStateContext = createContext();
 export const useComponentState = () => useContext(ComponentStateContext);
 
 export const ComponentStateProvider = ({ children }) => {
-  const { user, loading: authLoading, authReady } = useAuth();
+  const { user, loading: authLoading, authReady, sessionReady } = useAuth();
   const [rules, setRules] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -35,28 +35,35 @@ export const ComponentStateProvider = ({ children }) => {
         fetchRules();
       }
     };
-    
-    document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    const channel = supabase
-      .channel('public:component_rules')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'component_rules' }, () => {
-        fetchRules();
-      })
-      .subscribe();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      supabase.removeChannel(channel);
     };
   }, [fetchRules]);
+
+  useEffect(() => {
+    if (!user || !sessionReady) {
+      return undefined;
+    }
+
+    const channel = supabase
+      .channel('public:component_rules')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'component_rules' }, fetchRules)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchRules, sessionReady, user]);
 
   useSessionRefresh(() => {
     fetchRules();
   }, [fetchRules]);
 
   const getComponentState = useCallback((componentKey) => {
-    if (authLoading || loading || !authReady) {
+    if (authLoading || loading || !authReady || !sessionReady) {
       // Do not hide global navigation while contexts are loading to avoid header disappearance.
       // Prefer a conservative visible/disabled fallback for nav elements.
       if (componentKey && typeof componentKey === 'string' && componentKey.startsWith('nav:')) {
@@ -66,7 +73,7 @@ export const ComponentStateProvider = ({ children }) => {
         }
         // Avoid flashing login/register while auth isn't settled
         if (componentKey === 'nav:login' || componentKey === 'nav:register') {
-          return 'hidden';
+          return 'visible';
         }
         return 'visible';
       }
@@ -86,7 +93,7 @@ export const ComponentStateProvider = ({ children }) => {
     
     return state || 'hidden';
 
-  }, [user, rules, authLoading, loading, authReady]);
+  }, [user, rules, authLoading, loading, authReady, sessionReady]);
 
   const value = {
     loading,

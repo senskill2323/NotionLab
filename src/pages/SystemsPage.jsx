@@ -74,7 +74,7 @@ const SystemsPage = () => {
             </h1>
             <p className="max-w-3xl mx-auto text-lg md:text-xl text-muted-foreground mb-8">Voici les briques fondamentales que j'utilise au quotidien, un système personnel qui s'est amélioré depuis plusieurs années. L'objectif n'est pas de vous vendre mon système, mais de vous inspirer à construire le vôtre, en vous faisant gagner un temps précieux sur la phase d'apprentissage.</p>
             <div className="relative aspect-video max-w-5xl mx-auto rounded-2xl shadow-2xl overflow-hidden glass-effect p-2">
-               <img alt="Tableau de bord principal d'un système de vie Notion" class="w-full h-full object-cover rounded-lg" src="https://images.unsplash.com/photo-1658383178431-42985646a636" />
+               <img alt="Tableau de bord principal d'un système de vie Notion" className="w-full h-full object-cover rounded-lg" src="https://images.unsplash.com/photo-1658383178431-42985646a636" />
             </div>
           </motion.section>
 

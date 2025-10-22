@@ -37,3 +37,5 @@ persistance du code avec les pattern du projet
 
 - Utilise powershell v7.xx installé ("C:\Program Files\PowerShell\7\pwsh.exe")
 - Utilise le script Node scripts/run-sql.js (lancé comme node scripts/run-sql.js "<ta requête SQL>") pour exécuter des requêtes SQL contre Supabase. ID du projet Supabase: kiudpvvqpbkzeybogrnq (Projet NotionLab)
+- Les appels “webhook” vers /functions/v1/send-email doivent être signés via Svix avec le secret d’environnement `SEND_EMAIL_HOOK_SECRET` (valeur commune front/automations) ; seul le mode test (`x-send-email-test: 1`) contourne cette vérification.
+- GoTrue et les fonctions RTP utilisent le SMTP Hostinger (`SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`, `SMTP_ADMIN_EMAIL`). Toute modification d'e-mails transactionnels doit tenir compte de cette configuration partagée.

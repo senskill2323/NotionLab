@@ -107,13 +107,13 @@ const AssistancePage = () => {
                   <CardContent className="flex flex-col sm:flex-row gap-4 justify-center">
                     <a href="https://github.com/rustdesk/rustdesk/releases/latest/download/rustdesk-1.2.3-x86_64.exe" target="_blank" rel="noopener noreferrer">
                       <Button size="lg" className="w-full">
-                        <img  class="w-6 h-6 mr-2" alt="Windows logo" src="https://images.unsplash.com/photo-1680128369834-3abfc00155fc" />
+                        <img  className="w-6 h-6 mr-2" alt="Windows logo" src="https://images.unsplash.com/photo-1680128369834-3abfc00155fc" />
                         Télécharger pour Windows
                       </Button>
                     </a>
                     <a href="https://github.com/rustdesk/rustdesk/releases/latest/download/rustdesk-1.2.3-aarch64.dmg" target="_blank" rel="noopener noreferrer">
                       <Button size="lg" className="w-full">
-                        <img  class="w-6 h-6 mr-2" alt="Apple logo" src="https://images.unsplash.com/photo-1646640889939-9ce432a1f6b7" />
+                        <img  className="w-6 h-6 mr-2" alt="Apple logo" src="https://images.unsplash.com/photo-1646640889939-9ce432a1f6b7" />
                         Télécharger pour macOS
                       </Button>
                     </a>
@@ -160,7 +160,7 @@ const AssistancePage = () => {
                 transition={{ duration: 0.8, delay: 0.5 }}
                 className="mt-12 text-center"
               >
-                <img  class="max-w-2xl mx-auto rounded-lg shadow-lg border border-border" alt="Screenshot of RustDesk application showing ID and password fields" src="https://images.unsplash.com/photo-1688733718722-27b7027a0f5b" />
+                <img  className="max-w-2xl mx-auto rounded-lg shadow-lg border border-border" alt="Screenshot of RustDesk application showing ID and password fields" src="https://images.unsplash.com/photo-1688733718722-27b7027a0f5b" />
               </motion.div>
           </div>
         </div>

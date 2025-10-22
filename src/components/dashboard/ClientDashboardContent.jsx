@@ -104,25 +104,47 @@ const useDashboardData = () => {
       const visibleModules = modulesData.filter(module => hasPermission(module.required_permission));
       setModules(visibleModules);
 
-      const { data: layoutData, error: layoutError } = await supabase.functions.invoke('get-dashboard-layout', {
-        body: JSON.stringify({ owner_type: 'default', owner_id: null }),
-      });
+      let layoutJson = null;
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
 
-      if (layoutError) throw layoutError;
+        const invokeOptions = {
+          body: { owner_type: 'default', owner_id: null },
+        };
 
-      if (layoutData.layout_json && layoutData.layout_json.rows.length > 0) {
-        setLayout(layoutData.layout_json);
-      } else {
-        const defaultRows = visibleModules.map(m => ({
-          rowId: uuidv4(),
-          columns: [{
-            colId: uuidv4(),
-            span: m.default_layout?.span || 12,
-            moduleKey: m.module_key
-          }]
-        }));
-        setLayout({ rows: defaultRows });
+        if (session?.access_token) {
+          invokeOptions.headers = {
+            Authorization: `Bearer ${session.access_token}`,
+          };
+        }
+
+        const { data: layoutData, error: layoutError } = await supabase.functions.invoke(
+          'get-dashboard-layout',
+          invokeOptions,
+        );
+        if (layoutError) throw layoutError;
+        layoutJson = layoutData?.layout_json ?? null;
+      } catch (layoutError) {
+        console.warn('dashboard layout fetch failed, falling back to defaults:', layoutError?.message || layoutError);
+        layoutJson = null;
       }
+
+      if (layoutJson && Array.isArray(layoutJson.rows) && layoutJson.rows.length > 0) {
+        setLayout(layoutJson);
+        return;
+      }
+
+      const defaultRows = visibleModules.map(m => ({
+        rowId: uuidv4(),
+        columns: [{
+          colId: uuidv4(),
+          span: m.default_layout?.span || 12,
+          moduleKey: m.module_key,
+        }],
+      }));
+      setLayout({ rows: defaultRows });
     } catch (err) {
       console.error("Error fetching dashboard config:", err);
       setError("Impossible de charger la configuration du tableau de bord.");

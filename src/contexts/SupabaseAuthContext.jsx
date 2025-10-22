@@ -11,6 +11,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [authLoading, setAuthLoading] = useState(false);
   const [authReady, setAuthReady] = useState(false);
+  const [sessionReady, setSessionReady] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
   const isTabSwitchRef = useRef(false);
@@ -21,6 +22,7 @@ export const AuthProvider = ({ children }) => {
   const processSessionRefresh = useCallback((session, sourceEvent) => {
     if (!session?.access_token) {
       lastSessionExpiresAtRef.current = null;
+      setSessionReady(!session);
       return;
     }
     const expiresAt = session?.expires_at ?? null;
@@ -40,6 +42,7 @@ export const AuthProvider = ({ children }) => {
         console.error('Failed to invalidate query cache after session refresh', err);
       }
       emitSessionRefresh({ expiresAt, sourceEvent });
+      setSessionReady(true);
     });
   }, []);
   const handleSignOutForced = useCallback(async (showToast = true) => {
@@ -55,6 +58,7 @@ export const AuthProvider = ({ children }) => {
     lastSessionExpiresAtRef.current = null;
     await supabase.auth.signOut();
     setUser(null);
+    setSessionReady(true);
     if (showToast && !isTabSwitchRef.current) {
       toast({
         title: "Session expirÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â©e",
@@ -70,6 +74,7 @@ export const AuthProvider = ({ children }) => {
   const fetchProfileAndSetUser = useCallback(async (sessionUser) => {
     if (!sessionUser) {
       setUser(null);
+      setSessionReady(true);
       return null;
     }
     
@@ -90,6 +95,7 @@ export const AuthProvider = ({ children }) => {
         }
       };
       setUser(fullUser);
+      setSessionReady(true);
       return fullUser;
 
     } catch (e) {
@@ -150,16 +156,21 @@ export const AuthProvider = ({ children }) => {
         if (error || (session && !session.access_token)) {
           console.warn('Invalid session or refresh token on initial load, forcing sign out.');
           if (error) console.error("Error getting session:", error.message);
-          await handleSignOutForced(false); 
+          await handleSignOutForced(false);
+          setSessionReady(false);
         } else if (session) {
           setTimeout(async () => {
             processSessionRefresh(session, 'INITIAL_SESSION');
             await fetchProfileAndSetUser(session.user);
           });
+          setSessionReady(Boolean(session.access_token));
+        } else {
+          setSessionReady(true);
         }
       } catch (e) {
         console.error('Error during initial session check:', e);
         // Fail-safe: do not block UI indefinitely
+        setSessionReady(false);
       } finally {
         if (isMounted) {
           setLoading(false);
@@ -181,8 +192,9 @@ export const AuthProvider = ({ children }) => {
               const { data: { session: rechecked } } = await supabase.auth.getSession();
               if (!rechecked) {
                 setUser(null);
-                if (!isTabSwitchRef.current && window.location.pathname !== '/connexion') {
-                  navigate('/connexion', { replace: true });
+                setSessionReady(true);
+                if (!isTabSwitchRef.current && window.location.pathname !== "/connexion") {
+                  navigate("/connexion", { replace: true });
                 }
               }
             } finally {
@@ -198,10 +210,12 @@ export const AuthProvider = ({ children }) => {
               processSessionRefresh(session, _event);
               await fetchProfileAndSetUser(session.user);
             });
+            setSessionReady(Boolean(session?.access_token));
           } else {
             // Keep previous user if any until verification determines a real sign-out.
             lastSessionExpiresAtRef.current = null;
             setUser(null);
+            setSessionReady(false);
           }
           setAuthReady(true);
         }
@@ -355,6 +369,7 @@ export const AuthProvider = ({ children }) => {
     setAuthLoading(true);
     await supabase.auth.signOut();
     setUser(null);
+    setSessionReady(true);
     setAuthLoading(false);
     navigate('/connexion', { replace: true });
   };
@@ -363,6 +378,7 @@ export const AuthProvider = ({ children }) => {
     const { data: { user: sessionUser } } = await supabase.auth.getUser();
     if (!sessionUser) {
       setUser(null);
+      setSessionReady(true);
       return null;
     }
     return await fetchProfileAndSetUser(sessionUser);
@@ -385,6 +401,7 @@ export const AuthProvider = ({ children }) => {
     loading,
     authLoading,
     authReady,
+    sessionReady,
     signInWithPassword,
     signUp,
     signOut,

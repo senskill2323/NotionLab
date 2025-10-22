@@ -9,7 +9,18 @@ serve(async (req)=>{
   }
   try {
     const { owner_type, owner_id } = await req.json();
-    const supabase = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE") ?? "";
+    if (!serviceRoleKey) {
+      console.error("[get-dashboard-layout] Missing service role key");
+      return new Response(JSON.stringify({ error: "service_role_key_missing" }), {
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json",
+        },
+        status: 500,
+      });
+    }
+    const supabase = createClient(Deno.env.get("SUPABASE_URL") ?? "", serviceRoleKey);
     let query = supabase.from("dashboard_layouts").select("layout_json");
     if (owner_type === 'default') {
       query = query.eq('owner_type', 'default').is('owner_id', null);

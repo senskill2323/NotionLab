@@ -10,33 +10,6 @@ if (!supabaseUrl || !supabaseAnonKey) {
 // Ensure singletons across HMR/tab contexts to avoid multiple GoTrueClient instances.
 const globalScope = typeof window !== 'undefined' ? window : globalThis;
 
-const supabaseBaseUrl = (() => {
-  try {
-    return supabaseUrl ? new URL(supabaseUrl) : null;
-  } catch (error) {
-    console.error('Invalid Supabase URL. Check VITE_SUPABASE_URL.', error);
-    return null;
-  }
-})();
-
-const appendApiKeyIfMissing = (input) => {
-  if (!supabaseAnonKey || !supabaseBaseUrl) return input;
-  const urlStr = typeof input === 'string' ? input : (input && input.url) ? input.url : null;
-  if (!urlStr) return input;
-
-  try {
-    const url = new URL(urlStr);
-    if (url.origin === supabaseBaseUrl.origin && url.pathname.startsWith('/rest/v1') && !url.searchParams.has('apikey')) {
-      url.searchParams.set('apikey', supabaseAnonKey);
-      return url.toString();
-    }
-  } catch (_) {
-    // Ignore parse issues; headers still contain apikey.
-  }
-
-  return input;
-};
-
 const NETWORK_ERROR_CODE = 'NETWORK_ERROR';
 const SUPABASE_FETCH_TIMEOUT_MS = 30000; // increase to avoid spurious timeouts during heavy admin loads
 
@@ -94,10 +67,8 @@ const buildSupabaseFetch = ({ clientLabel, ensureHeaders }) => async (input, ini
   }
 
   const finalInit = { ...init, headers, signal: controller.signal };
-  const finalInput = appendApiKeyIfMissing(input);
-
   try {
-    return await fetch(finalInput, finalInit);
+    return await fetch(input, finalInit);
   } catch (error) {
     if (controller.signal.aborted) {
       const reason = controller.signal.reason;
