@@ -4,7 +4,6 @@ import { useToast } from '@/components/ui/use-toast';
 import { arrayMove } from '@dnd-kit/sortable';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
-import { useAuth } from '@/contexts/SupabaseAuthContext';
 
 export const BuilderCatalogContext = createContext();
 
