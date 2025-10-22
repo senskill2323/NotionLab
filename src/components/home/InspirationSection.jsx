@@ -64,7 +64,7 @@ const InspirationSection = () => <section className="py-20 bg-background/70">
           }}>
               <Card className="glass-effect p-4 flex items-center gap-4 hover:border-primary transition-all duration-300 h-full">
                 <div className="w-8 h-8 flex-shrink-0">
-                  <img alt="The Life OS logo" class="w-full h-full object-contain rounded-sm" src="https://horizons-cdn.hostinger.com/33d72ce2-b6b0-4274-b8ce-63300e44633e/life-os-dashboard-ZF811.png" />
+                  <img alt="The Life OS logo" className="w-full h-full object-contain rounded-sm" src="https://horizons-cdn.hostinger.com/33d72ce2-b6b0-4274-b8ce-63300e44633e/life-os-dashboard-ZF811.png" />
                 </div>
                 <span className="font-medium text-sm">The Life OS</span>
               </Card>
@@ -84,7 +84,7 @@ const InspirationSection = () => <section className="py-20 bg-background/70">
           }}>
               <Card className="glass-effect p-4 flex items-center gap-4 hover:border-primary transition-all duration-300 h-full">
                 <div className="w-8 h-8 flex-shrink-0">
-                  <img alt="Thomas Frank logo" class="w-full h-full object-contain rounded-sm" src="https://horizons-cdn.hostinger.com/33d72ce2-b6b0-4274-b8ce-63300e44633e/thomasfrank-3WCn3.png" />
+                  <img alt="Thomas Frank logo" className="w-full h-full object-contain rounded-sm" src="https://horizons-cdn.hostinger.com/33d72ce2-b6b0-4274-b8ce-63300e44633e/thomasfrank-3WCn3.png" />
                 </div>
                 <span className="font-medium text-sm">Thomas Frank</span>
               </Card>
@@ -104,7 +104,7 @@ const InspirationSection = () => <section className="py-20 bg-background/70">
           }}>
               <Card className="glass-effect p-4 flex items-center gap-4 hover:border-primary transition-all duration-300 h-full">
                 <div className="w-8 h-8 flex-shrink-0">
-                  <img alt="Easlo logo" class="w-full h-full object-contain rounded-sm" src="https://horizons-cdn.hostinger.com/33d72ce2-b6b0-4274-b8ce-63300e44633e/easlo-z2LDE.png" />
+                  <img alt="Easlo logo" className="w-full h-full object-contain rounded-sm" src="https://horizons-cdn.hostinger.com/33d72ce2-b6b0-4274-b8ce-63300e44633e/easlo-z2LDE.png" />
                 </div>
                 <span className="font-medium text-sm">Easlo</span>
               </Card>
@@ -124,7 +124,7 @@ const InspirationSection = () => <section className="py-20 bg-background/70">
           }}>
               <Card className="glass-effect p-4 flex items-center gap-4 hover:border-primary transition-all duration-300 h-full">
                 <div className="w-8 h-8 flex-shrink-0">
-                  <img alt="Cozi Family Organizer logo" class="w-full h-full object-contain rounded-sm" src="https://images.unsplash.com/photo-1695648443061-a14bc74bf29d" />
+                  <img alt="Cozi Family Organizer logo" className="w-full h-full object-contain rounded-sm" src="https://images.unsplash.com/photo-1695648443061-a14bc74bf29d" />
                 </div>
                 <span className="font-medium text-sm">Reverse Entropy</span>
               </Card>
@@ -144,7 +144,7 @@ const InspirationSection = () => <section className="py-20 bg-background/70">
           }}>
               <Card className="glass-effect p-4 flex items-center gap-4 hover:border-primary transition-all duration-300 h-full">
                 <div className="w-8 h-8 flex-shrink-0">
-                  <img alt="Franklin Covey logo" class="w-full h-full object-contain rounded-sm" src="https://horizons-cdn.hostinger.com/33d72ce2-b6b0-4274-b8ce-63300e44633e/franklincovey-QlZHZ.png" />
+                  <img alt="Franklin Covey logo" className="w-full h-full object-contain rounded-sm" src="https://horizons-cdn.hostinger.com/33d72ce2-b6b0-4274-b8ce-63300e44633e/franklincovey-QlZHZ.png" />
                 </div>
                 <span className="font-medium text-sm">Franklin Covey</span>
               </Card>
@@ -164,7 +164,7 @@ const InspirationSection = () => <section className="py-20 bg-background/70">
           }}>
               <Card className="glass-effect p-4 flex items-center gap-4 hover:border-primary transition-all duration-300 h-full">
                 <div className="w-8 h-8 flex-shrink-0">
-                  <img alt="Full Focus Planner logo" class="w-full h-full object-contain rounded-sm" src="https://images.unsplash.com/photo-1496660879542-a78ca4fc8b0c" />
+                  <img alt="Full Focus Planner logo" className="w-full h-full object-contain rounded-sm" src="https://images.unsplash.com/photo-1496660879542-a78ca4fc8b0c" />
                 </div>
                 <span className="font-medium text-sm">Full Focus Planner</span>
               </Card>
@@ -184,7 +184,7 @@ const InspirationSection = () => <section className="py-20 bg-background/70">
           }}>
               <Card className="glass-effect p-4 flex items-center gap-4 hover:border-primary transition-all duration-300 h-full">
                 <div className="w-8 h-8 flex-shrink-0">
-                  <img alt="Notion Business System logo" class="w-full h-full object-contain rounded-sm" src="https://images.unsplash.com/photo-1658383178431-42985646a636" />
+                  <img alt="Notion Business System logo" className="w-full h-full object-contain rounded-sm" src="https://images.unsplash.com/photo-1658383178431-42985646a636" />
                 </div>
                 <span className="font-medium text-sm">Notion Business System</span>
               </Card>
@@ -204,7 +204,7 @@ const InspirationSection = () => <section className="py-20 bg-background/70">
           }}>
               <Card className="glass-effect p-4 flex items-center gap-4 hover:border-primary transition-all duration-300 h-full">
                 <div className="w-8 h-8 flex-shrink-0">
-                  <img alt="Small Business OS logo" class="w-full h-full object-contain rounded-sm" src="https://images.unsplash.com/photo-1658383178431-42985646a636" />
+                  <img alt="Small Business OS logo" className="w-full h-full object-contain rounded-sm" src="https://images.unsplash.com/photo-1658383178431-42985646a636" />
                 </div>
                 <span className="font-medium text-sm">Small Business OS</span>
               </Card>
@@ -224,7 +224,7 @@ const InspirationSection = () => <section className="py-20 bg-background/70">
           }}>
               <Card className="glass-effect p-4 flex items-center gap-4 hover:border-primary transition-all duration-300 h-full">
                 <div className="w-8 h-8 flex-shrink-0">
-                  <img alt="Notion4Management logo" class="w-full h-full object-contain rounded-sm" src="https://images.unsplash.com/photo-1642310290559-53902b3b0f2e" />
+                  <img alt="Notion4Management logo" className="w-full h-full object-contain rounded-sm" src="https://images.unsplash.com/photo-1642310290559-53902b3b0f2e" />
                 </div>
                 <span className="font-medium text-sm">Notion4Management</span>
               </Card>
@@ -244,7 +244,7 @@ const InspirationSection = () => <section className="py-20 bg-background/70">
           }}>
               <Card className="glass-effect p-4 flex items-center gap-4 hover:border-primary transition-all duration-300 h-full">
                 <div className="w-8 h-8 flex-shrink-0">
-                  <img alt="NotionApps logo" class="w-full h-full object-contain rounded-sm" src="https://horizons-cdn.hostinger.com/33d72ce2-b6b0-4274-b8ce-63300e44633e/notionapps-kGuPT.png" />
+                  <img alt="NotionApps logo" className="w-full h-full object-contain rounded-sm" src="https://horizons-cdn.hostinger.com/33d72ce2-b6b0-4274-b8ce-63300e44633e/notionapps-kGuPT.png" />
                 </div>
                 <span className="font-medium text-sm">NotionApps</span>
               </Card>

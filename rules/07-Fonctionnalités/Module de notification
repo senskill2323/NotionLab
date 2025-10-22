@@ -1,3 +1,4 @@
+- Helper partagé : volumes/functions/_shared/email.ts centralise l'envoi SMTP (Hostinger) et alimente send-email ainsi que notify-training-onboarding.
 Résumé
 
 UI admin dédiée pour créer, éditer, tester et supprimer les gabarits d’e-mails transactionnels stockés dans Supabase (src/components/admin/EmailNotificationsPanel.jsx:118).
@@ -66,6 +67,6 @@ Sécurité (RLS, XSS, CSRF)
 
 RLS: lectures publiques seulement si is_active ou admin; mutations réservées aux admins (Supabase/migrations/2025-11-05_admin_email_notifications_module.sql:32).
 user_email_notification_preferences protège chaque utilisateur via RLS par auth.uid() (Supabase/migrations/2025-11-05_admin_email_notifications_module.sql:87).
-Mode test Edge vérifie seulement présence d’un header Authorization sans validation, ouvrant la porte à des abus si exposé (Supabase/functions/send-email/index.ts:312).
+La route /functions/v1/send-email exige désormais une signature Svix calculée avec SEND_EMAIL_HOOK_SECRET (headers Authorization + Svix-Signature) pour toute requête « production »; seul le mode test avec x-send-email-test=1 contourne cette vérification (Supabase/functions/send-email/index.ts:300, :397).
 UI Preview injecte HTML via dangerouslySetInnerHTML; réservé aux admins mais exiger confiance dans les contenus (src/components/admin/EmailNotificationsPanel.jsx:104).
 TEST_EMAIL_RECIPIENT hardcodé ⇒ risque de fuite si oublié (src/components/admin/EmailNotificationsPanel.jsx:54); prévoir env côté client sécurisé.

@@ -133,16 +133,51 @@ const ManageUserPage = () => {
 
   const handleSetDefaultPassword = async () => {
     setIsSubmitting(true);
-    const { data, error } = await supabase.functions.invoke('set-user-password', {
-      body: JSON.stringify({ userId: user.id }),
-    });
+    try {
+      const { data, error } = await supabase.functions.invoke('set-user-password', {
+        body: { userId: user.id },
+      });
 
-    if (error || data.error) {
-      toast({ variant: 'destructive', title: 'Erreur', description: error?.message || data.error });
-    } else {
-      toast({ title: 'Succès', description: 'Mot de passe réinitialisé avec succès et email envoyé à l\'utilisateur.' });
+      if (error) {
+        throw error;
+      }
+
+      const response = data ?? {};
+      if (response?.error) {
+        throw new Error(response.error);
+      }
+      if (response?.ok !== true) {
+        throw new Error("Le serveur n'a pas confirmé la réinitialisation du mot de passe.");
+      }
+
+      const resetEmail = response.resetEmail ?? {};
+      const warnings = [];
+
+      if (resetEmail.attempted && resetEmail.sent === false) {
+        warnings.push("L'e-mail de notification n'a pas pu être envoyé.");
+      }
+      if (response.generatedPassword) {
+        warnings.push(`Mot de passe temporaire : ${response.generatedPassword}`);
+      }
+
+      if (warnings.length) {
+        toast({
+          title: 'Mot de passe réinitialisé (action requise)',
+          description: warnings.join(' '),
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Succès',
+          description: 'Mot de passe réinitialisé et e-mail envoyé à l’utilisateur.',
+        });
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Impossible de réinitialiser le mot de passe.';
+      toast({ variant: 'destructive', title: 'Erreur', description: message });
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsSubmitting(false);
   };
 
   const handleDeleteUser = async () => {

@@ -87,3 +87,6 @@ CSRF limité car toutes requêtes passent par supabase-js avec token session; au
 
 
 
+
+- Réinitialisation : `set-user-password` renvoie désormais un objet détaillé (`ok`, `resetEmail`, `generatedPassword`). L'UI admin doit signaler l'absence d'e-mail et afficher le mot de passe temporaire lorsqu'il est fourni (ManageUserPage).
+- Invitation : la réponse `invite-user` expose `status` et `fallback` en cas de création manuelle (mot de passe généré, resetEmailSent=false, profil partiellement mis à jour). Le panneau Users doit relayer ces informations à l'équipe support.

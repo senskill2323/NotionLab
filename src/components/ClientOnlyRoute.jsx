@@ -5,12 +5,12 @@ import { usePermissions } from '@/contexts/PermissionsContext';
 import { Loader2 } from 'lucide-react';
 
 const ClientOnlyRoute = ({ children }) => {
-  const { user, authReady } = useAuth();
+  const { user, authReady, sessionReady } = useAuth();
   const location = useLocation();
   const { hasPermission, loading: permsLoading, ready: permsReady } = usePermissions();
 
   // Only gate by auth readiness to avoid transient loading flips on tab changes
-  if (!authReady) {
+  if (!authReady || !sessionReady) {
     return (
       <div className="flex items-center justify-center h-screen">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />

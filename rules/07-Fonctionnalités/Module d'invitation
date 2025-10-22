@@ -1,16 +1,10 @@
-- le module admin d'invitation à la création d'un compte: 
-  - Utiliser supabase.functions.invoke('invite-user', ...) depuis l'UI admin ; pas de service-role cote client.
-  - La fonction Edge met profiles.status = 'active' et applique le user_type client ; garder cette source de verite.
-  - Secrets requis cote Edge : SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (optionnel INVITE_REDIRECT_URL).
-- Respecter authReady et authLoading avant redirection afin d'eviter un spinner permanent ou des redirections prematures.
-- Verifier les droits via usePermissions().hasPermission et garder role_permissions/modules_registry/admin_dashboard_tabs synchronises :
-  - Toute nouveaute client passe par une permission de type *:view_module referencee dans modules_registry.required_permission.
-  - Pour un module admin, creer une permission de type admin:*, l'inserer via migration Supabase et la lier a admin_dashboard_tabs.permission_required avant exposition UI.
-•	UI : bouton « Inviter un utilisateur » (src/components/admin/UserManagementPanel.jsx) ? Edge Function invite-user.
-•	Serveur : Supabase/functions/invite-user/index.ts
-o	auth.admin.inviteUserByEmail (création/ré-utilisation)
-o	Mise à jour public.profiles (user_type_id client, status = 'active').
-o	Secrets Edge : SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, optionnel INVITE_REDIRECT_URL (fallback /connexion).
-•	Activation : plus de « guest » ; arrivée sur /activation-invitation pour définir le mot de passe (accès client déjà actif).
-  
-
+- Module admin "Invitation" :
+  - L'UI appelle `supabase.functions.invoke('invite-user', ...)` ; aucune service key ne doit être exposée côté client.
+  - L'Edge function active le profil (`status='active'`), affecte le user_type requis et tente `auth.admin.inviteUserByEmail`.
+  - Secrets requis : `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, et `INVITE_REDIRECT_URL` (optionnel, défaut /connexion).
+- Fallback manuel (GoTrue indisponible, SMTP HS, quotas...) :
+  - Création via `auth.admin.createUser` + mot de passe généré + mise à jour du profil.
+  - Tentative de `auth.resetPasswordForEmail` ; en cas d'échec le JSON renvoie `status:"invited_manual"` + `fallback` (mot de passe temporaire, booléen resetEmailSent, éventuelle erreur d'upsert profil).
+  - L'UI (`UserManagementPanel`) doit alerter l'équipe support, afficher le mot de passe de secours et prévenir que l'e-mail automatique n'est pas parti.
+- Permissions : vérifier via `usePermissions().hasPermission` et maintenir la cohérence `role_permissions` / `modules_registry` / `admin_dashboard_tabs`.
+- Parcours utilisateur : bouton "Inviter un utilisateur" (src/components/admin/UserManagementPanel.jsx), redirection par défaut vers `/activation-invitation` pour définir son mot de passe (profil déjà actif).

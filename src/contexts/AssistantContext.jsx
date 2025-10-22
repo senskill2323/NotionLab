@@ -1,4 +1,4 @@
-﻿import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
@@ -48,7 +48,7 @@ function readFileAsBase64(file) {
 }
 
 export const AssistantProvider = ({ children }) => {
-  const { user, authReady } = useAuth();
+  const { user, authReady, sessionReady } = useAuth();
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [callState, setCallState] = useState(INITIAL_CALL_STATE);
@@ -79,6 +79,8 @@ export const AssistantProvider = ({ children }) => {
   const remoteStreamRef = useRef(null);
   const connectPeerRef = useRef(null);
   const stopCallRef = useRef(null);
+  const configRetryTimeoutRef = useRef(null);
+  const configRetryCountRef = useRef(0);
 
   const {
     start: startNegotiation,
@@ -118,34 +120,67 @@ export const AssistantProvider = ({ children }) => {
   }, []);
 
   const refreshConfig = useCallback(async () => {
-    if (!authReady) return;
+    if (!authReady || !sessionReady || !user) {
+      setSettings(null);
+      setLimits(null);
+      setConfigError(null);
+      setConfigLoading(false);
+      configRetryCountRef.current = 0;
+      if (configRetryTimeoutRef.current) {
+        clearTimeout(configRetryTimeoutRef.current);
+        configRetryTimeoutRef.current = null;
+      }
+      return;
+    }
+
     setConfigLoading(true);
     setConfigError(null);
+
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('assistant_session_unavailable');
+      }
+
       const [settingsData, limitsData] = await Promise.all([
         fetchAssistantSettings(),
-        user?.id ? ensureAssistantLimits(user.id) : Promise.resolve(null),
+        ensureAssistantLimits(user.id),
       ]);
       setSettings(settingsData);
       setLimits(limitsData);
+      configRetryCountRef.current = 0;
+      if (configRetryTimeoutRef.current) {
+        clearTimeout(configRetryTimeoutRef.current);
+        configRetryTimeoutRef.current = null;
+      }
     } catch (error) {
+      if (error?.code === '42501' || error?.message === 'assistant_session_unavailable') {
+        console.warn('assistant config deferred; session not ready yet.', error);
+        const attempts = configRetryCountRef.current + 1;
+        configRetryCountRef.current = attempts;
+        if (attempts <= 6) {
+          if (configRetryTimeoutRef.current) {
+            clearTimeout(configRetryTimeoutRef.current);
+          }
+          configRetryTimeoutRef.current = setTimeout(() => {
+            configRetryTimeoutRef.current = null;
+            refreshConfig();
+          }, 500 * attempts);
+          return;
+        }
+        console.error('assistant config permanently denied after retries', error);
+        return;
+      }
       console.error('assistant config load failed', error);
       setConfigError(error);
     } finally {
       setConfigLoading(false);
     }
-  }, [authReady, user?.id]);
+  }, [authReady, sessionReady, user]);
 
   useEffect(() => {
     refreshConfig();
   }, [refreshConfig]);
-
-  useEffect(() => {
-    if (!user && callState !== INITIAL_CALL_STATE) {
-      stopCall({ reason: 'signout' });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
 
   const openDrawer = useCallback(() => setDrawerOpen(true), []);
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
@@ -473,6 +508,32 @@ export const AssistantProvider = ({ children }) => {
     stopCallRef.current = stopCall;
   }, [stopCall]);
 
+  useEffect(() => {
+    if (user && sessionReady) {
+      return;
+    }
+
+    configRetryCountRef.current = 0;
+    if (configRetryTimeoutRef.current) {
+      clearTimeout(configRetryTimeoutRef.current);
+      configRetryTimeoutRef.current = null;
+    }
+
+    if (callState !== INITIAL_CALL_STATE) {
+      const handler = stopCallRef.current;
+      if (handler) {
+        Promise.resolve(handler({ reason: 'signout' })).catch(() => {});
+      }
+    }
+
+    resetSessionState();
+    setSettings(null);
+    setLimits(null);
+    setConfigError(null);
+    setQuotaError(null);
+    setConfigLoading(false);
+  }, [user, sessionReady, callState, resetSessionState]);
+
   const toggleVideo = useCallback(async () => {
     const mint = mintResponseRef.current;
     if (!mint || !mint.session) {
@@ -547,6 +608,10 @@ export const AssistantProvider = ({ children }) => {
 
   useEffect(() => () => {
     clearTimers();
+    if (configRetryTimeoutRef.current) {
+      clearTimeout(configRetryTimeoutRef.current);
+      configRetryTimeoutRef.current = null;
+    }
   }, [clearTimers]);
 
   const value = useMemo(() => ({

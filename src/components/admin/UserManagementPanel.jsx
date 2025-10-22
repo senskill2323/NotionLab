@@ -267,43 +267,57 @@ const UserManagementPanel = () => {
     setInviteLoading(true);
 
     try {
-
       const { data, error } = await supabase.functions.invoke('invite-user', {
-
         body: {
-
           email: inviteForm.email,
-
           firstName: inviteForm.firstName,
-
           lastName: inviteForm.lastName,
-
           redirectTo: `${window.location.origin}/activation-invitation`,
-
         },
-
       });
 
       if (error) {
-
         console.error('[invite-user] edge invocation failed', error);
-
         throw new Error(mapInviteError(error));
-
       }
 
-      if (data?.error) {
-
-        throw new Error(data.error);
-
+      const response = data ?? {};
+      if (response?.error) {
+        throw new Error(response.error);
+      }
+      if (response?.ok !== true) {
+        throw new Error("L'invitation n'a pas pu être confirmée par le serveur.");
       }
 
-      toast({ title: "Invitation envoyee", description: `Un e-mail d'activation a ete envoye a ${inviteForm.email}.` });
+      const isManualInvite = response.status && response.status !== 'invited';
+      const fallback = response.fallback ?? {};
+
+      if (isManualInvite) {
+        const notes = [];
+        notes.push("Le compte a été créé mais l'e-mail d'invitation n'a pas pu être envoyé automatiquement.");
+        if (fallback.resetEmailSent === false) {
+          notes.push("Aucun courriel de réinitialisation n'a été remis.");
+        }
+        if (fallback.generatedPassword) {
+          notes.push(`Mot de passe temporaire : ${fallback.generatedPassword}`);
+        }
+        if (fallback.profileUpsertError) {
+          notes.push(`Attention : ${fallback.profileUpsertError}`);
+        }
+        toast({
+          title: "Invitation manuelle requise",
+          description: notes.join(' '),
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: "Invitation envoyée",
+          description: `Un e-mail d'activation a été envoyé à ${inviteForm.email}.`,
+        });
+      }
 
       resetInviteForm();
-
       setInviteDialogOpen(false);
-
       fetchUsers(new AbortController());
 
     } catch (err) {

@@ -11,11 +11,20 @@ const ManagedComponent = ({ componentKey, children, as, disabledTooltip, ...prop
   }
 
   const isActuallyDisabled = state === 'disabled';
+  const existingStyle = (children && children.props && children.props.style) ? children.props.style : undefined;
+  const disabledStyle = isActuallyDisabled
+    ? {
+        pointerEvents: 'none',
+        opacity: existingStyle && typeof existingStyle.opacity !== 'undefined' ? existingStyle.opacity : 0.6,
+      }
+    : undefined;
 
   const clonedChild = React.cloneElement(children, {
-    disabled: isActuallyDisabled,
-    'aria-disabled': isActuallyDisabled,
-    ...props,
+    ...(props || {}),
+    ...(isActuallyDisabled ? { 'aria-disabled': true, tabIndex: -1 } : {}),
+    ...(disabledStyle
+      ? { style: { ...(existingStyle || {}), ...disabledStyle } }
+      : { style: existingStyle }),
   });
 
   if (isActuallyDisabled && disabledTooltip) {
