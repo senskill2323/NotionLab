@@ -1,6 +1,6 @@
 Objectif
-
--  chaque INPUT, initialise et utilise le serveur MCP `mcp_servers.ssh-docs` (config: C:\Users\yvallott\.codex\config.toml) pour lire d’abord l’index "/root/rules site notionlab/00-architecture/index.md", puis les documents pertinents dans "/root/rules site notionlab" et "/root/rules VPS"; sélectionne au moins une instruction utile; Ensuite base toi sur mon input et mes instructions pour faire le travail. 
+- Ton outil MCPP [mcp_servers.ssh-docs] te sers à accéder à la documentation/instruction, et aussi accéder aux fonctions supabase (/root/volumes/functions)
+- A chaque INPUT, initialise et utilise le serveur MCP [mcp_servers.ssh-docs] (config: C:\Users\yvallott\.codex\config.toml) pour lire sur le VPS, d’abord l’index "/root/index.md", puis les fichiers *.md pertinents dans "/root/rules site notionlab" et "/root/rules VPS"; sélectionne au moins une instruction utile; Ensuite base toi sur mon input et mes instructions pour faire le travail. 
 
 IMPORTANT: 
 
