@@ -7,6 +7,7 @@ import LaunchCTA from '@/components/home/LaunchCTA';
 import MainHeroSection from '@/components/home/MainHeroSection';
 import MaskRevealScrollSection from '@/components/home/MaskRevealScrollSection';
 import PersonalQuoteSection from '@/components/home/PersonalQuoteSection';
+import PersonalQuoteWithImageSection from '@/components/home/PersonalQuoteWithImageSection';
 import PromiseSection from '@/components/home/PromiseSection';
 import StatsSection from '@/components/home/StatsSection';
 import SupportSection from '@/components/home/SupportSection';
@@ -511,7 +512,22 @@ const PERSONAL_QUOTE_DEFAULTS = Object.freeze({
   useDefaultBackground: true,
   backgroundMode: '#000000',
 });
-
+const PERSONAL_QUOTE_IMAGE_DEFAULTS = Object.freeze({
+  quoteText:
+    "Cela fait une quinzaine d'annees que je teste ce type d'outils - c'est mon metier. Mais depuis six ans, pas une seconde l'envie de quitter Notion. Aujourd'hui, je me lance, j'aimerais vous le presenter.",
+  showCta: false,
+  ctaText: 'En savoir plus',
+  ctaUrl: '#',
+  useDefaultBackground: true,
+  backgroundColor: '#000000',
+  imageUrl:
+    'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=900&q=80',
+  imageAlt: 'Portrait professionnel',
+  showLogo: true,
+  logoUrl:
+    'https://kiudpvvqpbkzeybogrnq.supabase.co/storage/v1/object/public/site-assets/home/NewLogo_YV.png',
+  logoAlt: 'Logo NotionLab',
+});
 const normalizePersonalQuote = (
   value = {},
   fallback = PERSONAL_QUOTE_DEFAULTS,
@@ -530,7 +546,25 @@ const normalizePersonalQuote = (
   ),
   backgroundMode: ensureString(value.backgroundColor, fallback.backgroundColor),
 });
-
+const normalizePersonalQuoteImage = (
+  value = {},
+  fallback = PERSONAL_QUOTE_IMAGE_DEFAULTS,
+) => ({
+  quoteText: ensureString(value.quoteText, fallback.quoteText),
+  showCta: ensureBoolean(value.showCta, fallback.showCta),
+  ctaText: ensureString(value.ctaText, fallback.ctaText),
+  ctaUrl: ensureString(value.ctaUrl, fallback.ctaUrl),
+  useDefaultBackground: ensureBoolean(
+    value.useDefaultBackground,
+    fallback.useDefaultBackground,
+  ),
+  backgroundColor: ensureString(value.backgroundColor, fallback.backgroundColor),
+  imageUrl: ensureString(value.imageUrl, fallback.imageUrl),
+  imageAlt: ensureString(value.imageAlt, fallback.imageAlt),
+  showLogo: ensureBoolean(value.showLogo, fallback.showLogo),
+  logoUrl: ensureString(value.logoUrl, fallback.logoUrl),
+  logoAlt: ensureString(value.logoAlt, fallback.logoAlt),
+});
 const FINAL_CTA_DEFAULTS = Object.freeze({
   title: 'Boostons vraiment votre productivité ensemble ?',
   description:
@@ -881,6 +915,13 @@ const LAYOUT_DEFINITIONS = {
     defaults: PERSONAL_QUOTE_DEFAULTS,
     normalize: normalizePersonalQuote,
     preview: createPreview(PersonalQuoteSection),
+  }),
+  'home.personal_quote_image': createDefinition({
+    id: 'home.personal_quote_image',
+    label: 'Accueil - Citation + image',
+    defaults: PERSONAL_QUOTE_IMAGE_DEFAULTS,
+    normalize: normalizePersonalQuoteImage,
+    preview: createPreview(PersonalQuoteWithImageSection),
   }),
   'home.final_cta': createDefinition({
     id: 'home.final_cta',

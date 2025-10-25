@@ -8,6 +8,7 @@ import FormationsLayoutEditor from './FormationsLayoutEditor';
 import SupportLayoutEditor from './SupportLayoutEditor';
 import PromiseLayoutEditor from './PromiseLayoutEditor';
 import PersonalQuoteLayoutEditor from './PersonalQuoteLayoutEditor';
+import PersonalQuoteImageLayoutEditor from './PersonalQuoteImageLayoutEditor';
 import FinalCtaLayoutEditor from './FinalCtaLayoutEditor';
 import LaunchCtaLayoutEditor from './LaunchCtaLayoutEditor';
 import MaskRevealLayoutEditor from './MaskRevealLayoutEditor';
@@ -27,6 +28,7 @@ const layoutEditorMap = {
   'home.support': SupportLayoutEditor,
   'home.promise': PromiseLayoutEditor,
   'home.personal_quote': PersonalQuoteLayoutEditor,
+  'home.personal_quote_image': PersonalQuoteImageLayoutEditor,
   'home.final_cta': FinalCtaLayoutEditor,
   'home.launch_cta': LaunchCtaLayoutEditor,
   'home.mask_reveal_scroll': MaskRevealLayoutEditor,

@@ -11,6 +11,7 @@ import SupportSection from '@/components/home/SupportSection';
 import PromiseSection from '@/components/home/PromiseSection';
 import CozySpaceSection from '@/components/home/CozySpaceSection';
 import PersonalQuoteSection from '@/components/home/PersonalQuoteSection';
+import PersonalQuoteWithImageSection from '@/components/home/PersonalQuoteWithImageSection';
 import FinalCTA from '@/components/home/FinalCTA';
 import LaunchCTA from '@/components/home/LaunchCTA';
 import TubesCursorSection from '@/components/home/TubesCursorSection';
@@ -56,6 +57,8 @@ const BlockPreview = ({ block, isOpen, onOpenChange }) => {
         return <CozySpaceSection {...props} />;
       case 'home.personal_quote':
         return <PersonalQuoteSection {...props} />;
+      case 'home.personal_quote_image':
+        return <PersonalQuoteWithImageSection {...props} />;
       case 'home.final_cta':
         return <FinalCTA {...props} />;
       case 'home.launch_cta':
