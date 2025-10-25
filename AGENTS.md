@@ -1,50 +1,63 @@
 Objectif
-- SI c'est une analyse que je te demande, produit des analyses/diagnostics fiables avec lecture minimale et ciblée de /rules. N’ouvre PAS tout: Lis l'index (présent ci-dessous), et sélectionne uniquement les entrées pertinentes à la question/analyse/diagnostique/requête, puis lis seulement ces fichiers qui peuvent t'aider à comprendre. Pour plus d'informations, lance une requête pour chercher plus d'informations.
+- SI c'est une analyse que je te demande, produit des analyses/diagnostics fiables avec lecture minimale et ciblée des deux dossier de documntation:
+1. C:\Users\yvallott\Desktop\rules VPS
+2. C:\Users\yvallott\Desktop\rules site notionlab 
 
-Lis toujours /rules/01-standards/readme.mdc avant de faire une action. lis toujours les autres fichiers de /rules avant chaque action, mais seulement les fichiers qui sont potentiellements relatifs à l'action que tu dois réaliser. Pour savoir si c'est relatif, sers toi de l'index de /rules, ci-dessous, et sélectionne ce qui est relatif. 
-
+Mais attention, n’ouvre PAS tout!  Lis l'index ci-dessous, et sélectionne uniquement les entrées pertinentes à la question/analyse/diagnostique/requête, puis lis seulement ces fichiers qui peuvent t'aider à comprendre. Pour plus d'informations, lance une requête pour chercher plus d'informations.
 
 Index du dossier /rules: 
+# Index commun - Règles VPS & Site NotionLab
 
-# Index des regles
+## Règles VPS (`C:\Users\yvallott\Desktop\rules VPS`)
 
-## Vue d'ensemble
-- `00-architecture/` : cartographie du shell React/Vite, providers globaux et flux client/admin.
-- `01-standards/` : socle de reference (stack, CI/CD, scripts npm/SQL, regles d'intervention).
-- `03-frameworks-and-libraries/` : inventaire complet des dependances prod/dev synchronise avec `package.json`.
-- `04-database/` : documentation Supabase (gouvernance, RLS, edge functions, inventaire des tables).
-- `06-deployment/` : checklists pour livrer ou mettre a jour un module client ou admin.
-- `07-Fonctionnalites/` : guides fonctionnels pour chaque module cle (assistant, formations, tickets, etc.).
+- `rules VPS/index.md` — Index interne listant les fiches à consulter avant interventions sur le VPS.
 
-## Navigation detaillee
+### 00 - Général
+- `rules VPS/00 - Général/readme.md` — Rappelle d'utiliser le fichier .codex/config.toml et l'outil MCP Ref avant d'implémenter des patterns incertains.
+- `rules VPS/00 - Général/print Post-Mortem Auth & API.md` — Post-mortem Auth/GoTrue : prérequis Postgres, propriété supabase_auth_admin, corrections de migrations et politiques de privilèges.
+
+### 01 - Architecture
+- `rules VPS/01 - Architecture/readme.md` — Vue complète de la stack Docker Hostinger (Traefik, Kong, Supabase, N8n, Browserless, yt-dlp), réseaux, volumes persistants et points de sécurité clés.
+
+### 02 - Services
+- `rules VPS/02 - Services/docker` — Cartographie du docker-compose.yml, dépendances inter-services, volumes, flux réseau et exposition publique via Traefik/Kong.
+- `rules VPS/02 - Services/Traefik` — Proxy host-mode, certificats ACME, routage SNI, sécurisation de Studio/Adminer et risques liés au montage du socket Docker.
+- `rules VPS/02 - Services/Kong` — API gateway DB-less : routes /rest|/auth|/realtime|/graphql|/storage|/functions|/analytics|/pg, plugins key-auth/ACL, dépendances Logflare et secrets exposés.
+- `rules VPS/02 - Services/Supabase` — Synthèse plateforme Supabase : Postgres/PostgREST/Realtime/Storage/Auth/Edge, intégrations OpenAI/N8n/Resend/Google Places, impacts sur schémas et RPC.
+- `rules VPS/02 - Services/N8n` — Fiche automation : image Playwright custom, dépendance Browserless, webhooks mémoire/RAG, stockage Postgres et risques de secrets/docker.sock.
+- `rules VPS/02 - Services/Site` — SPA publique NotionLab (React, Zustand, dnd-kit) servie par Nginx, intégration Supabase temps réel, absence de durcissement CSP.
+- `rules VPS/02 - Services/yt-dlp` — API yt-dlp dédiée aux automatisations YouTube dans N8n.
+
+### 03 - Functions
+- `rules VPS/03 - Functions/readme.md` — Index détaillé des 25 Edge Functions (assistant, onboarding, N8n, notifications), dépendances externes et considérations de sécurité.
+
+## Règles site NotionLab (`C:\Users\yvallott\Desktop\rules site notionlab`)
 
 ### 00-architecture
-- `00-architecture/readme.mdc` : vue systeme du SPA (routing, providers Auth/Permissions/Assistant, React Query).
-- `00-architecture/Espace administrateur` : reference de la zone admin (onglets dynamiques, permissions, dependances Supabase).
+- `rules site notionlab/00-architecture/index.md` — Vue synthétique du dashboard client modulable, parcours formations, support intégré et dépendances Supabase/Edge pour chaque module.
+- `rules site notionlab/00-architecture/readme.md` — Cartographie SPA React/Vite, contexts globaux (Auth, Permissions, Assistant), intégration Supabase et automatisations VPS.
+- `rules site notionlab/00-architecture/fonctionnalités admin/fonctionnalités.md` — Tableau de bord admin dynamique, registres Supabase, Edge Functions sensibles et protections permissions/RLS.
+- `rules site notionlab/00-architecture/fonctionnalités utilisateurs/fonctionnalités.md` — Placeholder vide pour le détail des fonctionnalités côté utilisateurs.
 
-### 01-standards
-- `01-standards/readme.mdc` : regles critiques (lecture prealable, workflow modification), scripts `npm run db:*`, conventions CI/CD et environnement.
+### 02-programming-languages
+- `rules site notionlab/02-programming-languages/readme.md` — Bonnes pratiques de langages : React/TS côté client, Edge Functions Deno, SQL Supabase, alias Vite @/, exigences RLS.
 
 ### 03-frameworks-and-libraries
-- `03-frameworks-and-libraries/readme.mdc` : listes exhaustives des libs front/back, classes par usage (UI, state, flow, CLI).
+- `rules site notionlab/03-frameworks-and-libraries/readme.md` — Inventaire des dépendances UI/Data/Règles, providers globaux, cohérence RLS et zones d'incohérence notify-* manquantes.
 
 ### 04-database
-- `04-database/readme.mdc` : vision d'ensemble Supabase, gouvernance/RLS, edge functions et inventaire automatise des tables/colonnes.
+- `rules site notionlab/04-database/readme.md` — Topologie Postgres Supabase, schémas public/content, fonctions search-embeddings/ai-docs, extensions et RPC exposés.
 
 ### 06-deployment
-- `06-deployment/Deployer un nouveau module client` : permissions `*:view_module`, enregistrement `modules_registry`, layout par defaut et integration React.
-- `06-deployment/Deployer un nouveau module admin` : liaison permissions `admin:*`, `admin_dashboard_tabs`, `admin_modules_registry` et composant dashboard.
+- `rules site notionlab/06-deployment/Deployer un module client.md` — Checklist permissions -> module React -> layout par défaut pour déployer un module client.
+- `rules site notionlab/06-deployment/deployer un module admin.md` — Procédure pour cadrer, implémenter et enregistrer un module admin (migrations, admin_modules_registry, onglets Supabase).
 
-### 07-Fonctionnalites
-- `07-Fonctionnalites/Assistant IA` : assistant WebRTC (`useAssistant`, quotas, metrics Supabase, edge `assistant-mint-key`).
-- `07-Fonctionnalites/Blueprint Notion` : builder React Flow (autosave, RPC partage public, palette admin).
-- `07-Fonctionnalites/Builder de formation` : builder formation, `BuilderCatalogContext`, autosave et workflows admin/client.
-- `07-Fonctionnalites/Formation` : panorama catalogue, dashboards client/admin, contraintes RLS/RPC.
-- `07-Fonctionnalites/Gestion des bloques` : lifecycle `content_blocks`, edge `manage-content-block`, bibliotheque de layouts.
-- `07-Fonctionnalites/Gestion des tickets` : module tickets realtime, flux Supabase et risques RLS.
-- `07-Fonctionnalites/Gestion des utilisateurs` : invitation (`invite-user`), suppression (`admin_delete_user_full`), contexts Auth/Permissions.
-- `07-Fonctionnalites/Module d'invitation` : workflow d'invitation edge `invite-user`, activation comptes.
-- `07-Fonctionnalites/Module de notification` : gabarits email, edge `send-email`, seed SQL et preferences.
-- `07-Fonctionnalites/Module de themes` : ThemeProvider/ThemePanel, CRUD tokens et preview dynamique.
-- `07-Fonctionnalites/Preferences de formation` : onboarding formations, React Query, tables `training_onboarding_*`, edge `notify-training-onboarding`.
-- `07-Fonctionnalites/Suppression d'un compte` : usage exclusif de `supabase.rpc('admin_delete_user_full')` pour purge complete.
+### 07-quality-assurance
+- `rules site notionlab/07-quality-assurance/readme.md` — Guide QA du module Formations : critères DoD, risques perf/RLS, workflows de validation et exigences assistant/onboarding.
+
+
+
+
+**** IMPORTANT: 
+je t'ai crée un clone des fonctions supabase car tu n'a pas accès au VPS. ELles sont dans C:\dev\notionlab\function-clone
+Ne change rien à l'intérieur, ca ne sert à rien car c'est pas OFFICIEL. 

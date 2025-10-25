@@ -743,7 +743,7 @@ const UserManagementPanel = () => {
 
                     <FilterX className="mr-2 h-4 w-4" />
 
-                    RÃ©initialiser
+                    Réinitialiser
 
                   </Button>
 
@@ -791,7 +791,7 @@ const UserManagementPanel = () => {
 
               ) : users.length === 0 ? (
 
-                <TableRow><TableCell colSpan={6} className="text-center">Aucun utilisateur trouvÃ©.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="text-center">Aucun utilisateur trouvé.</TableCell></TableRow>
 
               ) : (
 
@@ -861,11 +861,11 @@ const UserManagementPanel = () => {
 
                             <AlertDialogHeader>
 
-                              <AlertDialogTitle>ÃŠtes-vous sÃ»r ?</AlertDialogTitle>
+                              <AlertDialogTitle>Etes-vous sûr? ?</AlertDialogTitle>
 
                               <AlertDialogDescription>
 
-                                Cette action supprimera entiÃ¨rement le compte de "{user.email}" (authentification et profil). Cette opÃ©ration est irrÃ©versible.
+                                Cette action supprimera entièrement le compte de "{user.email}" (authentification et profil). Cette opération est irréversible.
 
                               </AlertDialogDescription>
 

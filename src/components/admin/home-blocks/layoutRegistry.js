@@ -2,6 +2,7 @@ import CozySpaceSection from '@/components/home/CozySpaceSection';
 import FinalCTA from '@/components/home/FinalCTA';
 import FormationsSection from '@/components/home/FormationsSection';
 import GoogleReviewsSection from '@/components/home/GoogleReviewsSection';
+import TestimonialsSection from '@/components/home/TestimonialsSection';
 import LaunchCTA from '@/components/home/LaunchCTA';
 import MainHeroSection from '@/components/home/MainHeroSection';
 import MaskRevealScrollSection from '@/components/home/MaskRevealScrollSection';
@@ -265,6 +266,45 @@ const normalizeGoogleReviews = (value = {}, fallback = GOOGLE_REVIEWS_DEFAULTS) 
     placeId,
     limit,
     locale: locale || fallback.locale,
+    highlightColor: highlightColor || fallback.highlightColor,
+    backgroundVariant,
+    showRatingSummary: value.showRatingSummary !== false,
+  };
+};
+
+const TESTIMONIALS_DEFAULTS = Object.freeze({
+  title: 'Ils parlent de NotionLab',
+  subtitle:
+    'Des retours authentiques de nos membres et clients qui utilisent la plateforme au quotidien.',
+  ctaLabel: 'Partager mon avis',
+  limit: 6,
+  locale: 'fr',
+  highlightColor: '#38BDF8',
+  backgroundVariant: 'dark',
+  showRatingSummary: true,
+});
+
+const normalizeTestimonials = (value = {}, fallback = TESTIMONIALS_DEFAULTS) => {
+  const limit = clamp(ensureNumber(value.limit, fallback.limit), 1, 10);
+  const highlightColor = ensureString(
+    value.highlightColor,
+    fallback.highlightColor,
+  ).trim();
+  const backgroundVariantRaw = ensureString(
+    value.backgroundVariant,
+    fallback.backgroundVariant,
+  ).trim();
+  const backgroundVariant =
+    backgroundVariantRaw === 'light' ? 'light' : 'dark';
+  const localeRaw = ensureString(value.locale, fallback.locale).trim();
+  const locale = localeRaw || 'fr';
+
+  return {
+    title: ensureString(value.title, fallback.title),
+    subtitle: ensureString(value.subtitle, fallback.subtitle),
+    ctaLabel: ensureString(value.ctaLabel, fallback.ctaLabel),
+    limit,
+    locale,
     highlightColor: highlightColor || fallback.highlightColor,
     backgroundVariant,
     showRatingSummary: value.showRatingSummary !== false,
@@ -886,6 +926,13 @@ const LAYOUT_DEFINITIONS = {
       content,
       isPreview: context.previewMode !== 'live',
     })),
+  }),
+  'home.testimonials': createDefinition({
+    id: 'home.testimonials',
+    label: 'Accueil \u0007 Testimonials',
+    defaults: TESTIMONIALS_DEFAULTS,
+    normalize: normalizeTestimonials,
+    preview: createPreview(TestimonialsSection),
   }),
   'home.google_reviews': createDefinition({
     id: 'home.google_reviews',
