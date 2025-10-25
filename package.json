@@ -71,6 +71,7 @@
     "emoji-picker-react": "^4.9.4",
     "framer-motion": "^10.16.4",
     "gsap": "^3.12.5",
+    "html-to-image": "^1.11.11",
     "lucide-react": "^0.292.0",
     "papaparse": "^5.4.1",
     "pg": "^8.16.3",
@@ -88,14 +89,14 @@
     "tailwind-merge": "^1.1.4",
     "tailwindcss-animate": "^1.0.7",
     "use-debounce": "^10.0.0",
-    "uuid": "^9.0.1",
-    "html-to-image": "^1.11.11"
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
     "@babel/generator": "^7.27.0",
     "@babel/parser": "^7.27.0",
     "@babel/traverse": "^7.27.0",
     "@babel/types": "^7.27.0",
+    "@modelcontextprotocol/sdk": "^1.20.2",
     "@modelcontextprotocol/server-filesystem": "^2025.8.21",
     "@openai/codex": "^0.39.0",
     "@supabase/mcp-server-supabase": "^0.5.5",
@@ -110,6 +111,8 @@
     "eslint": "^8.57.1",
     "eslint-config-react-app": "^7.0.1",
     "postcss": "^8.4.31",
+    "ssh-mcp": "^1.2.2",
+    "ssh2": "^1.17.0",
     "tailwindcss": "^3.3.3",
     "terser": "^5.39.0",
     "vite": "^7.1.5"
