@@ -40,21 +40,33 @@ export const useDashboardLayout = () => {
       const { data: modulesData, error: modulesError } = await supabase.from('modules_registry').select('*').eq('is_active', true);
       if (modulesError) throw modulesError;
 
-      const { data: layoutData, error: layoutError } = await supabase.functions.invoke('get-dashboard-layout', {
-        body: JSON.stringify({ owner_type: 'default', owner_id: null }),
-      });
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const invokeOptions = {
+        body: { owner_type: 'default', owner_id: null },
+      };
+
+      if (session?.access_token) {
+        invokeOptions.headers = { Authorization: `Bearer ${session.access_token}` };
+      }
+
+      const { data: layoutData, error: layoutError } = await supabase.functions.invoke('get-dashboard-layout', invokeOptions);
       if (layoutError) throw layoutError;
-      
-      if (layoutData.layout_json && layoutData.layout_json.rows && layoutData.layout_json.rows.length > 0) {
-        setLayout(layoutData.layout_json);
+
+      const layoutJson = layoutData?.layout_json;
+      if (layoutJson && Array.isArray(layoutJson.rows)) {
+        setLayout(layoutJson);
       } else {
-        const defaultLayout = {
-          rows: modulesData.map(m => ({
-            rowId: uuidv4(),
-            columns: [{ colId: uuidv4(), span: m.default_layout?.span || 12, moduleKey: m.module_key }]
-          }))
-        };
-        setLayout(defaultLayout);
+        const defaultRows = Array.isArray(modulesData) && modulesData.length > 0
+          ? modulesData.map(m => ({
+              rowId: uuidv4(),
+              columns: [{ colId: uuidv4(), span: m.default_layout?.span || 12, moduleKey: m.module_key }]
+            }))
+          : [];
+
+        setLayout({ rows: defaultRows });
       }
     } catch (err) {
       setError("Impossible de charger la configuration de l'éditeur.");
@@ -113,19 +125,43 @@ export const useDashboardLayout = () => {
     setDropIndicatorInfo(null);
     setForbiddenRowId(null);
 
-    if (!over) return;
+    if (!over) return null;
 
     const activeType = active.data.current?.type;
 
     if (activeType === 'library-module') {
       handleDropFromLibrary(active, over, setLayout, event);
-      return;
+      return null;
     }
 
     if (activeType === 'module') {
+      // If dropped back onto the library dropzone, remove from layout
+      const overType = over?.data?.current?.type;
+      if (overType === 'library-dropzone') {
+        let updatedLayout = null;
+        setLayout(currentLayout => {
+          const newLayout = JSON.parse(JSON.stringify(currentLayout));
+          const sourceRow = newLayout.rows.find(r => r.rowId === active.data.current.rowId);
+          if (!sourceRow) return currentLayout;
+          const sourceColIndex = sourceRow.columns.findIndex(c => c.colId === active.id);
+          if (sourceColIndex === -1) return currentLayout;
+          // Remove the module from the row
+          sourceRow.columns.splice(sourceColIndex, 1);
+          // Remove empty row if needed
+          if (sourceRow.columns.length === 0) {
+            newLayout.rows = newLayout.rows.filter(r => r.rowId !== sourceRow.rowId);
+          }
+          newLayout.rows.forEach(normalizeRow);
+          updatedLayout = newLayout;
+          return newLayout;
+        });
+        return updatedLayout ? { type: 'library-drop', layout: updatedLayout } : null;
+      }
       handleMoveInLayout(active, over, setLayout, localDropIndicatorInfo);
-      return;
+      return null;
     }
+
+    return null;
   };
 
   const handleDropFromLibrary = (active, over, setLayout, event) => {
