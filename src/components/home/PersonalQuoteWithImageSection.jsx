@@ -3,6 +3,9 @@ import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 
 const DEFAULT_BACKGROUND = '#000000';
+const DEFAULT_SOLID = '#111827';
+const DEFAULT_GRADIENT =
+  'linear-gradient(135deg, #1f2937 0%, #111827 50%, #0f172a 100%)';
 
 const PersonalQuoteWithImageSection = ({ content = {} }) => {
   const quoteText =
@@ -12,9 +15,18 @@ const PersonalQuoteWithImageSection = ({ content = {} }) => {
   const ctaText = content.ctaText || 'En savoir plus';
   const ctaUrl = content.ctaUrl || '#';
   const useDefaultBackground = content.useDefaultBackground !== false;
-  const backgroundColor = !useDefaultBackground
-    ? content.backgroundColor || DEFAULT_BACKGROUND
-    : DEFAULT_BACKGROUND;
+  const backgroundMode =
+    content.backgroundMode === 'solid' || content.backgroundMode === 'gradient'
+      ? content.backgroundMode
+      : 'gradient';
+  const solidColor =
+    content.solidColor ||
+    content.backgroundColor ||
+    DEFAULT_SOLID;
+  const gradient =
+    content.gradient ||
+    content.backgroundGradient ||
+    DEFAULT_GRADIENT;
 
   const imageUrl = content.imageUrl;
   const imageAlt = content.imageAlt || 'Illustration';
@@ -22,7 +34,17 @@ const PersonalQuoteWithImageSection = ({ content = {} }) => {
   const logoUrl = content.logoUrl;
   const logoAlt = content.logoAlt || 'Logo';
 
-  const sectionStyle = { backgroundColor };
+  const sectionStyle = useDefaultBackground
+    ? { backgroundColor: DEFAULT_BACKGROUND }
+    : backgroundMode === 'solid'
+      ? {
+          backgroundColor: solidColor || DEFAULT_SOLID,
+          backgroundImage: 'none',
+        }
+      : {
+          background: gradient,
+          backgroundColor: solidColor || DEFAULT_BACKGROUND,
+        };
 
   return (
     <section

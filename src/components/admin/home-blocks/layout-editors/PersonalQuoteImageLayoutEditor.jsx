@@ -1,31 +1,65 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from '@/components/ui/popover';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { SketchPicker } from 'react-color';
 import { Loader2 } from 'lucide-react';
 import ImageUpload from '@/components/ui/image-upload';
+import { cn } from '@/lib/utils';
 import {
   createInputChangeHandler,
   createBooleanToggleHandler,
 } from './shared';
+
+const gradientPresets = [
+  'linear-gradient(135deg, #1f2937 0%, #111827 50%, #0f172a 100%)',
+  'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+  'linear-gradient(135deg, #312e81 0%, #1f2937 100%)',
+  'linear-gradient(135deg, #7c3aed 0%, #312e81 100%)',
+  'linear-gradient(135deg, #0f766e 0%, #064e3b 100%)',
+  'linear-gradient(135deg, #b91c1c 0%, #7f1d1d 100%)',
+];
+
+const DEFAULT_SOLID = '#111827';
+const DEFAULT_GRADIENT = gradientPresets[0];
 
 const PersonalQuoteImageLayoutEditor = ({ value = {}, onChange }) => {
   const handleChange = createInputChangeHandler(value, onChange);
   const handleBoolean = createBooleanToggleHandler(value, onChange);
   const [uploadStatus, setUploadStatus] = useState('idle');
 
+  const useDefaultBackground = value.useDefaultBackground !== false;
+  const backgroundMode =
+    value.backgroundMode === 'solid' || value.backgroundMode === 'gradient'
+      ? value.backgroundMode
+      : 'gradient';
+
+  const solidColorValue =
+    value.solidColor || value.backgroundColor || DEFAULT_SOLID;
+  const gradientValue =
+    value.gradient || value.backgroundGradient || DEFAULT_GRADIENT;
+
   const isLogoEnabled = useMemo(
     () => (value.showLogo === undefined ? true : Boolean(value.showLogo)),
     [value.showLogo],
   );
 
-  const updateImageUrl = (nextUrl) => {
+  const updateState = (patch) =>
     onChange((current = {}) => ({
-      ...current,
-      imageUrl: nextUrl,
+      ...(current ?? {}),
+      ...patch,
     }));
+
+  const updateImageUrl = (nextUrl) => {
+    updateState({ imageUrl: nextUrl });
     setUploadStatus('idle');
   };
 
@@ -34,6 +68,39 @@ const PersonalQuoteImageLayoutEditor = ({ value = {}, onChange }) => {
   const handleUploadStart = () => setUploadStatus('uploading');
   const handleUploadSuccess = () => setUploadStatus('idle');
   const handleUploadError = () => setUploadStatus('error');
+
+  const handleModeChange = (mode) => {
+    if (!mode) return;
+    const patch = { backgroundMode: mode };
+    if (mode === 'solid' && !value.solidColor && !value.backgroundColor) {
+      patch.solidColor = DEFAULT_SOLID;
+      patch.backgroundColor = DEFAULT_SOLID;
+    }
+    if (mode === 'gradient' && !value.gradient && !value.backgroundGradient) {
+      patch.gradient = DEFAULT_GRADIENT;
+      patch.backgroundGradient = DEFAULT_GRADIENT;
+    }
+    updateState(patch);
+  };
+
+  const handleSolidColorChange = (color) => {
+    const hex = color?.hex ?? DEFAULT_SOLID;
+    updateState({ solidColor: hex, backgroundColor: hex });
+  };
+
+  const handleSolidInputChange = (event) => {
+    const hex = event?.target?.value ?? '';
+    updateState({ solidColor: hex, backgroundColor: hex });
+  };
+
+  const handleGradientPreset = (gradient) => {
+    updateState({ gradient, backgroundGradient: gradient });
+  };
+
+  const handleGradientInputChange = (event) => {
+    const nextValue = event?.target?.value ?? '';
+    updateState({ gradient: nextValue, backgroundGradient: nextValue });
+  };
 
   return (
     <div className="space-y-6">
@@ -69,20 +136,101 @@ const PersonalQuoteImageLayoutEditor = ({ value = {}, onChange }) => {
         </div>
       )}
 
-      <div className="space-y-3">
+      <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <Label>Utiliser la couleur par défaut</Label>
+          <Label>Utiliser le fond par defaut</Label>
           <Switch
-            checked={Boolean(value.useDefaultBackground ?? true)}
+            checked={useDefaultBackground}
             onCheckedChange={handleBoolean('useDefaultBackground')}
           />
         </div>
-        {value.useDefaultBackground === false && (
-          <Input
-            type="color"
-            value={value.backgroundColor ?? '#000000'}
-            onChange={handleChange('backgroundColor')}
-          />
+
+        {!useDefaultBackground && (
+          <div className="space-y-4 rounded-md border p-4">
+            <div className="flex flex-col gap-2">
+              <Label>Style de fond</Label>
+              <ToggleGroup
+                type="single"
+                value={backgroundMode}
+                onValueChange={handleModeChange}
+                className="w-full md:w-auto"
+              >
+                <ToggleGroupItem value="solid" className="px-4">
+                  Couleur
+                </ToggleGroupItem>
+                <ToggleGroupItem value="gradient" className="px-4">
+                  Degrade
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </div>
+
+            {backgroundMode === 'solid' ? (
+              <div className="space-y-2">
+                <Label>Couleur</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full justify-start gap-3"
+                    >
+                      <span
+                        className="h-5 w-5 rounded-md border"
+                        style={{ background: solidColorValue }}
+                      />
+                      <span className="text-xs text-muted-foreground">
+                        Choisir une couleur
+                      </span>
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <SketchPicker
+                      disableAlpha
+                      color={solidColorValue}
+                      onChangeComplete={handleSolidColorChange}
+                    />
+                  </PopoverContent>
+                </Popover>
+                <Input
+                  value={solidColorValue}
+                  onChange={handleSolidInputChange}
+                  placeholder={DEFAULT_SOLID}
+                  className="font-mono text-sm"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Utilisez le selecteur ou saisissez un code hex.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label>Selection du degrade</Label>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {gradientPresets.map((preset) => (
+                    <Button
+                      key={preset}
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleGradientPreset(preset)}
+                      className={cn(
+                        'h-16 rounded-lg border-2 border-transparent transition hover:scale-[1.02]',
+                        gradientValue === preset && 'border-primary shadow-md',
+                      )}
+                      style={{ backgroundImage: preset }}
+                    />
+                  ))}
+                </div>
+                <Input
+                  value={gradientValue}
+                  onChange={handleGradientInputChange}
+                  placeholder="linear-gradient(...)"
+                  className="font-mono text-sm"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Selectionnez un degrade ou collez votre propre valeur CSS.
+                </p>
+              </div>
+            )}
+          </div>
         )}
       </div>
 
