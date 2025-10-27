@@ -86,7 +86,7 @@ const UserFormationSubmissionsPanel = () => {
             Formation Live
           </div>
         </CardTitle>
-        <CardDescription>Affichage exclusif des formations LIVE. Les soumissions en attente/rejetées ne sont pas visibles ici.</CardDescription>
+        <CardDescription>Affichage des formations LIVE. Les soumissions en attente/rejetées ne sont pas visibles ici.</CardDescription>
       </CardHeader>
       <CardContent>
         <SubmissionFilters filters={filters} setFilters={setFilters} />
