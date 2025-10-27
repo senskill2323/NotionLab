@@ -34,8 +34,11 @@ export const ModuleLibrary = ({ usedModuleKeys = [] }) => {
   const [allModules, setAllModules] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  // Dropzone to accept modules dragged back from the layout
-  const { isOver, setNodeRef } = useDroppable({ id: 'module-library-dropzone', data: { type: 'library-dropzone' } });
+  // Dropzone covers the entire library panel so dropping anywhere removes the module
+  const { isOver, setNodeRef } = useDroppable({
+    id: 'module-library-dropzone',
+    data: { type: 'library-dropzone' },
+  });
 
   useEffect(() => {
     const fetchModules = async () => {
@@ -71,14 +74,16 @@ export const ModuleLibrary = ({ usedModuleKeys = [] }) => {
   }
 
   return (
-    <Card className="h-full flex flex-col">
+    <Card
+      ref={setNodeRef}
+      className={`h-full flex flex-col transition-colors ${isOver ? 'ring-2 ring-primary/40 bg-primary/5' : ''}`}
+    >
       <CardHeader>
         <CardTitle>Bibliothèque de Modules</CardTitle>
         <CardDescription>Glissez un module vers la droite pour l'ajouter au dashboard.</CardDescription>
       </CardHeader>
-      {/* Drop here to remove a module from the dashboard */}
+      {/* Visual hint even if the whole card is droppable */}
       <div
-        ref={setNodeRef}
         className={`mx-4 mb-2 p-3 rounded border text-sm transition-colors ${
           isOver ? 'bg-primary/15 border-primary' : 'bg-muted/30 border-muted-foreground/40'
         }`}

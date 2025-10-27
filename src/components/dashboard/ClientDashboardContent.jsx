@@ -14,6 +14,7 @@ import BuilderPanel from '@/components/dashboard/modules/BuilderPanel';
 import KanbanPanel from '@/components/kanban/KanbanPanel';
 import KPIPanel from '@/components/dashboard/modules/KPIPanel';
 import HomepagePanel from '@/components/dashboard/modules/HomepagePanel';
+import PersonalDataPanel from '@/components/dashboard/modules/PersonalDataPanel';
 import TrainingPreferencesPanel from '@/components/dashboard/modules/TrainingPreferencesPanel';
 import AssistantPanel from '@/components/dashboard/modules/AssistantPanel';
 import BlueprintsPanel from '@/components/dashboard/modules/BlueprintsPanel';
@@ -26,36 +27,29 @@ const componentMap = {
   client_kanban_formations: KanbanPanel,
   client_kpi: KPIPanel,
   client_homepage: HomepagePanel,
+  client_personal_data: PersonalDataPanel,
   client_training_preferences: TrainingPreferencesPanel,
   client_ai_assistant: AssistantPanel,
   client_blueprints: BlueprintsPanel,
 };
 
+const sanitizeLayout = (layout) => {
+  const rows = Array.isArray(layout?.rows) ? layout.rows : [];
+  const hiddenKeys = Array.isArray(layout?.hiddenModuleKeys) ? layout.hiddenModuleKeys : [];
+
+  return {
+    rows: rows.map(row => ({
+      ...row,
+      columns: Array.isArray(row?.columns)
+        ? row.columns.map(col => ({ ...col }))
+        : [],
+    })),
+    hiddenModuleKeys: Array.from(new Set(hiddenKeys.filter(key => typeof key === 'string' && key.length > 0))),
+  };
+};
+
 const normalizeRow = (row) => {
   if (!row || !row.columns || row.columns.length === 0) return row;
-  
-  // Special case: if row contains client_formations, add client_kpi next to it
-  const hasFormations = row.columns.some(col => col.moduleKey === 'client_formations');
-  if (hasFormations && !row.columns.some(col => col.moduleKey === 'client_kpi')) {
-    const newRow = JSON.parse(JSON.stringify(row));
-    // Add KPI panel to the same row
-    newRow.columns.push({
-      colId: uuidv4(),
-      moduleKey: 'client_kpi',
-      span: 5 // Will be set below
-    });
-    
-    // Set spans: formations gets 7, KPI gets 5
-    newRow.columns.forEach((col) => {
-      if (col.moduleKey === 'client_formations') {
-        col.span = 7;
-      } else if (col.moduleKey === 'client_kpi') {
-        col.span = 5;
-      }
-    });
-    
-    return newRow;
-  }
   
   const count = row.columns.length;
   
@@ -77,7 +71,7 @@ const normalizeRow = (row) => {
 const useDashboardData = () => {
   const { hasPermission, loading: permissionsLoading, error: permissionsError, refreshPermissions, ready: permissionsReady } = usePermissions();
   const [modules, setModules] = React.useState([]);
-  const [layout, setLayout] = React.useState({ rows: [] });
+  const [layout, setLayout] = React.useState({ rows: [], hiddenModuleKeys: [] });
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
   const hasLoadedOnceRef = React.useRef(false);
@@ -132,7 +126,7 @@ const useDashboardData = () => {
       }
 
       if (layoutJson && Array.isArray(layoutJson.rows) && layoutJson.rows.length > 0) {
-        setLayout(layoutJson);
+        setLayout(sanitizeLayout(layoutJson));
         return;
       }
 
@@ -144,7 +138,7 @@ const useDashboardData = () => {
           moduleKey: m.module_key,
         }],
       }));
-      setLayout({ rows: defaultRows });
+      setLayout(sanitizeLayout({ rows: defaultRows, hiddenModuleKeys: [] }));
     } catch (err) {
       console.error("Error fetching dashboard config:", err);
       setError("Impossible de charger la configuration du tableau de bord.");
@@ -199,7 +193,9 @@ const ClientDashboardContent = () => {
     );
   }
   
-  const visibleModuleKeys = modules.map(m => m.module_key);
+  const hiddenModuleKeys = new Set(layout.hiddenModuleKeys ?? []);
+  const filteredModules = modules.filter(module => !hiddenModuleKeys.has(module.module_key));
+  const visibleModuleKeys = filteredModules.map(m => m.module_key);
 
   return (
     <div className="min-h-screen">
@@ -214,7 +210,8 @@ const ClientDashboardContent = () => {
           
           <div className="space-y-4">
             {layout.rows.map(row => {
-              let visibleCols = row.columns.filter(col => visibleModuleKeys.includes(col.moduleKey));
+              const columns = Array.isArray(row.columns) ? row.columns : [];
+              const visibleCols = columns.filter(col => visibleModuleKeys.includes(col.moduleKey) && !hiddenModuleKeys.has(col.moduleKey));
               if (visibleCols.length === 0) return null;
 
               const normalizedRow = normalizeRow({ ...row, columns: visibleCols });

@@ -8,8 +8,23 @@ import {
   normalizeRow
 } from '@/components/dashboard/editor/layoutUtils';
 
+const sanitizeLayout = (layout) => {
+  const rows = Array.isArray(layout?.rows) ? layout.rows : [];
+  const hiddenKeys = Array.isArray(layout?.hiddenModuleKeys) ? layout.hiddenModuleKeys : [];
+
+  return {
+    rows: rows.map(row => ({
+      ...row,
+      columns: Array.isArray(row?.columns)
+        ? row.columns.map(col => ({ ...col }))
+        : [],
+    })),
+    hiddenModuleKeys: Array.from(new Set(hiddenKeys.filter(key => typeof key === 'string' && key.length > 0))),
+  };
+};
+
 export const useDashboardLayout = () => {
-  const [layout, setLayoutState] = useState({ rows: [] });
+  const [layout, setLayoutState] = useState({ rows: [], hiddenModuleKeys: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeItem, setActiveItem] = useState(null);
@@ -24,12 +39,14 @@ export const useDashboardLayout = () => {
     if (typeof newLayout === 'function') {
       setLayoutState(current => {
         const result = newLayout(current);
-        layoutRef.current = result;
-        return result;
+        const sanitized = sanitizeLayout(result);
+        layoutRef.current = sanitized;
+        return sanitized;
       });
     } else {
-      layoutRef.current = newLayout;
-      setLayoutState(newLayout);
+      const sanitized = sanitizeLayout(newLayout);
+      layoutRef.current = sanitized;
+      setLayoutState(sanitized);
     }
   };
 
@@ -57,7 +74,7 @@ export const useDashboardLayout = () => {
 
       const layoutJson = layoutData?.layout_json;
       if (layoutJson && Array.isArray(layoutJson.rows)) {
-        setLayout(layoutJson);
+        setLayout(sanitizeLayout(layoutJson));
       } else {
         const defaultRows = Array.isArray(modulesData) && modulesData.length > 0
           ? modulesData.map(m => ({
@@ -66,7 +83,7 @@ export const useDashboardLayout = () => {
             }))
           : [];
 
-        setLayout({ rows: defaultRows });
+        setLayout({ rows: defaultRows, hiddenModuleKeys: [] });
       }
     } catch (err) {
       setError("Impossible de charger la configuration de l'éditeur.");
@@ -139,8 +156,9 @@ export const useDashboardLayout = () => {
       const overType = over?.data?.current?.type;
       if (overType === 'library-dropzone') {
         let updatedLayout = null;
+        const moduleKeyToHide = active.data.current?.col?.moduleKey;
         setLayout(currentLayout => {
-          const newLayout = JSON.parse(JSON.stringify(currentLayout));
+          const newLayout = sanitizeLayout(currentLayout);
           const sourceRow = newLayout.rows.find(r => r.rowId === active.data.current.rowId);
           if (!sourceRow) return currentLayout;
           const sourceColIndex = sourceRow.columns.findIndex(c => c.colId === active.id);
@@ -150,6 +168,11 @@ export const useDashboardLayout = () => {
           // Remove empty row if needed
           if (sourceRow.columns.length === 0) {
             newLayout.rows = newLayout.rows.filter(r => r.rowId !== sourceRow.rowId);
+          }
+          if (moduleKeyToHide) {
+            const hiddenSet = new Set(newLayout.hiddenModuleKeys);
+            hiddenSet.add(moduleKeyToHide);
+            newLayout.hiddenModuleKeys = Array.from(hiddenSet);
           }
           newLayout.rows.forEach(normalizeRow);
           updatedLayout = newLayout;
@@ -175,7 +198,7 @@ export const useDashboardLayout = () => {
     };
 
     setLayout(currentLayout => {
-      let newLayout = JSON.parse(JSON.stringify(currentLayout));
+      let newLayout = sanitizeLayout(currentLayout);
 
       if (overData?.type === 'dropzone') {
         const newRow = { rowId: uuidv4(), columns: [newModule] };
@@ -219,6 +242,9 @@ export const useDashboardLayout = () => {
       }
 
       newLayout.rows.forEach(normalizeRow);
+      const hiddenSet = new Set(newLayout.hiddenModuleKeys);
+      hiddenSet.delete(moduleKey);
+      newLayout.hiddenModuleKeys = Array.from(hiddenSet);
       return newLayout;
     });
   };
@@ -228,7 +254,7 @@ export const useDashboardLayout = () => {
 
     if (overData?.type === 'dropzone') {
       setLayout(currentLayout => {
-        let newLayout = JSON.parse(JSON.stringify(currentLayout));
+        let newLayout = sanitizeLayout(currentLayout);
         const sourceRow = newLayout.rows.find(r => r.rowId === active.data.current.rowId);
         if (!sourceRow) return currentLayout;
         
