@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useDraggable } from '@dnd-kit/core';
+import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { supabase } from '@/lib/customSupabaseClient';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -34,6 +34,11 @@ export const ModuleLibrary = ({ usedModuleKeys = [] }) => {
   const [allModules, setAllModules] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  // Dropzone covers the entire library panel so dropping anywhere removes the module
+  const { isOver, setNodeRef } = useDroppable({
+    id: 'module-library-dropzone',
+    data: { type: 'library-dropzone' },
+  });
 
   useEffect(() => {
     const fetchModules = async () => {
@@ -69,11 +74,22 @@ export const ModuleLibrary = ({ usedModuleKeys = [] }) => {
   }
 
   return (
-    <Card className="h-full flex flex-col">
+    <Card
+      ref={setNodeRef}
+      className={`h-full flex flex-col transition-colors ${isOver ? 'ring-2 ring-primary/40 bg-primary/5' : ''}`}
+    >
       <CardHeader>
         <CardTitle>Bibliothèque de Modules</CardTitle>
         <CardDescription>Glissez un module vers la droite pour l'ajouter au dashboard.</CardDescription>
       </CardHeader>
+      {/* Visual hint even if the whole card is droppable */}
+      <div
+        className={`mx-4 mb-2 p-3 rounded border text-sm transition-colors ${
+          isOver ? 'bg-primary/15 border-primary' : 'bg-muted/30 border-muted-foreground/40'
+        }`}
+      >
+        Déposez un module ici pour le retirer du dashboard
+      </div>
       <ScrollArea className="flex-grow p-4">
         {availableModules.length > 0 ? (
           availableModules.map(module => (

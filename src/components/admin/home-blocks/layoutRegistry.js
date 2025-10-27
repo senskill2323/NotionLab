@@ -7,6 +7,7 @@ import LaunchCTA from '@/components/home/LaunchCTA';
 import MainHeroSection from '@/components/home/MainHeroSection';
 import MaskRevealScrollSection from '@/components/home/MaskRevealScrollSection';
 import PersonalQuoteSection from '@/components/home/PersonalQuoteSection';
+import PersonalQuoteWithImageSection from '@/components/home/PersonalQuoteWithImageSection';
 import PromiseSection from '@/components/home/PromiseSection';
 import StatsSection from '@/components/home/StatsSection';
 import SupportSection from '@/components/home/SupportSection';
@@ -511,7 +512,30 @@ const PERSONAL_QUOTE_DEFAULTS = Object.freeze({
   useDefaultBackground: true,
   backgroundMode: '#000000',
 });
+const PERSONAL_QUOTE_IMAGE_SOLID = '#111827';
+const PERSONAL_QUOTE_IMAGE_GRADIENT =
+  'linear-gradient(135deg, #1f2937 0%, #111827 50%, #0f172a 100%)';
 
+const PERSONAL_QUOTE_IMAGE_DEFAULTS = Object.freeze({
+  quoteText:
+    "Cela fait une quinzaine d'annees que je teste ce type d'outils - c'est mon metier. Mais depuis six ans, pas une seconde l'envie de quitter Notion. Aujourd'hui, je me lance, j'aimerais vous le presenter.",
+  showCta: false,
+  ctaText: 'En savoir plus',
+  ctaUrl: '#',
+  useDefaultBackground: true,
+  backgroundMode: 'gradient',
+  solidColor: PERSONAL_QUOTE_IMAGE_SOLID,
+  gradient: PERSONAL_QUOTE_IMAGE_GRADIENT,
+  backgroundColor: PERSONAL_QUOTE_IMAGE_SOLID,
+  backgroundGradient: PERSONAL_QUOTE_IMAGE_GRADIENT,
+  imageUrl:
+    'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=900&q=80',
+  imageAlt: 'Portrait professionnel',
+  showLogo: true,
+  logoUrl:
+    'https://kiudpvvqpbkzeybogrnq.supabase.co/storage/v1/object/public/site-assets/home/NewLogo_YV.png',
+  logoAlt: 'Logo NotionLab',
+});
 const normalizePersonalQuote = (
   value = {},
   fallback = PERSONAL_QUOTE_DEFAULTS,
@@ -530,7 +554,81 @@ const normalizePersonalQuote = (
   ),
   backgroundMode: ensureString(value.backgroundColor, fallback.backgroundColor),
 });
+const normalizePersonalQuoteImage = (
+  value = {},
+  fallback = PERSONAL_QUOTE_IMAGE_DEFAULTS,
+) => {
+  const quoteText = ensureString(
+    value.quoteText ??
+      [value.quoteLine1, value.quoteLine2].filter(Boolean).join(' '),
+    fallback.quoteText,
+  );
 
+  const showCta = ensureBoolean(value.showCta, fallback.showCta);
+  const ctaText = ensureString(value.ctaText, fallback.ctaText);
+  const ctaUrl = ensureString(value.ctaUrl, fallback.ctaUrl);
+
+  const useDefaultBackground = ensureBoolean(
+    value.useDefaultBackground,
+    fallback.useDefaultBackground,
+  );
+
+  const rawMode = ensureString(
+    value.backgroundMode,
+    fallback.backgroundMode,
+  ).toLowerCase();
+  let backgroundMode =
+    rawMode === 'solid' || rawMode === 'gradient'
+      ? rawMode
+      : fallback.backgroundMode;
+
+  const legacyColor = ensureString(value.backgroundColor, '').trim();
+  const legacyGradient = ensureString(value.backgroundGradient, '').trim();
+
+  let solidColor = ensureString(value.solidColor, '').trim();
+  if (!solidColor) {
+    solidColor = legacyColor || fallback.solidColor;
+  }
+
+  let gradient = ensureString(value.gradient, '').trim();
+  if (!gradient) {
+    gradient = legacyGradient || fallback.gradient;
+  }
+
+  if (!value.gradient && legacyGradient) {
+    backgroundMode = 'gradient';
+  }
+
+  if (!value.solidColor && legacyColor) {
+    backgroundMode = backgroundMode === 'gradient' ? 'gradient' : 'solid';
+  }
+
+  if (backgroundMode === 'solid' && !solidColor) {
+    solidColor = fallback.solidColor;
+  }
+
+  if (backgroundMode === 'gradient' && !gradient) {
+    gradient = fallback.gradient;
+  }
+
+  return {
+    quoteText,
+    showCta,
+    ctaText,
+    ctaUrl,
+    useDefaultBackground,
+    backgroundMode,
+    solidColor,
+    gradient,
+    backgroundColor: solidColor || fallback.backgroundColor,
+    backgroundGradient: gradient || fallback.backgroundGradient,
+    imageUrl: ensureString(value.imageUrl, fallback.imageUrl),
+    imageAlt: ensureString(value.imageAlt, fallback.imageAlt),
+    showLogo: ensureBoolean(value.showLogo, fallback.showLogo),
+    logoUrl: ensureString(value.logoUrl, fallback.logoUrl),
+    logoAlt: ensureString(value.logoAlt, fallback.logoAlt),
+  };
+};
 const FINAL_CTA_DEFAULTS = Object.freeze({
   title: 'Boostons vraiment votre productivité ensemble ?',
   description:
@@ -709,16 +807,80 @@ const normalizeSupport = (value = {}, fallback = SUPPORT_DEFAULTS) => {
   };
 };
 
+const STATS_DEFAULT_SOLID = '#0f172a';
+const STATS_DEFAULT_GRADIENT =
+  'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #111827 100%)';
+
 const STATS_DEFAULTS = Object.freeze({
   title: "La force d'une communauté",
   subtitle:
     "Rejoignez une communauté grandissante et profitez d'un catalogue de formations riche et évolutif.",
+  useDefaultBackground: true,
+  backgroundMode: 'gradient',
+  solidColor: STATS_DEFAULT_SOLID,
+  gradient: STATS_DEFAULT_GRADIENT,
+  backgroundColor: STATS_DEFAULT_SOLID,
+  backgroundGradient: STATS_DEFAULT_GRADIENT,
 });
 
-const normalizeStats = (value = {}, fallback = STATS_DEFAULTS) => ({
-  title: ensureString(value.title, fallback.title),
-  subtitle: ensureString(value.subtitle, fallback.subtitle),
-});
+const normalizeStats = (value = {}, fallback = STATS_DEFAULTS) => {
+  const title = ensureString(value.title, fallback.title);
+  const subtitle = ensureString(value.subtitle, fallback.subtitle);
+
+  const useDefaultBackground = ensureBoolean(
+    value.useDefaultBackground,
+    fallback.useDefaultBackground,
+  );
+
+  const rawMode = ensureString(
+    value.backgroundMode,
+    fallback.backgroundMode,
+  ).toLowerCase();
+  let backgroundMode =
+    rawMode === 'solid' || rawMode === 'gradient'
+      ? rawMode
+      : fallback.backgroundMode;
+
+  const legacyColor = ensureString(value.backgroundColor, '').trim();
+  const legacyGradient = ensureString(value.backgroundGradient, '').trim();
+
+  let solidColor = ensureString(value.solidColor, '').trim();
+  if (!solidColor) {
+    solidColor = legacyColor || fallback.solidColor;
+  }
+
+  let gradient = ensureString(value.gradient, '').trim();
+  if (!gradient) {
+    gradient = legacyGradient || fallback.gradient;
+  }
+
+  if (!value.gradient && legacyGradient) {
+    backgroundMode = 'gradient';
+  }
+
+  if (!value.solidColor && legacyColor) {
+    backgroundMode = backgroundMode === 'gradient' ? 'gradient' : 'solid';
+  }
+
+  if (backgroundMode === 'solid' && !solidColor) {
+    solidColor = fallback.solidColor;
+  }
+
+  if (backgroundMode === 'gradient' && !gradient) {
+    gradient = fallback.gradient;
+  }
+
+  return {
+    title,
+    subtitle,
+    useDefaultBackground,
+    backgroundMode,
+    solidColor,
+    gradient,
+    backgroundColor: solidColor || fallback.backgroundColor,
+    backgroundGradient: gradient || fallback.backgroundGradient,
+  };
+};
 
 const FORMATIONS_CTA_DEFAULT = Object.freeze({
   enabled: true,
@@ -881,6 +1043,13 @@ const LAYOUT_DEFINITIONS = {
     defaults: PERSONAL_QUOTE_DEFAULTS,
     normalize: normalizePersonalQuote,
     preview: createPreview(PersonalQuoteSection),
+  }),
+  'home.personal_quote_image': createDefinition({
+    id: 'home.personal_quote_image',
+    label: 'Accueil - Citation + image',
+    defaults: PERSONAL_QUOTE_IMAGE_DEFAULTS,
+    normalize: normalizePersonalQuoteImage,
+    preview: createPreview(PersonalQuoteWithImageSection),
   }),
   'home.final_cta': createDefinition({
     id: 'home.final_cta',

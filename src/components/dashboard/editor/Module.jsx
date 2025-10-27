@@ -56,7 +56,7 @@ export const SortableModule = ({ col, rowId, dropIndicatorInfo }) => {
       {dropIndicatorInfo && dropIndicatorInfo.colId === col.colId && (
         <DropIndicator side={dropIndicatorInfo.side} />
       )}
-      <div {...listeners} className="absolute top-2 right-2 z-10 p-2 bg-card/70 backdrop-blur-sm rounded-full cursor-grab opacity-0 group-hover:opacity-100 transition-opacity">
+      <div {...listeners} className="absolute top-2 left-2 z-10 p-2 bg-card/70 backdrop-blur-sm rounded-full cursor-grab opacity-0 group-hover:opacity-100 transition-opacity">
         <GripVertical className="h-5 w-5 text-card-foreground" />
       </div>
       <Module moduleKey={col.moduleKey} isDragging={isDragging} isOverlay={false} />
