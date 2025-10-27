@@ -19,7 +19,6 @@ export const BuilderCatalogProvider = ({ children }) => {
     const [catalog, setCatalog] = useState([]);
     const [loading, setLoading] = useState(true);
     const { toast } = useToast();
-    const { user, sessionReady } = useAuth();
 
     const fetchData = useCallback(async () => {
         // Ne pas remettre loading à true ici pour éviter les flashs sur les re-fetchs de realtime
@@ -57,15 +56,7 @@ export const BuilderCatalogProvider = ({ children }) => {
     }, [toast]);
 
     useEffect(() => {
-        if (!user || !sessionReady) {
-            setCatalog([]);
-            setLoading(false);
-            return undefined;
-        }
-
-        setLoading(true);
         fetchData();
-
         const channel = supabase
           .channel('builder-catalog-changes')
           .on('postgres_changes', { event: '*', schema: 'public', table: 'builder_families' }, fetchData)
@@ -75,10 +66,11 @@ export const BuilderCatalogProvider = ({ children }) => {
           .subscribe();
 
         return () => {
+          isMounted = false;
           supabase.removeChannel(channel);
         };
-    }, [fetchData, sessionReady, user]);
-
+    }, [fetchData]);
+    
     const optimisticUpdate = (updateFunction) => {
         setCatalog(currentCatalog => {
             try {

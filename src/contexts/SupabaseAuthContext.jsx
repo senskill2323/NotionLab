@@ -18,6 +18,11 @@ export const AuthProvider = ({ children }) => {
   const signOutVerifyTimerRef = useRef(null);
   const lastVisibleCheckRef = useRef(0);
   const lastSessionExpiresAtRef = useRef(null);
+  const userRef = useRef(null);
+
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
 
   const processSessionRefresh = useCallback((session, sourceEvent) => {
     if (!session?.access_token) {
@@ -100,11 +105,9 @@ export const AuthProvider = ({ children }) => {
 
     } catch (e) {
       console.error("Error in fetchProfileAndSetUser", e?.message || e);
-      // Network/visibility-related glitches should not force sign-out.
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
-          // Keep current user; allow background retries via other effects.
           return null;
         }
       } catch (_) {
@@ -234,23 +237,56 @@ export const AuthProvider = ({ children }) => {
     };
   }, [fetchProfileAndSetUser, handleSignOutForced, processSessionRefresh, navigate]);
 
+  const waitForProfile = async (expectedUserId, timeoutMs = 5000) => {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      const currentUser = userRef.current;
+      if (currentUser?.id === expectedUserId && currentUser?.profile) {
+        return currentUser.profile;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    const finalUser = userRef.current;
+    if (finalUser?.id === expectedUserId && finalUser?.profile) {
+      return finalUser.profile;
+    }
+    return null;
+  };
+
   const signInWithPassword = async (email, password) => {
     setAuthLoading(true);
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    
-    if (error) {
-      setAuthLoading(false);
-      return { user: null, profile: null, error };
-    }
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        setAuthLoading(false);
+        return { user: null, profile: null, error };
+      }
 
-    if (data.user) {
-      const fullUser = await fetchProfileAndSetUser(data.user);
+      const signedInUser = data?.user ?? null;
+      if (!signedInUser) {
+        setAuthLoading(false);
+        return { user: null, profile: null, error: new Error('User data not available after sign in.') };
+      }
+      console.debug('[auth] signed in user id', signedInUser.id);
+
+      await supabase.auth.getSession().catch(() => {});
+      const profile = await waitForProfile(signedInUser.id);
       setAuthLoading(false);
-      return { user: data.user, profile: fullUser?.profile, error: null };
+
+      if (!profile) {
+        return {
+          user: signedInUser,
+          profile: null,
+          error: new Error("Impossible de récupérer le profil utilisateur après la connexion. Veuillez réessayer."),
+        };
+      }
+
+      return { user: signedInUser, profile, error: null };
+    } catch (err) {
+      setAuthLoading(false);
+      const fallbackError = err instanceof Error ? err : new Error('Unexpected sign in error');
+      return { user: null, profile: null, error: fallbackError };
     }
-    
-    setAuthLoading(false);
-    return { user: null, profile: null, error: new Error('User data not available after sign in.') };
   };
 
   const signUp = async (email, password, firstName, lastName) => {
