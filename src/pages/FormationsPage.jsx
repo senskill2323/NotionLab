@@ -96,7 +96,7 @@ const FormationsPage = () => {
               <h1 className="text-5xl md:text-6xl font-bold mb-6">
                 Nos <span className="gradient-text">Formations</span>
               </h1>
-              <p className="text-xl text-foreground/80 max-w-3xl mx-auto">Progressez à votre rythme, profitez d'un service de ticketing 24h/24., maîtrisez tous les aspects de votre système de vie! </p>
+              <p className="text-xl text-foreground/80 max-w-3xl mx-auto">Progressez à votre rythme, profitez d'un service de ticketing 24h/24., maîtrisez tous les aspects de votre système! </p>
             </motion.div>
 
             {loading ? <div className="flex justify-center items-center h-64">
