@@ -19,9 +19,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import TiptapEditor from '@/components/admin/TiptapEditor';
+import NotificationEventsManager from '@/components/admin/NotificationEventsManager';
 import { supabase } from '@/lib/customSupabaseClient';
 import {
   Bell,
@@ -43,9 +43,7 @@ const USER_AVAILABLE_FIELD = 'user-available';
 const DEFAULT_FORM_VALUES = {
   title: '',
   notification_key: '',
-  description: '',
   subject: '',
-  preview_text: '',
   body_html: '',
   sender_name: '',
   sender_email: '',
@@ -72,15 +70,15 @@ const EmailPreviewDialog = ({ notification, onClose }) => {
     <Dialog open={!!notification} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Aperçu de l&apos;email</DialogTitle>
+          <DialogTitle>Apercu de l&apos;email</DialogTitle>
           <DialogDescription>
-            {notification.title} — {notification.notification_key}
+            {notification.title} - {notification.notification_key}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
           <div className="rounded border p-3 bg-muted/40 space-y-2 text-sm">
             <p>
-              <span className="font-semibold">Expéditeur :</span> {notification.sender_name}{' '}
+              <span className="font-semibold">Expediteur :</span> {notification.sender_name}{' '}
               {'<'}
               {notification.sender_email}
               {'>'}
@@ -90,7 +88,7 @@ const EmailPreviewDialog = ({ notification, onClose }) => {
             </p>
             {notification.preview_text && (
               <p>
-                <span className="font-semibold">Préheader :</span> {notification.preview_text}
+                <span className="font-semibold">Preheader :</span> {notification.preview_text}
               </p>
             )}
             <div className="flex gap-2 pt-2">
@@ -98,10 +96,10 @@ const EmailPreviewDialog = ({ notification, onClose }) => {
                 {notification.is_active ? 'Active' : 'Inactive'}
               </Badge>
               <Badge variant={notification.force_send ? 'destructive' : 'outline'}>
-                {notification.force_send ? 'Forcée' : 'Préférences clients'}
+                {notification.force_send ? 'Forcee' : 'Preferences clients'}
               </Badge>
               <Badge variant={notification[USER_AVAILABLE_FIELD] ? 'outline' : 'secondary'}>
-                {notification[USER_AVAILABLE_FIELD] ? 'Préférence disponible' : 'Fixée par l&apos;équipe'}
+                {notification[USER_AVAILABLE_FIELD] ? 'Preference disponible' : 'Fixee par l&apos;equipe'}
               </Badge>
             </div>
           </div>
@@ -133,6 +131,8 @@ const EmailNotificationsPanel = () => {
   const [pendingById, setPendingById] = useState({});
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [testingById, setTestingById] = useState({});
+  const [linkedEvents, setLinkedEvents] = useState([]);
+  const [linkedEventsLoading, setLinkedEventsLoading] = useState(false);
 
   const {
     register,
@@ -179,17 +179,17 @@ const EmailNotificationsPanel = () => {
   const handleOpenCreate = () => {
     setEditingNotification(null);
     reset(DEFAULT_FORM_VALUES);
+    setLinkedEvents([]);
+    setLinkedEventsLoading(false);
     setFormOpen(true);
   };
 
-  const handleOpenEdit = (notification) => {
+  const handleOpenEdit = async (notification) => {
     setEditingNotification(notification);
     reset({
       title: notification.title || '',
       notification_key: notification.notification_key || '',
-      description: notification.description || '',
       subject: notification.subject || '',
-      preview_text: notification.preview_text || '',
       body_html: notification.body_html || '',
       sender_name: notification.sender_name || '',
       sender_email: notification.sender_email || '',
@@ -198,12 +198,50 @@ const EmailNotificationsPanel = () => {
       default_enabled: notification.default_enabled ?? true,
       [USER_AVAILABLE_FIELD]: notification?.[USER_AVAILABLE_FIELD] ?? false,
     });
+    setLinkedEvents([]);
+    setLinkedEventsLoading(true);
     setFormOpen(true);
+    try {
+      const { data, error } = await supabase
+        .from('notification_event_templates')
+        .select('is_primary, priority, notification_events(event_key, label)')
+        .eq('notification_id', notification.id)
+        .order('is_primary', { ascending: false })
+        .order('priority', { ascending: true });
+
+      if (error) {
+        throw error;
+      }
+
+      const mapped = (data || [])
+        .map((row) => {
+          const event = row.notification_events;
+          if (!event?.event_key) return null;
+          return {
+            eventKey: event.event_key,
+            label: event.label || event.event_key,
+            isPrimary: Boolean(row.is_primary),
+          };
+        })
+        .filter(Boolean);
+      setLinkedEvents(mapped);
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: 'Evenements indisponibles',
+        description: "Impossible de recuperer les evenements lies a ce template.",
+        variant: 'destructive',
+      });
+    } finally {
+      setLinkedEventsLoading(false);
+    }
   };
 
   const handleCloseForm = () => {
     setFormOpen(false);
     setEditingNotification(null);
+    setLinkedEvents([]);
+    setLinkedEventsLoading(false);
     reset(DEFAULT_FORM_VALUES);
   };
 
@@ -223,8 +261,8 @@ const EmailNotificationsPanel = () => {
 
       if (error) throw error;
       toast({
-        title: 'Notification mise à jour',
-        description: 'Les modifications ont été enregistrées.',
+        title: 'Notification mise a jour',
+        description: 'Les modifications ont ete enregistrees.',
       });
       setNotifications((prev) =>
         prev.map((item) => (item.id === editingNotification.id ? { ...item, ...normalizedValues } : item)),
@@ -242,8 +280,8 @@ const EmailNotificationsPanel = () => {
 
       if (error) throw error;
       toast({
-        title: 'Notification créée',
-        description: 'La notification est prête à être utilisée.',
+        title: 'Notification creee',
+        description: 'La notification est prete a etre utilisee.',
         className: 'bg-green-500 text-white',
       });
       setNotifications((prev) => [data, ...prev]);
@@ -287,60 +325,59 @@ const EmailNotificationsPanel = () => {
   }, [notifications, searchTerm]);
 
   const toggleField = async (notification, field) => {
-    const nextValue = !notification[field];
-    const updates = { [field]: nextValue };
-    if (field === 'force_send' && nextValue) {
-      updates[USER_AVAILABLE_FIELD] = false;
-    }
-    setPendingById((prev) => ({ ...prev, [notification.id]: true }));
-    const { error } = await supabase
-      .from('email_notifications')
-      .update(updates)
-      .eq('id', notification.id);
+  const nextValue = !notification[field];
+  const updates = { [field]: nextValue };
+  if (field === "force_send" && nextValue) {
+    updates[USER_AVAILABLE_FIELD] = false;
+  }
+  setPendingById((prev) => ({ ...prev, [notification.id]: true }));
+  const { error } = await supabase
+    .from("email_notifications")
+    .update(updates)
+    .eq("id", notification.id);
 
-    setPendingById((prev) => ({ ...prev, [notification.id]: false }));
+  setPendingById((prev) => ({ ...prev, [notification.id]: false }));
 
-    if (error) {
-      toast({
-        title: 'Erreur',
-        description: "La mise à jour du statut a échoué.",
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setNotifications((prev) =>
-      prev.map((item) => (item.id === notification.id ? { ...item, ...updates } : item)),
-    );
-
-    let description = '';
-    if (field === 'is_active') {
-      description = nextValue ? 'La notification est active.' : 'La notification est désactivée.';
-    } else if (field === 'force_send') {
-      description = nextValue
-        ? 'La notification sera envoyée à tous les utilisateurs. Les préférences clients sont désactivées.'
-        : 'Les utilisateurs pourront gérer cette notification dans leurs préférences.';
-    } else if (field === 'default_enabled') {
-      description = nextValue
-        ? 'Les nouveaux utilisateurs recevront cette notification par défaut.'
-        : 'Les nouveaux utilisateurs devront activer cette notification manuellement.';
-    } else if (field === USER_AVAILABLE_FIELD) {
-      description = nextValue
-        ? 'Les utilisateurs pourront g�rer cette notification dans leurs pr�f�rences.'
-        : 'Cette notification n\'est plus modifiable par les utilisateurs.';
-    }
-
-    if (!description) {
-      description = 'Statut mis à jour.';
-    }
-
+  if (error) {
     toast({
-      title: 'Statut mis à jour',
-      description,
+      title: "Erreur",
+      description: "La mise a jour du statut a echoue.",
+      variant: "destructive",
     });
-  };
+    return;
+  }
 
-  const handleDuplicate = async (notification) => {
+  setNotifications((prev) =>
+    prev.map((item) => (item.id === notification.id ? { ...item, ...updates } : item)),
+  );
+
+  let description = "";
+  if (field === "is_active") {
+    description = nextValue ? "La notification est active." : "La notification est desactivee.";
+  } else if (field === "force_send") {
+    description = nextValue
+      ? "La notification sera envoyee a tous les utilisateurs. Les preferences clients sont desactivees."
+      : "Les utilisateurs pourront gerer cette notification dans leurs preferences.";
+  } else if (field === "default_enabled") {
+    description = nextValue
+      ? "Les nouveaux utilisateurs recevront cette notification par defaut."
+      : "Les nouveaux utilisateurs devront activer cette notification manuellement.";
+  } else if (field === USER_AVAILABLE_FIELD) {
+    description = nextValue
+      ? "Les utilisateurs pourront gerer cette notification dans leurs preferences."
+      : "Cette notification n'est plus modifiable par les utilisateurs.";
+  }
+
+  if (!description) {
+    description = "Statut mis a jour.";
+  }
+
+  toast({
+    title: "Statut mis a jour",
+    description,
+  });
+};
+const handleDuplicate = async (notification) => {
     const suffix = uuidv4().slice(0, 6);
     const duplicateKey = slugify(`${notification.notification_key || 'notification'}-${suffix}`);
     const payload = {
@@ -369,8 +406,8 @@ const EmailNotificationsPanel = () => {
     }
 
     toast({
-      title: 'Notification dupliquée',
-      description: `"${notification.title}" a été dupliquée en brouillon.`,
+      title: 'Notification dupliquee',
+      description: `"${notification.title}" a ete dupliquee en brouillon.`,
       className: 'bg-green-500 text-white',
     });
     setNotifications((prev) => [data, ...prev]);
@@ -379,8 +416,8 @@ const EmailNotificationsPanel = () => {
   const handleSendTest = async (notification) => {
     if (!notification?.notification_key) {
       toast({
-        title: 'Clé manquante',
-        description: 'Impossible de tester cette notification sans clé unique.',
+        title: 'Cle manquante',
+        description: 'Impossible de tester cette notification sans cle unique.',
         variant: 'destructive',
       });
       return;
@@ -399,15 +436,15 @@ const EmailNotificationsPanel = () => {
       if (error) throw error;
 
       toast({
-        title: 'Test envoyé',
-        description: `Notification envoyée à ${TEST_EMAIL_RECIPIENT}.`,
+        title: 'Test envoye',
+        description: `Notification envoyee a ${TEST_EMAIL_RECIPIENT}.`,
         className: 'bg-green-500 text-white',
       });
     } catch (error) {
       console.error(error);
       toast({
-        title: 'Échec de l’envoi',
-        description: error.message ?? 'Impossible d’envoyer le test.',
+        title: "Echec de l'envoi",
+        description: error.message ?? "Impossible d'envoyer le test.",
         variant: 'destructive',
       });
     } finally {
@@ -428,8 +465,8 @@ const EmailNotificationsPanel = () => {
       });
     } else {
       toast({
-        title: 'Notification supprimée',
-        description: `"${title}" a été supprimée.`,
+        title: 'Notification supprimee',
+        description: `"${title}" a ete supprimee.`,
       });
       setNotifications((prev) => prev.filter((item) => item.id !== id));
     }
@@ -442,12 +479,12 @@ const EmailNotificationsPanel = () => {
         <DialogHeader>
           <DialogTitle>{editingNotification ? 'Modifier la notification' : 'Nouvelle notification e-mail'}</DialogTitle>
           <DialogDescription>
-            Configurez l&apos;expéditeur, le contenu et les statuts pour cette notification transactionnelle.
+            Configurez l&apos;expediteur, le contenu et les statuts pour cette notification transactionnelle.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
               <Label htmlFor="title">Titre interne</Label>
               <Input
                 id="title"
@@ -456,14 +493,14 @@ const EmailNotificationsPanel = () => {
               />
               {errors.title && <p className="text-xs text-destructive">{errors.title.message}</p>}
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="notification_key">Clé unique</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="notification_key">Identifiant du template</Label>
               <div className="flex gap-2">
                 <Input
                   id="notification_key"
                   placeholder="ex: signup-confirmation"
                   {...register('notification_key', {
-                    required: 'La clé est obligatoire.',
+                    required: "L'identifiant est obligatoire.",
                     pattern: {
                       value: /^[a-z0-9][a-z0-9-_.]+[a-z0-9]$/i,
                       message: 'Utilisez des lettres, chiffres, tirets ou underscores.',
@@ -479,28 +516,53 @@ const EmailNotificationsPanel = () => {
                     setValue('notification_key', nextKey, { shouldDirty: true, shouldTouch: true });
                   }}
                 >
-                  Générer
+                  Generer
                 </Button>
               </div>
               {errors.notification_key && <p className="text-xs text-destructive">{errors.notification_key.message}</p>}
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="sender_name">Nom de l&apos;expéditeur</Label>
+            <div className="space-y-1.5 md:col-span-2">
+              <Label>Cles d'evenement associees</Label>
+              {linkedEventsLoading ? (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Chargement des evenements...
+                </div>
+              ) : linkedEvents.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {linkedEvents.map((event) => (
+                    <Badge key={event.eventKey} variant={event.isPrimary ? 'default' : 'outline'}>
+                      <span>{event.label}</span>
+                      {event.isPrimary && <span className="ml-1 text-[10px] uppercase">principal</span>}
+                      <span className="ml-2 text-[10px] uppercase text-muted-foreground">{event.eventKey}</span>
+                    </Badge>
+                  ))}
+                </div>
+              ) : editingNotification ? (
+                <p className="text-xs text-muted-foreground">
+                  Aucun evenement ne reference actuellement ce template.
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">Cette notification n'est liee a aucun evenement pour le moment.</p>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="sender_name">Nom de l&apos;expediteur</Label>
               <Input
                 id="sender_name"
                 placeholder="Equipe NotionLab"
-                {...register('sender_name', { required: 'Le nom de l’expéditeur est obligatoire.' })}
+                {...register('sender_name', { required: "Le nom de l'expediteur est obligatoire." })}
               />
               {errors.sender_name && <p className="text-xs text-destructive">{errors.sender_name.message}</p>}
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="sender_email">Email de l&apos;expéditeur</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="sender_email">Email de l&apos;expediteur</Label>
               <Input
                 id="sender_email"
                 type="email"
                 placeholder="notifications@notionlab.co"
                 {...register('sender_email', {
-                  required: 'L’email est obligatoire.',
+                  required: "L'email est obligatoire.",
                   pattern: {
                     value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
                     message: 'Email invalide.',
@@ -509,7 +571,7 @@ const EmailNotificationsPanel = () => {
               />
               {errors.sender_email && <p className="text-xs text-destructive">{errors.sender_email.message}</p>}
             </div>
-            <div className="space-y-2 md:col-span-2">
+            <div className="space-y-1.5 md:col-span-2">
               <Label htmlFor="subject">Sujet</Label>
               <Input
                 id="subject"
@@ -518,24 +580,16 @@ const EmailNotificationsPanel = () => {
               />
               {errors.subject && <p className="text-xs text-destructive">{errors.subject.message}</p>}
             </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="preview_text">Texte de prévisualisation</Label>
-              <Input id="preview_text" placeholder="Optionnel" {...register('preview_text')} />
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="description">Description interne</Label>
-              <Textarea id="description" placeholder="Contexte ou usage de cette notification." {...register('description')} />
-            </div>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <Label>Contenu de l&apos;email</Label>
             <Controller
               name="body_html"
               control={control}
               rules={{ required: 'Le corps du message est obligatoire.' }}
               render={({ field: { value, onChange } }) => (
-                <TiptapEditor content={value} onChange={onChange} placeholder="Rédigez le contenu HTML de l’email..." />
+                <TiptapEditor content={value} onChange={onChange} placeholder="Redigez le contenu HTML de l'email..." />
               )}
             />
             {errors.body_html && <p className="text-xs text-destructive">{errors.body_html.message}</p>}
@@ -545,7 +599,7 @@ const EmailNotificationsPanel = () => {
             <div className="flex items-center justify-between rounded border p-3">
               <div>
                 <p className="font-medium">Notification active</p>
-                <p className="text-xs text-muted-foreground">Contrôle la diffusion générale.</p>
+                <p className="text-xs text-muted-foreground">Controle la diffusion generale.</p>
               </div>
               <Controller
                 name="is_active"
@@ -562,7 +616,7 @@ const EmailNotificationsPanel = () => {
                   <Zap className="h-4 w-4 text-amber-500" />
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Si activé, tous les utilisateurs reçoivent l&apos;email.
+                  Si active, tous les utilisateurs recoivent l&apos;email.
                 </p>
               </div>
               <Controller
@@ -575,9 +629,9 @@ const EmailNotificationsPanel = () => {
             </div>
             <div className="flex items-center justify-between rounded border p-3">
               <div>
-                <p className="font-medium">Activée par défaut</p>
+                <p className="font-medium">Activee par defaut</p>
                 <p className="text-xs text-muted-foreground">
-                  Préférence initiale côté client (hors notifications forcées).
+                  Preference initiale cote client (hors notifications forcees).
                 </p>
               </div>
               <Controller
@@ -587,7 +641,7 @@ const EmailNotificationsPanel = () => {
                   <Switch
                     checked={value}
                     onCheckedChange={onChange}
-                    aria-label="Activer par défaut"
+                    aria-label="Activer par defaut"
                     disabled={forceSendValue}
                   />
                 )}
@@ -595,9 +649,9 @@ const EmailNotificationsPanel = () => {
             </div>
             <div className="flex items-center justify-between rounded border p-3">
               <div>
-                <p className="font-medium">Préférence utilisateur</p>
+                <p className="font-medium">Preference utilisateur</p>
                 <p className="text-xs text-muted-foreground">
-                  Permettre aux clients de désactiver cette notification.
+                  Permettre aux clients de desactiver cette notification.
                 </p>
               </div>
               <Controller
@@ -607,7 +661,7 @@ const EmailNotificationsPanel = () => {
                   <Switch
                     checked={value}
                     onCheckedChange={onChange}
-                    aria-label="Permettre la gestion côté client"
+                    aria-label="Permettre la gestion cote client"
                     disabled={forceSendValue}
                   />
                 )}
@@ -621,7 +675,7 @@ const EmailNotificationsPanel = () => {
             </Button>
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {editingNotification ? 'Enregistrer' : 'Créer la notification'}
+              {editingNotification ? 'Enregistrer' : 'Creer la notification'}
             </Button>
           </DialogFooter>
         </form>
@@ -638,7 +692,7 @@ const EmailNotificationsPanel = () => {
             Notifications e-mail
           </h2>
           <p className="text-sm text-muted-foreground">
-            Gérez les modèles transactionnels, l&apos;expéditeur et les statuts d&apos;envoi.
+            Gerez les modeles transactionnels, l&apos;expediteur et les statuts d&apos;envoi.
           </p>
         </div>
         <Button onClick={handleOpenCreate} className="self-start sm:self-auto notion-gradient text-white">
@@ -651,7 +705,7 @@ const EmailNotificationsPanel = () => {
         <div className="relative w-full md:max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Rechercher par titre, sujet ou clé..."
+            placeholder="Rechercher par titre, sujet ou cle..."
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
             className="pl-9"
@@ -659,7 +713,7 @@ const EmailNotificationsPanel = () => {
         </div>
         <Button variant="outline" onClick={fetchNotifications} disabled={loading}>
           <Loader2 className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          Rafraîchir
+          Rafraichir
         </Button>
       </div>
 
@@ -668,9 +722,9 @@ const EmailNotificationsPanel = () => {
           <TableHeader>
             <TableRow>
               <TableHead className="w-[22%]">Notification</TableHead>
-              <TableHead className="w-[18%]">Expéditeur</TableHead>
-              <TableHead className="w-[30%]">Sujet</TableHead>
-              <TableHead className="w-[20%]">Statuts</TableHead>
+              <TableHead className="w-[18%]">Expediteur</TableHead>
+              <TableHead className="w-[32%]">Sujet</TableHead>
+              <TableHead className="w-[14%]">Active</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -684,7 +738,7 @@ const EmailNotificationsPanel = () => {
             ) : filteredNotifications.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
-                  Aucune notification trouvée. Créez-en une nouvelle pour démarrer.
+                  Aucune notification trouvee. Creez-en une nouvelle pour demarrer.
                 </TableCell>
               </TableRow>
             ) : (
@@ -707,43 +761,14 @@ const EmailNotificationsPanel = () => {
                       )}
                     </TableCell>
                     <TableCell>
-                      <div className="flex flex-col gap-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-muted-foreground">Active</span>
-                          <Switch
-                            checked={notification.is_active}
-                            onCheckedChange={() => toggleField(notification, 'is_active')}
-                            disabled={pending}
-                            aria-label="Activer ou désactiver"
-                          />
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-muted-foreground">Forcer l&apos;envoi</span>
-                          <Switch
-                            checked={notification.force_send}
-                            onCheckedChange={() => toggleField(notification, 'force_send')}
-                            disabled={pending}
-                            aria-label="Forcer l'envoi"
-                          />
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-muted-foreground">Activée par défaut</span>
-                          <Switch
-                            checked={notification.default_enabled}
-                            onCheckedChange={() => toggleField(notification, 'default_enabled')}
-                            disabled={pending || notification.force_send}
-                            aria-label="Activer par défaut"
-                          />
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-muted-foreground">Préférence client</span>
-                          <Switch
-                            checked={!!notification[USER_AVAILABLE_FIELD]}
-                            onCheckedChange={() => toggleField(notification, USER_AVAILABLE_FIELD)}
-                            disabled={pending || notification.force_send}
-                            aria-label="Permettre la gestion côté client"
-                          />
-                        </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">Active</span>
+                        <Switch
+                          checked={notification.is_active}
+                          onCheckedChange={() => toggleField(notification, 'is_active')}
+                          disabled={pending}
+                          aria-label="Activer ou desactiver"
+                        />
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
@@ -757,7 +782,7 @@ const EmailNotificationsPanel = () => {
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => setPreviewingNotification(notification)}>
                             <Eye className="mr-2 h-4 w-4" />
-                            Prévisualiser
+                            Previsualiser
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => handleSendTest(notification)}
@@ -772,8 +797,8 @@ const EmailNotificationsPanel = () => {
                           >
                             <Bell className="mr-2 h-4 w-4" />
                             {notification[USER_AVAILABLE_FIELD]
-                              ? 'Retirer des préférences client'
-                              : 'Autoriser les préférences client'}
+                              ? 'Retirer des preferences client'
+                              : 'Autoriser les preferences client'}
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleOpenEdit(notification)}>
                             <Edit className="mr-2 h-4 w-4" />
@@ -803,6 +828,10 @@ const EmailNotificationsPanel = () => {
 
       {renderForm()}
 
+      <div className="pt-10">
+        <NotificationEventsManager notifications={notifications} />
+      </div>
+
       <EmailPreviewDialog notification={previewingNotification} onClose={() => setPreviewingNotification(null)} />
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => (!open ? setDeleteTarget(null) : null)}>
@@ -810,7 +839,7 @@ const EmailNotificationsPanel = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Supprimer la notification ?</AlertDialogTitle>
             <AlertDialogDescription>
-              Cette action est définitive. La notification « {deleteTarget?.title} » sera supprimée pour tous.
+              Cette action est definitive. La notification " {deleteTarget?.title} " sera supprimee pour tous.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -826,3 +855,55 @@ const EmailNotificationsPanel = () => {
 };
 
 export default EmailNotificationsPanel;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
