@@ -69,21 +69,29 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const auth = await requireAuth(req, { allowedRoles: ["owner", "admin"] });
+    const auth = await requireAuth(req, { allowedRoles: ["owner"] });
     const body = await req.json().catch(() => {
       throw new HttpError(400, "Invalid JSON payload");
     });
     const payload = parseBody(body);
 
-    let deleteQuery = auth.serviceClient
+    const actingUserId = auth.user.id;
+    const isDefaultLayout = payload.owner_type === "default";
+    const targetOwnerId = isDefaultLayout ? null : (payload.owner_id ?? actingUserId);
+
+    if (!isDefaultLayout && targetOwnerId !== actingUserId) {
+      throw new HttpError(403, "Forbidden: mismatched owner");
+    }
+
+    let deleteQuery = auth.anonClient
       .from("dashboard_layouts")
       .delete()
       .eq("owner_type", payload.owner_type);
 
-    if (payload.owner_id) {
-      deleteQuery = deleteQuery.eq("owner_id", payload.owner_id);
-    } else {
+    if (isDefaultLayout) {
       deleteQuery = deleteQuery.is("owner_id", null);
+    } else {
+      deleteQuery = deleteQuery.eq("owner_id", actingUserId);
     }
 
     const { error: deleteError } = await deleteQuery;
@@ -96,11 +104,11 @@ Deno.serve(async (req) => {
       throw new HttpError(500, deleteError.message ?? "Failed to clear layout");
     }
 
-    const { data, error: insertError } = await auth.serviceClient
+    const { data, error: insertError } = await auth.anonClient
       .from("dashboard_layouts")
       .insert({
         owner_type: payload.owner_type,
-        owner_id: payload.owner_id ?? null,
+        owner_id: isDefaultLayout ? null : actingUserId,
         layout_json: payload.layout_json,
         updated_at: new Date().toISOString(),
       })

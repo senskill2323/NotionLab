@@ -1,9 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { Resend } from "npm:resend@3.4.0";
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-const OWNER_EMAIL = Deno.env.get("OWNER_EMAIL") || "yann@bluewin.ch";
-const SENDER_EMAIL = Deno.env.get("SENDER_EMAIL") || "no-reply@notionlab.app";
-const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
+import { getSmtpConfig, sanitizeEmail, sendSmtpMail } from "../_shared/email.ts";
+const OWNER_EMAIL = sanitizeEmail(Deno.env.get("OWNER_EMAIL")) || "yann@notionlab.ch";
+const SMTP_DEFAULTS = getSmtpConfig({ required: false });
 function htmlEscape(str) {
   return String(str || "").replace(/[&<>"']/g, (c)=>({
       "&": "&amp;",
@@ -32,47 +30,32 @@ Deno.serve(async (req)=>{
         <li><strong>Horodatage:</strong> ${htmlEscape(createdAt || new Date().toISOString())}</li>
       </ul>
     `;
-    if (!resend) {
-      console.log("[notify-owner-user-created] RESEND_API_KEY not set. Logging payload only.", {
+    if (!SMTP_DEFAULTS) {
+      console.log("[notify-owner-user-created] SMTP config missing. Logging payload only.", {
         id,
         email,
         displayName,
         createdAt
       });
-      return new Response(JSON.stringify({
-        ok: true,
-        delivered: false
-      }), {
+      return new Response(JSON.stringify({ ok: true, delivered: false }), {
         status: 200,
-        headers: {
-          "Content-Type": "application/json"
-        }
+        headers: { "Content-Type": "application/json" }
       });
     }
-    const { data, error } = await resend.emails.send({
-      from: SENDER_EMAIL,
-      to: [
-        OWNER_EMAIL
-      ],
-      subject,
-      html
-    });
-    if (error) {
-      console.error("[notify-owner-user-created] Resend error:", error);
-      return new Response(JSON.stringify({
-        ok: false,
-        error
-      }), {
+    try {
+      await sendSmtpMail({
+        recipients: [OWNER_EMAIL],
+        subject,
+        htmlBody: html,
+      });
+    } catch (error) {
+      console.error("[notify-owner-user-created] SMTP error:", error);
+      return new Response(JSON.stringify({ ok: false, error: String(error?.message ?? error) }), {
         status: 500,
-        headers: {
-          "Content-Type": "application/json"
-        }
+        headers: { "Content-Type": "application/json" }
       });
     }
-    return new Response(JSON.stringify({
-      ok: true,
-      data
-    }), {
+    return new Response(JSON.stringify({ ok: true, delivered: true }), {
       status: 200,
       headers: {
         "Content-Type": "application/json"

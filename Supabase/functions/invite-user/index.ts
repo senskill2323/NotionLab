@@ -137,59 +137,78 @@ Deno.serve(async (req) => {
       const message = inviteResult.error.message || "Echec de l'invitation.";
       const lowered = message.toLowerCase();
       if (lowered.includes("already")) {
-        return new Response(JSON.stringify({ error: message }), {
-          status: 409,
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "application/json",
-          },
-        });
-      }
+        console.warn("[invite-user] user already registered, attempting recovery flow", inviteResult.error);
+        const fallback: Record<string, unknown> = {
+          method: "existing_user_recovery",
+          originalError: message,
+        };
 
-      console.warn("[invite-user] invite error, falling back to manual creation", inviteResult.error);
-      const tempPassword = generateTempPassword();
-      const createResponse = await adminSupabase.auth.admin.createUser({
-        email,
-        password: tempPassword,
-        email_confirm: false,
-        user_metadata: {
-          first_name: firstName ?? undefined,
-          last_name: lastName ?? undefined,
-        },
-      });
-
-      if (createResponse.error || !createResponse.data?.user) {
-        console.error("[invite-user] fallback createUser error", createResponse.error);
-        return new Response(JSON.stringify({ error: "Impossible de creer le compte manuellement." }), {
-          status: 500,
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "application/json",
-          },
-        });
-      }
-
-      invitedUser = createResponse.data.user;
-      userId = invitedUser.id;
-
-      let resetEmailSent = true;
-      try {
-        const resetResponse = await adminSupabase.auth.resetPasswordForEmail(email, { redirectTo });
-        if (resetResponse.error) {
-          resetEmailSent = false;
-          console.warn("[invite-user] fallback resetPasswordForEmail error", resetResponse.error);
+        let resetEmailSent = false;
+        try {
+          const { error: resendError } = await adminSupabase.auth.resetPasswordForEmail(email, { redirectTo });
+          if (resendError) {
+            fallback.resetEmailError = resendError.message || resendError.name || resendError.code || "resetPasswordForEmail failed";
+          } else {
+            resetEmailSent = true;
+          }
+        } catch (resendException) {
+          fallback.resetEmailError = resendException instanceof Error
+            ? resendException.message
+            : String(resendException);
         }
-      } catch (resetError) {
-        resetEmailSent = false;
-        console.warn("[invite-user] fallback reset password threw", resetError);
-      }
 
-      profileStatus = resetEmailSent ? "invited" : "invited_manual";
-      fallbackDetails = {
-        method: "manual_create",
-        resetEmailSent,
-        generatedPassword: resetEmailSent ? undefined : tempPassword,
-      };
+        fallback.resetEmailSent = resetEmailSent;
+        profileStatus = resetEmailSent
+          ? "invited"
+          : existingProfile?.status ?? "invited_manual";
+        fallbackDetails = fallback;
+        userId = userId ?? existingProfile?.id ?? userId;
+      } else {
+        console.warn("[invite-user] invite error, falling back to manual creation", inviteResult.error);
+        const tempPassword = generateTempPassword();
+        const createResponse = await adminSupabase.auth.admin.createUser({
+          email,
+          password: tempPassword,
+          email_confirm: false,
+          user_metadata: {
+            first_name: firstName ?? undefined,
+            last_name: lastName ?? undefined,
+          },
+        });
+
+        if (createResponse.error || !createResponse.data?.user) {
+          console.error("[invite-user] fallback createUser error", createResponse.error);
+          return new Response(JSON.stringify({ error: "Impossible de creer le compte manuellement." }), {
+            status: 500,
+            headers: {
+              ...corsHeaders,
+              "Content-Type": "application/json",
+            },
+          });
+        }
+
+        invitedUser = createResponse.data.user;
+        userId = invitedUser.id;
+
+        let resetEmailSent = true;
+        try {
+          const resetResponse = await adminSupabase.auth.resetPasswordForEmail(email, { redirectTo });
+          if (resetResponse.error) {
+            resetEmailSent = false;
+            console.warn("[invite-user] fallback resetPasswordForEmail error", resetResponse.error);
+          }
+        } catch (resetError) {
+          resetEmailSent = false;
+          console.warn("[invite-user] fallback reset password threw", resetError);
+        }
+
+        profileStatus = resetEmailSent ? "invited" : "invited_manual";
+        fallbackDetails = {
+          method: "manual_create",
+          resetEmailSent,
+          generatedPassword: resetEmailSent ? undefined : tempPassword,
+        };
+      }
     }
 
     if (!userId) {

@@ -1,8 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { Resend } from "npm:resend@3.4.0";
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-const SENDER_EMAIL = Deno.env.get("SENDER_EMAIL") || "no-reply@notionlab.app";
-const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
+import { getSmtpConfig, sanitizeEmail, sendSmtpMail } from "../_shared/email.ts";
+const SMTP_DEFAULTS = getSmtpConfig({ required: false });
 function htmlEscape(str) {
   return String(str || "").replace(/[&<>"']/g, (c)=>({
       "&": "&amp;",
@@ -39,46 +37,31 @@ Deno.serve(async (req)=>{
       <p>Votre compte a été validé. Vous pouvez maintenant vous connecter et accéder à votre tableau de bord.</p>
       <p style="color:#666;font-size:12px">Activé le: ${htmlEscape(activatedAt || new Date().toISOString())}</p>
     `;
-    if (!resend) {
-      console.log("[notify-user-account-activated] RESEND_API_KEY not set. Logging payload only.", {
+    if (!SMTP_DEFAULTS) {
+      console.log("[notify-user-account-activated] SMTP config missing. Logging payload only.", {
         email,
         displayName,
         activatedAt
       });
-      return new Response(JSON.stringify({
-        ok: true,
-        delivered: false
-      }), {
+      return new Response(JSON.stringify({ ok: true, delivered: false }), {
         status: 200,
-        headers: {
-          "Content-Type": "application/json"
-        }
+        headers: { "Content-Type": "application/json" }
       });
     }
-    const { data, error } = await resend.emails.send({
-      from: SENDER_EMAIL,
-      to: [
-        email
-      ],
-      subject,
-      html
-    });
-    if (error) {
-      console.error("[notify-user-account-activated] Resend error:", error);
-      return new Response(JSON.stringify({
-        ok: false,
-        error
-      }), {
+    try {
+      await sendSmtpMail({
+        recipients: [sanitizeEmail(email) ?? email],
+        subject,
+        htmlBody: html,
+      });
+    } catch (error) {
+      console.error("[notify-user-account-activated] SMTP error:", error);
+      return new Response(JSON.stringify({ ok: false, error: String(error?.message ?? error) }), {
         status: 500,
-        headers: {
-          "Content-Type": "application/json"
-        }
+        headers: { "Content-Type": "application/json" }
       });
     }
-    return new Response(JSON.stringify({
-      ok: true,
-      data
-    }), {
+    return new Response(JSON.stringify({ ok: true, delivered: true }), {
       status: 200,
       headers: {
         "Content-Type": "application/json"

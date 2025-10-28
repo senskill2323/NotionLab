@@ -30,8 +30,21 @@ async function verifyJWT(jwt: string): Promise<boolean> {
   return true
 }
 
+const UNPROTECTED_FUNCTIONS = new Set([
+  'send-email',
+])
+
 serve(async (req: Request) => {
-  if (req.method !== 'OPTIONS' && VERIFY_JWT) {
+  const url = new URL(req.url)
+  const { pathname } = url
+  const path_parts = pathname.split('/')
+  const service_name = path_parts[1]
+
+  if (
+    req.method !== 'OPTIONS' &&
+    VERIFY_JWT &&
+    !UNPROTECTED_FUNCTIONS.has(service_name ?? '')
+  ) {
     try {
       const token = getAuthToken(req)
       const isValidJWT = await verifyJWT(token)
@@ -50,11 +63,6 @@ serve(async (req: Request) => {
       })
     }
   }
-
-  const url = new URL(req.url)
-  const { pathname } = url
-  const path_parts = pathname.split('/')
-  const service_name = path_parts[1]
 
   if (!service_name || service_name === '') {
     const error = { msg: 'missing function name in request' }

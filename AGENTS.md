@@ -9,33 +9,46 @@ Index de la documentation (dossier C:\dev\Rules\rules VPS & dossier C:\dev\Rules
 
 Index Commun
 
-rules VPS/index.md:1 — Index maître du périmètre VPS, oriente vers les fiches infra, services et fonctions critiques.
-rules VPS/00 - Général/print Post-Mortem Auth & API.md:1 — Retour d’expérience sur la panne auth Supabase : ownership Postgres, migrations GoTrue, correctifs Nginx/site et contrôles front/Edge.
-rules VPS/01 - Architecture/readme.md:1 — Cartographie complète de la stack Hostinger (Traefik, Kong, Supabase, N8n, Browserless, yt-dlp) avec rôles Edge/UI/Data et points de sécurité.
-rules VPS/02 - Services/Docker.md:1 — Lecture guidée du docker-compose.yml, des volumes et dépendances inter-services, plus les scripts/Configs à surveiller.
-rules VPS/02 - Services/Traefik.md:1 — Fonctionnement du proxy (host mode, ACME, routage SNI) et surfaces de sécurité associées.
-rules VPS/02 - Services/Kong.md:1 — Dossier sur la gateway DB-less : routes SUPABASE*, plugins key-auth/ACL et risques de secrets statiques.
-rules VPS/02 - Services/Supabase.md:1 — Synthèse plateforme Supabase auto-hébergée, Edge Functions par familles UI/Data/Règles et dépendances externes.
-rules VPS/02 - Services/N8n.md:1 — Fiche automation Playwright/N8n : webhooks mémoire & RAG, usage Browserless, stockage Postgres et exposition Traefik.
-rules VPS/02 - Services/Site.md:1 — Description du site Nginx/SPA (React, Zustand, dnd-kit) et de ses intégrations Supabase/Edge.
-rules VPS/02 - Services/yt-dlp:1 — Note sur l’API yt-dlp dédiée aux automatisations YouTube côté N8n.
-rules VPS/03 - Supabase/fonctions.md:1 — Inventaire détaillé des 24 Edge Functions (UI, Data, Règles), dépendances, sécurité et flux.
-rules VPS/03 - Supabase/général.md:1 — Panorama global Supabase : orchestrations Traefik/Kong, helpers partagés, flux critiques et recommandations sécurité.
-rules VPS/03 - Supabase/policies.md:1 — Synthèse des 156 policies RLS couvrant 49 tables + 6 buckets, rôles et helpers SQL associés.
-Site NotionLab
+Volet VPS — Général & Architecture
 
-rules site notionlab/00-architecture/index.md:1 — Vue d’ensemble du dashboard client : modules React, flux Supabase (RPC, Realtime, Edge) et stockage.
-rules site notionlab/00-architecture/readme.md:1 — Analyse architecture UI/Admin, contexts partagés, automatisations VPS et intégrations Edge.
-rules site notionlab/00-architecture/fonctionnalités admin/fonctionnalités.md:1 — Catalogue des fonctionnalités back-office : gestion users, contenus, ressources, tickets, notifications.
-rules site notionlab/00-architecture/fonctionnalités utilisateurs/fonctionnalités.md:1 — Synthèse des modules client (formations, tickets, ressources, assistant, onboarding) et contextes associés.
-rules site notionlab/02-programming-languages/readme.md:1 — Règles d’usage des langages (React/TS, Deno TS, SQL) et patterns recommandés côté client/Edge.
-rules site notionlab/03-frameworks-and-libraries/readme.md:1 — Panorama des frameworks/libs (React Router, Tailwind, Radix, React Query, Supabase JS) et leur intégration.
-rules site notionlab/04-database/readme.md:1 — Documentation base Supabase : schémas, RPC, Edge, RLS et alertes sécurité/secrets.
-rules site notionlab/06-deployment/Deployer un module client.md:1 — Process complet pour ajouter un module client (permissions, registry, layout, QA).
-rules site notionlab/06-deployment/deployer un module admin.md:1 — Checklist de déploiement d’un module admin : migrations, registry, permissions, QA.
-rules site notionlab/07-quality-assurance/readme.md:1 — Guide QA module Formations/Assistant : critères d’acceptation, risques, contrôles et limites.
+rules VPS/index.md (line 1) — Index maître du périmètre VPS, oriente vers toutes les fiches infra et services critiques.
+rules VPS/00 - Général/readme.md (line 1) — Placeholder général (actuellement vide) pour notes de gouvernance ou conventions communes.
+rules VPS/00 - Général/print Post-Mortem Auth & API.md (line 1) — Retour d’expérience détaillé sur la panne auth Supabase (ownership Postgres, migrations GoTrue, correctifs Nginx/front).
+rules VPS/01 - Architecture/readme.md (line 1) — Cartographie complète de la stack Hostinger (Traefik, Kong, Supabase, N8n, Browserless, yt-dlp) et points de sécurité associés.
+
+Volet VPS — Services
+
+rules VPS/02 - Services/Docker.md (line 1) — Lecture guidée du docker-compose, volumes et dépendances inter-services à surveiller.
+rules VPS/02 - Services/Traefik.md (line 1) — Fonctionnement du proxy (host mode, ACME, routage SNI) et surfaces d’exposition.
+rules VPS/02 - Services/Kong.md (line 1) — Dossier gateway DB-less : routes SUPABASE*, plugins key-auth/ACL, risques de secrets statiques.
+rules VPS/02 - Services/Supabase.md (line 1) — Synthèse de la plateforme Supabase auto-hébergée et des Edge Functions côté UI/Data/Règles.
+rules VPS/02 - Services/N8n.md (line 1) — Étude des automatisations Playwright/N8n, webhooks mémoire/RAG et intégration Browserless/Postgres.
+rules VPS/02 - Services/Site.md (line 1) — Description du site Nginx/SPA (React, Zustand, dnd-kit) et de ses intégrations Supabase/Edge.
+
+Volet VPS — Données & Automations
+
+rules VPS/02 - Services/yt-dlp (line 1) — Note d’usage sur l’API yt-dlp dédiée aux automatisations YouTube via N8n.
+rules VPS/03 - Supabase/général.md (line 1) — Panorama des orchestrations Traefik/Kong, helpers partagés et flux critiques Supabase.
+rules VPS/03 - Supabase/fonctions.md (line 1) — Inventaire des 24 Edge Functions (UI, Data, Règles), dépendances externes et sécurité.
+rules VPS/03 - Supabase/policies.md (line 1) — Synthèse des 156 policies RLS couvrant tables, buckets et rôles associés.
+
+Site NotionLab — Architecture & Modules
+
+rules site notionlab/00-architecture/index.md (line 1) — Vue d’ensemble du dashboard client modulable, parcours et support temps réel.
+rules site notionlab/00-architecture/readme.md (line 1) — Analyse UI/Admin, contexts partagés et liens avec l’automatisation VPS.
+rules site notionlab/00-architecture/fonctionnalités utilisateurs/fonctionnalités.md (line 1) — Catalogue des modules côté client (formations, tickets, ressources, assistant, onboarding).
+rules site notionlab/00-architecture/fonctionnalités admin/fonctionnalités.md (line 1) — Panorama back-office : gestion users, contenus, ressources, tickets, notifications.
+rules site notionlab/00-architecture/fonctionnalités admin/Module de notification.md (line 1) — Zoom sur le module notifications (UI React, Edge send-email, migrations dédiées).
+
+Site NotionLab — Stack, Déploiement & QA
+
+rules site notionlab/02-programming-languages/readme.md (line 1) — Règles d’usage JS/TS/SQL : alias Vite, hooks pures, Edge Functions Deno, RLS obligatoires.
+rules site notionlab/03-frameworks-and-libraries/readme.md (line 1) — Panorama React Router, Tailwind, Radix, React Query, Supabase JS et intégration contextes.
+rules site notionlab/04-database/readme.md (line 1) — Documentation base Supabase : schémas, RPC, Edge, RLS, secrets et orchestrations VPS.
+rules site notionlab/06-deployment/Deployer un module client.md (line 1) — Process complet pour ajouter un module client (permissions, registry, layout, QA).
+rules site notionlab/06-deployment/deployer un module admin.md (line 1) — Checklist déploiement module admin (migrations, tabs registry, permissions, QA).
+rules site notionlab/07-quality-assurance/readme.md (line 1) — Guide QA Formations/Assistant : critères d’acceptation, risques, contrôles et limites.
 
 
 **** IMPORTANT: 
-je t'ai crée un clone des fonctions supabase car tu n'a pas accès au VPS. ELles sont dans C:\dev\notionlab\function-clone
-Ne change rien à l'intérieur, ca ne sert à rien car c'est pas OFFICIEL. 
+Les fonctions supabase (C:\dev\notionlab\Supabase\functions) ne sont qu'un clône, tu dois TOUJOURS me prévenir si je dois mettre à jour les vraies fonctions sur le VPS, je dois prévenir à chaque fois mon administrateur VPS. 

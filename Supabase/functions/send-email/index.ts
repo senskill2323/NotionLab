@@ -139,6 +139,15 @@ const NOTIFICATION_EVENT_ALIASES: Record<string, string> = {
   "owner-new-user": "owner.user.created",
 };
 
+const EVENT_DEFAULT_NOTIFICATIONS: Record<string, string> = {
+  "auth.signup": "signup",
+  "auth.invite": "invite",
+  "auth.magic_link": "magic_link",
+  "auth.password_recovery": "recovery",
+  "auth.email_change": "email_change",
+  "auth.reauthentication": "reauthentication",
+};
+
 const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -243,6 +252,16 @@ async function fetchNotificationByKey(
     );
   }
 
+  if (data) {
+    console.log(JSON.stringify({
+      source: LOG_SOURCE,
+      step: "notification_loaded",
+      notification_key: data.notification_key,
+      is_active: data.is_active,
+      force_send: data.force_send,
+    }));
+  }
+
   return data ?? null;
 }
 
@@ -277,28 +296,20 @@ async function resolveNotificationEvent(
     );
   }
 
+  console.log(JSON.stringify({
+    source: LOG_SOURCE,
+    step: "event_loaded",
+    event_key: event.event_key,
+    is_active: event.is_active,
+  }));
+
   if (event.is_active === false && !options.allowInactive) {
     return { event, notification: null, skipReason: "inactive_event" };
   }
 
-  const { data: templates, error: templateError } = await supabase
-    .from<NotificationEventTemplateRow>("notification_event_templates")
-    .select(
-      `is_primary,
-       priority,
-       email_notifications (
-         id,
-         notification_key,
-         title,
-         subject,
-         preview_text,
-         body_html,
-         sender_name,
-         sender_email,
-         force_send,
-         is_active
-       )`,
-    )
+  const { data: templateRows, error: templateError } = await supabase
+    .from("notification_event_templates")
+    .select("notification_id, is_primary, priority")
     .eq("event_id", event.id)
     .order("is_primary", { ascending: false })
     .order("priority", { ascending: true })
@@ -312,37 +323,101 @@ async function resolveNotificationEvent(
     throw new HttpError(500, "Impossible de charger les templates de l'événement");
   }
 
-  if (!templates || templates.length === 0) {
-    if (options.allowInactive) {
-      return { event, notification: null, skipReason: "no_template" };
-    }
-    throw new HttpError(
-      404,
-      `Aucun template associé à l'événement '${event.event_key}'`,
-    );
+  if (!templateRows || templateRows.length === 0) {
+    return { event, notification: null, skipReason: "no_template" };
   }
 
-  const activeTemplate = templates.find((row) =>
-    row.email_notifications &&
-    row.email_notifications.is_active !== false
-  );
+  console.log(JSON.stringify({
+    source: LOG_SOURCE,
+    step: "template_rows",
+    count: templateRows.length,
+  }));
 
-  const fallbackTemplate = templates.find((row) => row.email_notifications);
+  const notificationIds = templateRows
+    .map((row) => row.notification_id)
+    .filter((id): id is string => typeof id === "string" && id.length > 0);
 
-  const chosenTemplate = activeTemplate?.email_notifications ??
-    (options.allowInactive ? fallbackTemplate?.email_notifications ?? null : null);
-
-  if (!chosenTemplate) {
-    if (options.allowInactive) {
-      return { event, notification: null, skipReason: "no_template" };
-    }
-    throw new HttpError(
-      404,
-      `Aucun template actif pour l'événement '${event.event_key}'`,
-    );
+  if (notificationIds.length === 0) {
+    return { event, notification: null, skipReason: "no_template" };
   }
 
-  return { event, notification: chosenTemplate ?? null };
+  const { data: notifications, error: notificationsError } = await supabase
+    .from<EmailNotification>("email_notifications")
+    .select(
+      "id, notification_key, title, subject, preview_text, body_html, sender_name, sender_email, force_send, is_active",
+    )
+    .in("id", notificationIds);
+
+  if (notificationsError) {
+    console.error(
+      "[send-email] resolveNotificationEvent notifications error",
+      notificationsError,
+    );
+    throw new HttpError(500, "Impossible de charger les templates de l'événement");
+  }
+
+  console.log(JSON.stringify({
+    source: LOG_SOURCE,
+    step: "notifications_loaded",
+    count: notifications?.length ?? 0,
+  }));
+
+  const notificationsById = new Map(notifications?.map((row) => [row.id, row]));
+
+  const activeTemplateLink = templateRows.find((row) => {
+    const notification = row.notification_id
+      ? notificationsById.get(row.notification_id)
+      : null;
+    return notification && notification.is_active !== false;
+  });
+
+  const fallbackTemplateLink = templateRows.find((row) => {
+    const notification = row.notification_id
+      ? notificationsById.get(row.notification_id)
+      : null;
+    return Boolean(notification);
+  });
+
+  const chosenNotification = (() => {
+    if (activeTemplateLink) {
+      const notification = notificationsById.get(activeTemplateLink.notification_id);
+      if (notification) return notification;
+    }
+    if (options.allowInactive && fallbackTemplateLink) {
+      const notification = notificationsById.get(fallbackTemplateLink.notification_id);
+      if (notification) return notification;
+    }
+    return null;
+  })();
+
+  if (!chosenNotification) {
+    const fallbackNotificationKey = EVENT_DEFAULT_NOTIFICATIONS[event.event_key];
+    if (fallbackNotificationKey) {
+      const fallbackNotification = await fetchNotificationByKey(
+        fallbackNotificationKey,
+      );
+      if (fallbackNotification) {
+        console.log(JSON.stringify({
+          source: LOG_SOURCE,
+          step: "fallback_notification",
+          event_key: event.event_key,
+          notification_key: fallbackNotification.notification_key,
+        }));
+        return { event, notification: fallbackNotification };
+      }
+    }
+    return { event, notification: null, skipReason: "no_template" };
+  }
+
+  console.log(JSON.stringify({
+    source: LOG_SOURCE,
+    step: "template_selected",
+    event_key: event.event_key,
+    notification_key: chosenNotification.notification_key,
+    is_active: chosenNotification.is_active,
+  }));
+
+  return { event, notification: chosenNotification ?? null };
 }
 
 function logNotificationAttempt(ctx: LogContext) {
@@ -477,6 +552,14 @@ async function prepareEmail(
     (normalizedNotificationKey
       ? await fetchNotificationByKey(normalizedNotificationKey)
       : null);
+
+  console.log(JSON.stringify({
+    source: LOG_SOURCE,
+    step: "notification_resolved",
+    from_event: Boolean(eventResolution?.notification),
+    notification_key: notificationRecord?.notification_key ?? null,
+    is_active: notificationRecord?.is_active ?? null,
+  }));
 
   if (!notificationRecord && normalizedEventKey) {
     throw new HttpError(
@@ -762,6 +845,21 @@ serve(async (req) => {
       headers: CORS_HEADERS,
     });
   }
+
+  console.log(JSON.stringify({
+    source: LOG_SOURCE,
+    step: "hook_received",
+    trigger: payload.trigger ?? emailData.email_action_type ?? null,
+    notification_event_key: payload.notification_event_key ??
+      emailData.notification_event_key ?? null,
+    notification_key: payload.notification_key ?? emailData.notification_key ?? null,
+    recipients_hint: [
+      emailData.email ?? null,
+      emailData.new_email ?? null,
+      payload.user?.email ?? null,
+      payload.user?.email_new ?? null,
+    ].filter(Boolean),
+  }));
 
   const context = deriveNotificationContext(payload);
 

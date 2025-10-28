@@ -1,164 +1,123 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "jsr:@supabase/supabase-js@2";
+import { requireAuth, handleHttpError, HttpError } from "../_shared/auth.ts";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Content-Type": "application/json"
+  "Content-Type": "application/json",
 };
-function json(body, init = {}) {
-  return new Response(JSON.stringify(body), {
-    headers: {
-      ...corsHeaders,
-      ...init.headers || {}
-    },
-    ...init
-  });
-}
-function extractAvatarPath(url) {
+
+type DeletePayload = {
+  userId?: string;
+};
+
+function extractAvatarPath(url?: string | null) {
   if (!url) return null;
   try {
-    const u = new URL(url);
-    const parts = u.pathname.split("/");
+    const parsed = new URL(url);
+    const parts = parsed.pathname.split("/");
     const idx = parts.indexOf("avatars");
     if (idx >= 0) {
       return decodeURIComponent(parts.slice(idx + 1).join("/"));
     }
   } catch (_) {
-  // not a full URL, might already be a path or filename
+    // ignore – url might already be a path
   }
-  // fallback: last segment
-  const segs = url.split("/");
-  return segs[segs.length - 1] || null;
+  const segments = url.split("/");
+  return segments[segments.length - 1] || null;
 }
-Deno.serve(async (req)=>{
+
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, {
-      headers: corsHeaders
-    });
+    return new Response(null, { headers: corsHeaders });
   }
+
   if (req.method !== "POST") {
-    return json({
-      error: "Method not allowed"
-    }, {
-      status: 405
+    return new Response(JSON.stringify({ error: "Method not allowed" }), {
+      status: 405,
+      headers: corsHeaders,
     });
   }
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!supabaseUrl || !supabaseAnonKey || !serviceKey) {
-    return json({
-      error: "Missing environment configuration"
-    }, {
-      status: 500
-    });
-  }
-  let payload;
+
   try {
-    payload = await req.json();
-  } catch (_) {
-    return json({
-      error: "Invalid JSON body"
-    }, {
-      status: 400
+    const auth = await requireAuth(req, {
+      requireProfile: true,
     });
-  }
-  const userId = payload?.userId;
-  if (!userId || typeof userId !== "string") {
-    return json({
-      error: "Missing or invalid 'userId'"
-    }, {
-      status: 400
-    });
-  }
-  const authHeader = req.headers.get("Authorization") ?? "";
-  const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-    global: {
-      headers: {
-        Authorization: authHeader
+
+    const payload = await req.json().catch(() => ({} as DeletePayload));
+    const targetUserId = typeof payload?.userId === "string" ? payload.userId.trim() : "";
+
+    if (!targetUserId) {
+      throw new HttpError(400, "Missing or invalid 'userId'");
+    }
+
+    const isSelfDeletion = auth.user.id === targetUserId;
+    const isPrivileged = auth.role === "owner" || auth.role === "admin";
+
+    if (!isSelfDeletion && !isPrivileged) {
+      throw new HttpError(403, "Forbidden");
+    }
+
+    const { data: targetProfile, error: targetError } = await auth.anonClient
+      .from("profiles")
+      .select("id, avatar_url, user_types(type_name)")
+      .eq("id", targetUserId)
+      .maybeSingle();
+
+    if (targetError && targetError.code !== "PGRST116") {
+      console.error("[admin-delete-user] target profile lookup failed", targetError);
+      throw new HttpError(500, "Failed to fetch target profile");
+    }
+
+    if (!targetProfile) {
+      throw new HttpError(404, "User not found");
+    }
+
+    const targetType = targetProfile.user_types?.type_name ?? "guest";
+    if (!isSelfDeletion && targetType === "owner" && auth.role !== "owner") {
+      throw new HttpError(403, "Only an owner can delete an owner");
+    }
+
+    const avatarPath = extractAvatarPath(targetProfile.avatar_url ?? null);
+    if (avatarPath) {
+      const { error: storageError } = await auth.serviceClient
+        .storage
+        .from("avatars")
+        .remove([avatarPath]);
+      if (storageError) {
+        console.warn("[admin-delete-user] avatar removal failed", storageError);
       }
-    },
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-      detectSessionInUrl: false
     }
-  });
-  const serviceClient = createClient(supabaseUrl, serviceKey, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-      detectSessionInUrl: false
+
+    const { error: profileDeleteError } = await auth.serviceClient
+      .from("profiles")
+      .delete()
+      .eq("id", targetUserId);
+    if (profileDeleteError) {
+      console.warn("[admin-delete-user] profile delete failed", profileDeleteError);
     }
-  });
-  // Identify caller
-  const { data: userRes, error: userErr } = await userClient.auth.getUser();
-  if (userErr || !userRes?.user) {
-    return json({
-      error: "Unauthorized"
-    }, {
-      status: 401
-    });
-  }
-  const callerId = userRes.user.id;
-  // Load caller role from profiles
-  let callerRole = null;
-  try {
-    const { data: callerProfile } = await serviceClient.from("profiles").select("id, user_types(type_name)").eq("id", callerId).maybeSingle();
-    callerRole = callerProfile?.user_types?.type_name ?? null;
-  } catch (_) {
-  // ignore, role may remain null
-  }
-  const isAdmin = callerRole === "owner" || callerRole === "admin";
-  const isSelf = callerId === userId;
-  if (!isAdmin && !isSelf) {
-    return json({
-      error: "Forbidden"
-    }, {
-      status: 403
-    });
-  }
-  // Fetch target profile for cleanup and to prevent non-owner removing owner
-  let targetAvatarPath = null;
-  let targetRole = null;
-  try {
-    const { data: targetProfile } = await serviceClient.from("profiles").select("id, avatar_url, user_types(type_name)").eq("id", userId).maybeSingle();
-    targetAvatarPath = extractAvatarPath(targetProfile?.avatar_url ?? null);
-    targetRole = targetProfile?.user_types?.type_name ?? null;
-  } catch (_) {}
-  if (targetRole === "owner" && callerRole !== "owner") {
-    return json({
-      error: "Only an owner can delete an owner"
-    }, {
-      status: 403
-    });
-  }
-  // Attempt cleanup best-effort
-  try {
-    if (targetAvatarPath) {
-      await serviceClient.storage.from("avatars").remove([
-        targetAvatarPath
-      ]);
+
+    const { error: authDeleteError } = await auth.serviceClient.auth.admin.deleteUser(targetUserId);
+    if (authDeleteError) {
+      console.error("[admin-delete-user] auth delete failed", authDeleteError);
+      throw new HttpError(500, authDeleteError.message || "Failed to delete auth user");
     }
-  } catch (_) {
-  // ignore storage errors
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        userId: targetUserId,
+        deletedBy: auth.user.id,
+        targetType,
+        isSelfDeletion,
+      }),
+      {
+        status: 200,
+        headers: corsHeaders,
+      },
+    );
+  } catch (error) {
+    return handleHttpError(error, corsHeaders);
   }
-  try {
-    await serviceClient.from("profiles").delete().eq("id", userId);
-  } catch (_) {
-  // ignore profile deletion errors; admin delete will still proceed
-  }
-  // Delete auth user (removes identities as well)
-  const { error: delErr } = await serviceClient.auth.admin.deleteUser(userId);
-  if (delErr) {
-    return json({
-      error: delErr.message || "Failed to delete auth user"
-    }, {
-      status: 500
-    });
-  }
-  return json({
-    ok: true
-  });
 });

@@ -51,22 +51,26 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const auth = await requireAuth(req, { allowedRoles: ["owner", "admin"] });
+    const auth = await requireAuth(req, {
+      allowedRoles: ["owner", "admin", "client", "vip", "prof"],
+    });
     const body = await req.json().catch(() => {
       throw new HttpError(400, "Invalid JSON payload");
     });
     const payload = parseBody(body);
 
-    let query = auth.serviceClient
+    const queryClient = auth.anonClient;
+    let query = queryClient
       .from("dashboard_layouts")
       .select("layout_json");
 
     if (payload.owner_type === "default") {
       query = query.eq("owner_type", "default").is("owner_id", null);
     } else {
+      const targetOwnerId = payload.owner_id ?? auth.user.id;
       query = query
         .eq("owner_type", payload.owner_type)
-        .eq("owner_id", payload.owner_id);
+        .eq("owner_id", targetOwnerId);
     }
 
     const { data, error } = await query.single();
