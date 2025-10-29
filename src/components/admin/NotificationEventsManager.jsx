@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Plus, Edit, Trash2, Link as LinkIcon, Loader2, RefreshCw, Lock } from 'lucide-react';
+import { Plus, Edit, Trash2, Link as LinkIcon, Loader2, RefreshCw, Lock, Calendar } from 'lucide-react';
 
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
@@ -37,7 +37,7 @@ const NotificationEventsManager = ({ notifications }) => {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pendingById, setPendingById] = useState({});
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm] = useState('');
   const [eventFormOpen, setEventFormOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
   const [assignmentTarget, setAssignmentTarget] = useState(null);
@@ -474,7 +474,10 @@ const NotificationEventsManager = ({ notifications }) => {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="text-lg font-semibold">Registre d'evenements</h3>
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <Calendar className="h-5 w-5 text-primary" />
+            Registre d'evenements
+          </h3>
           <p className="text-sm text-muted-foreground">
             Mappe les cles d'evenements declencheurs avec les templates e-mail existants.
           </p>
@@ -491,26 +494,14 @@ const NotificationEventsManager = ({ notifications }) => {
         </div>
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <Input
-          className="sm:max-w-xs"
-          placeholder="Rechercher une cle ou un libelle..."
-          value={searchTerm}
-          onChange={(event) => setSearchTerm(event.target.value)}
-        />
-        <div className="text-sm text-muted-foreground">
-          {events.length} evenement{events.length !== 1 ? 's' : ''} reference{events.length !== 1 ? 's' : ''}
-        </div>
-      </div>
-
       <div className="rounded-md border bg-card/50">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Evenement</TableHead>
-              <TableHead className="hidden md:table-cell">Cle</TableHead>
-              <TableHead>Notifications liees</TableHead>
-              <TableHead className="hidden md:table-cell">Statut</TableHead>
+              <TableHead>Nom de l'évenement</TableHead>
+              <TableHead className="hidden md:table-cell">Clé Event</TableHead>
+              <TableHead>Lien notification</TableHead>
+              <TableHead className="hidden md:table-cell text-center">Statut</TableHead>
               <TableHead className="w-32 text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -538,9 +529,6 @@ const NotificationEventsManager = ({ notifications }) => {
                     <TableCell>
                       <div className="font-medium">{event.label}</div>
                       <div className="text-xs text-muted-foreground md:hidden">Cle : {event.event_key}</div>
-                      {event.description && (
-                        <p className="mt-1 text-xs text-muted-foreground">{event.description}</p>
-                      )}
                     </TableCell>
                     <TableCell className="hidden md:table-cell">
                       <code className="rounded bg-muted px-2 py-1 text-xs">{event.event_key}</code>
@@ -565,16 +553,16 @@ const NotificationEventsManager = ({ notifications }) => {
                       ) : (
                         <span className="text-xs text-muted-foreground">Aucune notification associee</span>
                       )}
-                      {primaryTemplate && (
-                        <div className="mt-1 text-xs text-muted-foreground">
-                          Principale : {primaryTemplate.notification?.title || primaryTemplate.notification_id}
-                        </div>
-                      )}
                     </TableCell>
                     <TableCell className="hidden md:table-cell">
-                      <Badge variant={event.is_active ? 'default' : 'secondary'}>
-                        {event.is_active ? 'Actif' : 'Inactif'}
-                      </Badge>
+                      <div className="flex justify-center">
+                        <Switch
+                          checked={event.is_active}
+                          onCheckedChange={(value) => updateEventField(event, { is_active: value })}
+                          disabled={pendingById[event.id]}
+                          aria-label="Activer ou desactiver l'evenement"
+                        />
+                      </div>
                     </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>

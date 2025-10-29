@@ -383,7 +383,7 @@ const AdminDashboardPage = () => {
         <meta name="description" content="Gérez les utilisateurs, les formations et les tickets depuis le tableau de bord administrateur." />
       </Helmet>
       <div className="min-h-screen bg-background text-foreground">
-        <main className="w-full px-4 pt-24 sm:pt-28">
+        <main className="w-full px-4 pt-12 sm:pt-16">
           <div className="space-y-8">
             <header>
               <h1 className="text-xl font-bold tracking-tight">

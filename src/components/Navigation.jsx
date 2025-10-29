@@ -74,7 +74,7 @@ const Navigation = () => {
           {isAdminDashboard ? (
             <Button variant="ghost" size="sm" onClick={() => navigate('/')}>
               <Home className="h-4 w-4 mr-2" />
-              Retour à la Home Page
+              Retour à l'accueil
             </Button>
           ) : (
             <>

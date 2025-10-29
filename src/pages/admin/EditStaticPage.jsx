@@ -168,8 +168,8 @@ import React, { useState, useEffect, useCallback } from 'react';
                 </div>
               </header>
 
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 space-y-4">
+              <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,6fr)_minmax(0,1fr)] gap-6">
+                <div className="space-y-4">
                   <Card className="border border-border/60 shadow-none">
                     <CardContent className="p-4 space-y-2">
                       <Label htmlFor="page_title">Titre de la page</Label>
@@ -219,7 +219,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                   </Card>
                 </div>
 
-                <div className="lg:col-span-1 space-y-4">
+                <div className="space-y-4">
                   <Card>
                     <CardHeader>
                       <CardTitle>Publication</CardTitle>

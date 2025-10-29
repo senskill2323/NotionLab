@@ -21,22 +21,11 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/components/ui/use-toast';
 import TiptapEditor from '@/components/admin/TiptapEditor';
+import { sanitizeVariantKey } from '@/components/admin/extensions/enhancedLink';
+import { EMAIL_TEMPLATE_VARIABLES } from '@/components/admin/constants/emailTemplateVariables';
 import NotificationEventsManager from '@/components/admin/NotificationEventsManager';
 import { supabase } from '@/lib/customSupabaseClient';
-import {
-  Bell,
-  Copy,
-  Edit,
-  Eye,
-  Loader2,
-  Mail,
-  MoreHorizontal,
-  Plus,
-  Search,
-  Send,
-  Trash2,
-  Zap,
-} from 'lucide-react';
+import { Bell, Copy, Edit, Eye, Loader2, Mail, MoreHorizontal, Plus, RefreshCw, Send, Trash2 } from 'lucide-react';
 
 const USER_AVAILABLE_FIELD = 'user-available';
 
@@ -53,7 +42,45 @@ const DEFAULT_FORM_VALUES = {
   [USER_AVAILABLE_FIELD]: false,
 };
 
+const TEMPLATE_VARIABLE_SET = new Set(EMAIL_TEMPLATE_VARIABLES.map((item) => item.value));
+
+const auditBodyHtml = (html) => {
+  if (!html) return [];
+
+  const warnings = [];
+
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    const anchors = Array.from(doc.querySelectorAll('a'));
+    anchors.forEach((anchor) => {
+      const variant = sanitizeVariantKey(anchor.getAttribute('data-cta-variant'));
+      const hasVariant = Boolean(variant);
+      const classAttr = anchor.getAttribute('class') || '';
+      const looksLikeButton = hasVariant || classAttr.includes('nl-email-btn');
+      if (!looksLikeButton) {
+        warnings.push("Un lien ne presente pas le style bouton.");
+      }
+    });
+  } catch (_error) {
+    // ignore parsing issues and continue with regex checks
+  }
+
+  const variables = Array.from(html.matchAll(/\{\{\s*([\w.-]+)\s*\}\}/g)).map((match) => match[1]);
+  const unknownVariables = Array.from(
+    new Set(variables.filter((variable) => !TEMPLATE_VARIABLE_SET.has(variable))),
+  );
+  if (unknownVariables.length) {
+    warnings.push(`Variables inconnues detectees : ${unknownVariables.join(', ')}`);
+  }
+
+  return warnings;
+};
+
 const TEST_EMAIL_RECIPIENT = 'yann@notionlab.ch';
+
+const INPUT_STYLES =
+  'bg-white text-slate-900 border border-slate-200 focus-visible:ring-primary/40 focus-visible:ring-offset-0 placeholder:text-slate-500';
 
 const slugify = (value) =>
   value
@@ -111,7 +138,7 @@ const EmailPreviewDialog = ({ notification, onClose }) => {
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} className="border-slate-300 bg-white text-slate-900 hover:bg-slate-100">
             Fermer
           </Button>
         </DialogFooter>
@@ -124,7 +151,7 @@ const EmailNotificationsPanel = () => {
   const { toast } = useToast();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm] = useState('');
   const [formOpen, setFormOpen] = useState(false);
   const [editingNotification, setEditingNotification] = useState(null);
   const [previewingNotification, setPreviewingNotification] = useState(null);
@@ -157,7 +184,16 @@ const EmailNotificationsPanel = () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('email_notifications')
-      .select('*')
+      .select(`
+        *,
+        notification_event_templates (
+          is_primary,
+          priority,
+          notification_events (
+            event_key
+          )
+        )
+      `)
       .order('updated_at', { ascending: false });
 
     if (error) {
@@ -167,7 +203,33 @@ const EmailNotificationsPanel = () => {
         variant: 'destructive',
       });
     } else {
-      setNotifications(data ?? []);
+      const normalized = (data ?? []).map((item) => {
+        const templates = Array.isArray(item.notification_event_templates)
+          ? item.notification_event_templates
+          : [];
+        const candidates = templates
+          .map((entry) => ({
+            isPrimary: Boolean(entry?.is_primary),
+            priority: entry?.priority ?? Number.MAX_SAFE_INTEGER,
+            eventKey: entry?.notification_events?.event_key ?? null,
+          }))
+          .filter((entry) => Boolean(entry.eventKey))
+          .sort((a, b) => {
+            if (a.isPrimary === b.isPrimary) {
+              return a.priority - b.priority;
+            }
+            return a.isPrimary ? -1 : 1;
+          });
+
+        const linkedEventKey = candidates.length > 0 ? candidates[0].eventKey : null;
+        // eslint-disable-next-line no-unused-vars
+        const { notification_event_templates: _, ...rest } = item;
+        return {
+          ...rest,
+          linked_event_key: linkedEventKey,
+        };
+      });
+      setNotifications(normalized);
     }
     setLoading(false);
   }, [toast]);
@@ -284,7 +346,7 @@ const EmailNotificationsPanel = () => {
         description: 'La notification est prete a etre utilisee.',
         className: 'bg-green-500 text-white',
       });
-      setNotifications((prev) => [data, ...prev]);
+      setNotifications((prev) => [{ ...data, linked_event_key: null }, ...prev]);
     }
   };
 
@@ -294,6 +356,13 @@ const EmailNotificationsPanel = () => {
         ...formValues,
         notification_key: slugify(formValues.notification_key || formValues.title || uuidv4()),
       };
+      const warnings = auditBodyHtml(nextValues.body_html);
+      if (warnings.length) {
+        toast({
+          title: 'Verification du contenu',
+          description: warnings.join(' | '),
+        });
+      }
       await upsertNotification(nextValues);
       handleCloseForm();
     } catch (error) {
@@ -380,8 +449,9 @@ const EmailNotificationsPanel = () => {
 const handleDuplicate = async (notification) => {
     const suffix = uuidv4().slice(0, 6);
     const duplicateKey = slugify(`${notification.notification_key || 'notification'}-${suffix}`);
+    const { linked_event_key: _linkedEventKey, ...rest } = notification;
     const payload = {
-      ...notification,
+      ...rest,
       id: undefined,
       notification_key: duplicateKey,
       title: `${notification.title || 'Notification'} (copie)`,
@@ -410,7 +480,7 @@ const handleDuplicate = async (notification) => {
       description: `"${notification.title}" a ete dupliquee en brouillon.`,
       className: 'bg-green-500 text-white',
     });
-    setNotifications((prev) => [data, ...prev]);
+    setNotifications((prev) => [{ ...data, linked_event_key: null }, ...prev]);
   };
 
   const handleSendTest = async (notification) => {
@@ -473,32 +543,63 @@ const handleDuplicate = async (notification) => {
     setDeleteTarget(null);
   };
 
+  const renderLinkedEventsSummary = () => {
+    if (linkedEventsLoading) {
+      return (
+        <span className="flex items-center gap-2">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Chargement des evenements...
+        </span>
+      );
+    }
+
+    if (linkedEvents.length > 0) {
+      return linkedEvents.map((event) => (
+        <Badge key={event.eventKey} variant={event.isPrimary ? 'default' : 'outline'}>
+          <span>{event.label}</span>
+          {event.isPrimary && <span className="ml-1 text-[10px] uppercase">principal</span>}
+          <span className="ml-2 text-[10px] uppercase text-muted-foreground">{event.eventKey}</span>
+        </Badge>
+      ));
+    }
+
+    if (editingNotification) {
+      return <span className="text-xs text-slate-500">Aucun evenement associe</span>;
+    }
+
+    return <span className="text-xs text-slate-500">Pas encore d&apos;evenement associe</span>;
+  };
+
   const renderForm = () => (
     <Dialog open={formOpen} onOpenChange={(open) => (!open ? handleCloseForm() : null)}>
-      <DialogContent className="sm:max-w-3xl">
-        <DialogHeader>
-          <DialogTitle>{editingNotification ? 'Modifier la notification' : 'Nouvelle notification e-mail'}</DialogTitle>
-          <DialogDescription>
-            Configurez l&apos;expediteur, le contenu et les statuts pour cette notification transactionnelle.
-          </DialogDescription>
+      <DialogContent className="sm:max-w-5xl bg-white text-slate-900">
+        <DialogHeader className="space-y-3">
+          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <DialogTitle>{editingNotification ? 'Modifier la notification' : 'Nouvelle notification e-mail'}</DialogTitle>
+            <div className="flex max-w-full flex-wrap items-center gap-2 pr-8 text-xs text-slate-600 md:justify-end">
+              {renderLinkedEventsSummary()}
+            </div>
+          </div>
         </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div className="space-y-1.5">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-3 text-slate-900">
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+            <div className="space-y-1">
               <Label htmlFor="title">Titre interne</Label>
               <Input
                 id="title"
                 placeholder="Ex: Confirmation d'inscription"
+                className={INPUT_STYLES}
                 {...register('title', { required: 'Le titre est obligatoire.' })}
               />
               {errors.title && <p className="text-xs text-destructive">{errors.title.message}</p>}
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               <Label htmlFor="notification_key">Identifiant du template</Label>
-              <div className="flex gap-2">
+              <div className="flex gap-1.5">
                 <Input
                   id="notification_key"
                   placeholder="ex: signup-confirmation"
+                  className={`${INPUT_STYLES} flex-1`}
                   {...register('notification_key', {
                     required: "L'identifiant est obligatoire.",
                     pattern: {
@@ -510,6 +611,7 @@ const handleDuplicate = async (notification) => {
                 <Button
                   type="button"
                   variant="outline"
+                  className="border-slate-300 bg-white text-slate-900 hover:bg-slate-100"
                   onClick={() => {
                     const title = watch('title');
                     const nextKey = slugify(title || `notification-${uuidv4().slice(0, 6)}`);
@@ -521,46 +623,23 @@ const handleDuplicate = async (notification) => {
               </div>
               {errors.notification_key && <p className="text-xs text-destructive">{errors.notification_key.message}</p>}
             </div>
-            <div className="space-y-1.5 md:col-span-2">
-              <Label>Cles d'evenement associees</Label>
-              {linkedEventsLoading ? (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Chargement des evenements...
-                </div>
-              ) : linkedEvents.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {linkedEvents.map((event) => (
-                    <Badge key={event.eventKey} variant={event.isPrimary ? 'default' : 'outline'}>
-                      <span>{event.label}</span>
-                      {event.isPrimary && <span className="ml-1 text-[10px] uppercase">principal</span>}
-                      <span className="ml-2 text-[10px] uppercase text-muted-foreground">{event.eventKey}</span>
-                    </Badge>
-                  ))}
-                </div>
-              ) : editingNotification ? (
-                <p className="text-xs text-muted-foreground">
-                  Aucun evenement ne reference actuellement ce template.
-                </p>
-              ) : (
-                <p className="text-xs text-muted-foreground">Cette notification n'est liee a aucun evenement pour le moment.</p>
-              )}
-            </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               <Label htmlFor="sender_name">Nom de l&apos;expediteur</Label>
               <Input
                 id="sender_name"
                 placeholder="Equipe NotionLab"
+                className={INPUT_STYLES}
                 {...register('sender_name', { required: "Le nom de l'expediteur est obligatoire." })}
               />
               {errors.sender_name && <p className="text-xs text-destructive">{errors.sender_name.message}</p>}
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               <Label htmlFor="sender_email">Email de l&apos;expediteur</Label>
               <Input
                 id="sender_email"
                 type="email"
                 placeholder="notifications@notionlab.co"
+                className={INPUT_STYLES}
                 {...register('sender_email', {
                   required: "L'email est obligatoire.",
                   pattern: {
@@ -571,106 +650,99 @@ const handleDuplicate = async (notification) => {
               />
               {errors.sender_email && <p className="text-xs text-destructive">{errors.sender_email.message}</p>}
             </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 rounded border border-slate-200 bg-slate-100/70 px-3 py-2">
+            <Controller
+              name="is_active"
+              control={control}
+              render={({ field: { value, onChange } }) => (
+                <div className="flex items-center gap-2">
+                  <Switch id="toggle_is_active" checked={value} onCheckedChange={onChange} />
+                  <Label htmlFor="toggle_is_active" className="text-sm text-slate-700">
+                    Notification active
+                  </Label>
+                </div>
+              )}
+            />
+            <Controller
+              name="force_send"
+              control={control}
+              render={({ field: { value, onChange } }) => (
+                <div className="flex items-center gap-2">
+                  <Switch id="toggle_force_send" checked={value} onCheckedChange={onChange} />
+                  <Label htmlFor="toggle_force_send" className="text-sm text-slate-700">
+                    Forcer l&apos;envoi
+                  </Label>
+                </div>
+              )}
+            />
+            <Controller
+              name="default_enabled"
+              control={control}
+              render={({ field: { value, onChange } }) => (
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="toggle_default_enabled"
+                    checked={value}
+                    onCheckedChange={onChange}
+                    disabled={forceSendValue}
+                  />
+                  <Label
+                    htmlFor="toggle_default_enabled"
+                    className={`text-sm ${forceSendValue ? 'text-slate-400' : 'text-slate-700'}`}
+                  >
+                    Activee par defaut
+                  </Label>
+                </div>
+              )}
+            />
+            <Controller
+              name={USER_AVAILABLE_FIELD}
+              control={control}
+              render={({ field: { value, onChange } }) => (
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="toggle_user_available"
+                    checked={value}
+                    onCheckedChange={onChange}
+                    disabled={forceSendValue}
+                  />
+                  <Label
+                    htmlFor="toggle_user_available"
+                    className={`text-sm ${forceSendValue ? 'text-slate-400' : 'text-slate-700'}`}
+                  >
+                    Preference utilisateur
+                  </Label>
+                </div>
+              )}
+            />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="space-y-1.5 md:col-span-2">
               <Label htmlFor="subject">Sujet</Label>
               <Input
                 id="subject"
                 placeholder="Ex: Bienvenue sur NotionLab"
+                className={INPUT_STYLES}
                 {...register('subject', { required: 'Le sujet est obligatoire.' })}
               />
               {errors.subject && <p className="text-xs text-destructive">{errors.subject.message}</p>}
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <Label>Contenu de l&apos;email</Label>
-            <Controller
-              name="body_html"
-              control={control}
-              rules={{ required: 'Le corps du message est obligatoire.' }}
-              render={({ field: { value, onChange } }) => (
-                <TiptapEditor content={value} onChange={onChange} placeholder="Redigez le contenu HTML de l'email..." />
-              )}
-            />
-            {errors.body_html && <p className="text-xs text-destructive">{errors.body_html.message}</p>}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="flex items-center justify-between rounded border p-3">
-              <div>
-                <p className="font-medium">Notification active</p>
-                <p className="text-xs text-muted-foreground">Controle la diffusion generale.</p>
-              </div>
-              <Controller
-                name="is_active"
-                control={control}
-                render={({ field: { value, onChange } }) => (
-                  <Switch checked={value} onCheckedChange={onChange} aria-label="Activer la notification" />
-                )}
-              />
-            </div>
-            <div className="flex items-center justify-between rounded border p-3">
-              <div>
-                <p className="font-medium flex items-center gap-2">
-                  Forcer l&apos;envoi
-                  <Zap className="h-4 w-4 text-amber-500" />
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Si active, tous les utilisateurs recoivent l&apos;email.
-                </p>
-              </div>
-              <Controller
-                name="force_send"
-                control={control}
-                render={({ field: { value, onChange } }) => (
-                  <Switch checked={value} onCheckedChange={onChange} aria-label="Forcer l'envoi" />
-                )}
-              />
-            </div>
-            <div className="flex items-center justify-between rounded border p-3">
-              <div>
-                <p className="font-medium">Activee par defaut</p>
-                <p className="text-xs text-muted-foreground">
-                  Preference initiale cote client (hors notifications forcees).
-                </p>
-              </div>
-              <Controller
-                name="default_enabled"
-                control={control}
-                render={({ field: { value, onChange } }) => (
-                  <Switch
-                    checked={value}
-                    onCheckedChange={onChange}
-                    aria-label="Activer par defaut"
-                    disabled={forceSendValue}
-                  />
-                )}
-              />
-            </div>
-            <div className="flex items-center justify-between rounded border p-3">
-              <div>
-                <p className="font-medium">Preference utilisateur</p>
-                <p className="text-xs text-muted-foreground">
-                  Permettre aux clients de desactiver cette notification.
-                </p>
-              </div>
-              <Controller
-                name={USER_AVAILABLE_FIELD}
-                control={control}
-                render={({ field: { value, onChange } }) => (
-                  <Switch
-                    checked={value}
-                    onCheckedChange={onChange}
-                    aria-label="Permettre la gestion cote client"
-                    disabled={forceSendValue}
-                  />
-                )}
-              />
-            </div>
-          </div>
+          <Controller
+            name="body_html"
+            control={control}
+            rules={{ required: 'Le corps du message est obligatoire.' }}
+            render={({ field: { value, onChange } }) => (
+              <TiptapEditor content={value} onChange={onChange} placeholder="Redigez le contenu HTML de l'email..." />
+            )}
+          />
+          {errors.body_html && <p className="text-xs text-destructive">{errors.body_html.message}</p>}
 
           <DialogFooter className="gap-2">
-            <Button type="button" variant="outline" onClick={handleCloseForm}>
+            <Button type="button" variant="outline" onClick={handleCloseForm} className="border-slate-300 bg-white text-slate-900 hover:bg-slate-100">
               Annuler
             </Button>
             <Button type="submit" disabled={isSubmitting}>
@@ -695,49 +767,40 @@ const handleDuplicate = async (notification) => {
             Gerez les modeles transactionnels, l&apos;expediteur et les statuts d&apos;envoi.
           </p>
         </div>
-        <Button onClick={handleOpenCreate} className="self-start sm:self-auto notion-gradient text-white">
-          <Plus className="mr-2 h-4 w-4" />
-          Nouvelle notification
-        </Button>
-      </div>
-
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div className="relative w-full md:max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Rechercher par titre, sujet ou cle..."
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-            className="pl-9"
-          />
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" onClick={fetchNotifications} disabled={loading}>
+            <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            Rafraichir
+          </Button>
+          <Button onClick={handleOpenCreate} className="self-start sm:self-auto notion-gradient text-white">
+            <Plus className="mr-2 h-4 w-4" />
+            Nouvelle notification
+          </Button>
         </div>
-        <Button variant="outline" onClick={fetchNotifications} disabled={loading}>
-          <Loader2 className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          Rafraichir
-        </Button>
       </div>
 
       <div className="border rounded-lg overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[22%]">Notification</TableHead>
-              <TableHead className="w-[18%]">Expediteur</TableHead>
-              <TableHead className="w-[32%]">Sujet</TableHead>
-              <TableHead className="w-[14%]">Active</TableHead>
+              <TableHead className="w-[26%]">Nom de la notification</TableHead>
+              <TableHead className="w-[18%]">ID</TableHead>
+              <TableHead className="w-[18%]">Clé Event</TableHead>
+              <TableHead className="w-[26%]">Sujet notification</TableHead>
+              <TableHead className="w-[12%]">Status</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center">
+                <TableCell colSpan={6} className="h-24 text-center">
                   <Loader2 className="mx-auto h-6 w-6 animate-spin text-primary" />
                 </TableCell>
               </TableRow>
             ) : filteredNotifications.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                   Aucune notification trouvee. Creez-en une nouvelle pour demarrer.
                 </TableCell>
               </TableRow>
@@ -747,22 +810,23 @@ const handleDuplicate = async (notification) => {
                 return (
                   <TableRow key={notification.id}>
                     <TableCell>
-                      <div className="font-medium">{notification.title}</div>
-                      <p className="text-xs text-muted-foreground">{notification.notification_key}</p>
+                      <div className="font-medium text-white">{notification.title}</div>
                     </TableCell>
                     <TableCell>
-                      <div className="text-sm font-medium">{notification.sender_name}</div>
-                      <p className="text-xs text-muted-foreground">{notification.sender_email}</p>
+                      <span className="font-mono text-xs text-slate-200">{notification.notification_key}</span>
+                    </TableCell>
+                    <TableCell>
+                      {notification.linked_event_key ? (
+                        <span className="inline-flex items-center rounded-md border border-slate-600 bg-slate-800 px-2 py-1 font-mono text-xs text-white">
+                          {notification.linked_event_key}
+                        </span>
+                      ) : null}
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">{notification.subject}</div>
-                      {notification.preview_text && (
-                        <p className="text-xs text-muted-foreground truncate">{notification.preview_text}</p>
-                      )}
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground">Active</span>
+                      <div className="flex items-center">
                         <Switch
                           checked={notification.is_active}
                           onCheckedChange={() => toggleField(notification, 'is_active')}

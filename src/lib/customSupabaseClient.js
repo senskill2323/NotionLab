@@ -180,3 +180,64 @@ try {
 } catch (_) {
   // ignore if import.meta not available
 }
+
+const EMAIL_BUCKET = 'image';
+const EMAIL_PATH_PREFIX = 'emails';
+const EMAIL_MAX_SIZE_BYTES = 5 * 1024 * 1024;
+const EMAIL_ALLOWED_TYPES = new Set([
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+  'image/gif',
+  'image/svg+xml',
+]);
+
+const buildFilename = (file) => {
+  const uuid = typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const extension = (() => {
+    const parts = file.name?.split('.') ?? [];
+    const ext = parts.length > 1 ? parts.pop() : '';
+    return ext ? `.${ext.toLowerCase()}` : '';
+  })();
+  return `${EMAIL_PATH_PREFIX}/${uuid}${extension}`;
+};
+
+export const uploadEmailImage = async (file) => {
+  if (!(file instanceof File)) {
+    throw new Error("Aucun fichier n'a ete fourni.");
+  }
+
+  if (!EMAIL_ALLOWED_TYPES.has(file.type)) {
+    throw new Error("Format d'image non supporte.");
+  }
+
+  if (file.size > EMAIL_MAX_SIZE_BYTES) {
+    throw new Error('Le fichier depasse 5 Mo.');
+  }
+
+  const objectPath = buildFilename(file);
+  const { error: uploadError } = await supabase.storage
+    .from(EMAIL_BUCKET)
+    .upload(objectPath, file, {
+      cacheControl: '3600',
+      upsert: false,
+      contentType: file.type,
+    });
+
+  if (uploadError) {
+    throw uploadError;
+  }
+
+  const { data } = supabase.storage.from(EMAIL_BUCKET).getPublicUrl(objectPath);
+  const publicUrl = data?.publicUrl;
+  if (!publicUrl) {
+    throw new Error("Impossible de recuperer l'URL publique de l'image.");
+  }
+
+  return {
+    path: objectPath,
+    publicUrl,
+  };
+};

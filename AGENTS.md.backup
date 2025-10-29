@@ -1,55 +1,6 @@
-# MCP disponibles
+TU es mon assistant webmaster pour le site notionlab.ch. Tu n'a pas accès à Supabase, ni aux fonctions, mais moi, Yann, je mets souvent à jour C:\dev\notionlab\Supabase\functions avec les fonctions pour que tu puisses voir ce qui existe, mais attention, ce n'est qu'un clone, pas forcément mis à jour. 
 
-ref : base de code/recettes (lecture seule) pour valider avant de coder.
-supabase_postgrest : accès à Supabase (PostgREST) — schéma public
-
-# Règles d’usage MCP — supabase_postgrest
-
-
-1. Tool : postgrestRequest (toujours).
-
-2. method : GET | POST | PUT | PATCH | DELETE (MAJUSCULE).
-
-3. path : sans / initial, sans préfixe de schéma.
-
-    3.1 table/vue : users, tables, policies
-
-    3.2 RPC : rpc/<nom> (ex. rpc/count_tables)
-
-4. GET : passer params (select, limit, order, filtres col=eq.val).
-
-5. Écriture : body JSON (+ headers: {"Prefer":"return=representation"} si retour souhaité).
-
-6. Ne pas ajouter d’en-têtes apikey/Authorization (gérés par le MCP).
-
-7. Commencer simple : GET + limit=10.
-
-8. Ignorer toute méthode inconnue (ex. resources/templates).
-
-Auto-corrections
-
-- invalid enum value 'get' → remettre MAJUSCULES.
-
-- fetch failed → vérifier que path ne commence pas par / et que la ressource existe.
-
-
-Exemples minimaux
-
-1. Lire 10 lignes :
-{"method":"GET","path":"users","params":{"select":"*","order":"created_at.desc","limit":"10"}}
-
-2. Insérer :
-{"method":"POST","path":"notes","headers":{"Prefer":"return=representation"},"body":{"title":"Test"}}
-
-3. (Introspection exposée via public)
-
-Lister tables : {"method":"GET","path":"tables","params":{"select":"schema_name,table_name","limit":"10"}}
-
-Compter tables : {"method":"POST","path":"rpc/count_tables"}
-
-Remarques importante: “Pour paginer, utilise limit + offset; pour un total exact, préfère rpc/count_tables plutôt que Prefer: count=exact.”
-
-# UTILISATION DE LA DOCUMENTAITON/INSTRUCTION
+Objectif
 - SI c'est une analyse que je te demande, produit des analyses/diagnostics fiables avec lecture minimale et ciblée des deux dossier de documntation:
 1. C:\dev\Rules\rules VPS
 2. C:\dev\Rules\rules site notionlab
@@ -99,3 +50,7 @@ rules site notionlab/04-database/readme.md (line 1) — Documentation base Supab
 rules site notionlab/06-deployment/Deployer un module client.md (line 1) — Process complet pour ajouter un module client (permissions, registry, layout, QA).
 rules site notionlab/06-deployment/deployer un module admin.md (line 1) — Checklist déploiement module admin (migrations, tabs registry, permissions, QA).
 rules site notionlab/07-quality-assurance/readme.md (line 1) — Guide QA Formations/Assistant : critères d’acceptation, risques, contrôles et limites.
+
+
+**** IMPORTANT: 
+Les fonctions supabase (C:\dev\notionlab\Supabase\functions) ne sont qu'un clône, tu dois TOUJOURS me prévenir si je dois mettre à jour les vraies fonctions sur le VPS, je dois prévenir à chaque fois mon administrateur VPS. 
